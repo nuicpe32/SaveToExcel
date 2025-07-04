@@ -1,0 +1,46 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# VS Code / Cursor settings
+.vscode/
+.settings/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+
+# Excel and other office documents
+*.xlsx
+*.xls
+*.ods
+*.csv
+
+# Compiled binary
+*.exe
+*.dll
+*.so
+
+# Build tools (pyinstaller, cx_Freeze, etc.)
+build/
+dist/
+*.spec
+
+# Database
+*.db
+*.sqlite3
+
+# Hidden backup from editors
+*~
