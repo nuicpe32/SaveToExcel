@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "Bash(pip install:*)",
+      "Bash(apt:*)",
+      "Bash(apt install:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(sudo apt:*)",
+      "Bash(sudo apt install:*)",
+      "Bash(pip3 install:*)"
+    ],
+    "deny": []
+  }
+}
