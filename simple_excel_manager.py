@@ -916,6 +916,9 @@ class SimpleExcelManager:
             self.tree.heading(col, text=col)
             self.tree.column(col, width=120, minwidth=80)
         
+        # กำหนดสีสำหรับแถวที่ตอบกลับแล้ว
+        self.tree.tag_configure('replied', foreground='green')
+        
         # เพิ่มข้อมูล (เฉพาะคอลัมน์ที่เลือกแสดง)
         column_indices = [columns.index(col) for col in display_columns if col in columns]
         
@@ -937,7 +940,14 @@ class SimpleExcelManager:
                 else:
                     filtered_values.append("")
             
-            self.tree.insert('', 'end', values=filtered_values)
+            # ตรวจสอบว่าแถวนี้ตอบกลับแล้วหรือไม่
+            tags = ()
+            if "ตอบกลับ" in columns:
+                replied_index = columns.index("ตอบกลับ")
+                if replied_index < len(full_values) and str(full_values[replied_index]).strip().upper() == "X":
+                    tags = ('replied',)
+            
+            self.tree.insert('', 'end', values=filtered_values, tags=tags)
     
     def save_data(self):
         """บันทึกข้อมูลใหม่ลงไฟล์เดิม"""
@@ -1425,6 +1435,28 @@ class SimpleExcelManager:
         button_main_frame = ttk.Frame(edit_window)
         button_main_frame.pack(side="bottom", fill="x", padx=10, pady=10)
         
+        # เพิ่ม checkbox สำหรับ "ตอบกลับ"
+        replied_frame = ttk.Frame(button_main_frame)
+        replied_frame.pack(pady=5)
+        
+        replied_var = tk.BooleanVar()
+        # ตรวจสอบสถานะปัจจุบันจากคอลัมน์ "ตอบกลับ" หากมี
+        replied_status = ""
+        if "ตอบกลับ" in all_columns:
+            replied_col_index = all_columns.index("ตอบกลับ")
+            if replied_col_index < len(full_row_data):
+                replied_status = str(full_row_data[replied_col_index]) if full_row_data[replied_col_index] else ""
+        
+        replied_var.set(replied_status.strip().upper() == "X")
+        
+        replied_checkbox = ttk.Checkbutton(
+            replied_frame, 
+            text="รับได้ข้อมูลตอบกลับแล้ว", 
+            variable=replied_var,
+            style="TCheckbutton"
+        )
+        replied_checkbox.pack(pady=5)
+        
         # ปุ่มบันทึกและยกเลิก
         btn_frame = ttk.Frame(button_main_frame)
         btn_frame.pack(pady=10)
@@ -1454,6 +1486,33 @@ class SimpleExcelManager:
                                 while len(self.data_rows[row_index]) <= col_index:
                                     self.data_rows[row_index].append("")
                                 self.data_rows[row_index][col_index] = value
+                
+                # จัดการคอลัมน์ "ตอบกลับ"
+                replied_value = "X" if replied_var.get() else ""
+                
+                if self.use_pandas and self.data is not None:
+                    # เพิ่มคอลัมน์ "ตอบกลับ" ถ้ายังไม่มี
+                    if "ตอบกลับ" not in self.data.columns:
+                        self.data["ตอบกลับ"] = ""
+                    self.data.at[row_index, "ตอบกลับ"] = replied_value
+                else:
+                    # เพิ่มคอลัมน์ "ตอบกลับ" ถ้ายังไม่มี
+                    if "ตอบกลับ" not in all_columns:
+                        all_columns.append("ตอบกลับ")
+                        self.data_headers.append("ตอบกลับ")
+                        # เพิ่มคอลัมน์ว่างให้ทุกแถว
+                        for i in range(len(self.data_rows)):
+                            self.data_rows[i].append("")
+                    
+                    # อัพเดทค่า "ตอบกลับ" ในแถวนี้
+                    replied_col_index = all_columns.index("ตอบกลับ")
+                    if replied_col_index < len(self.data_rows[row_index]):
+                        self.data_rows[row_index][replied_col_index] = replied_value
+                    else:
+                        # ขยาย list ถ้าจำเป็น
+                        while len(self.data_rows[row_index]) <= replied_col_index:
+                            self.data_rows[row_index].append("")
+                        self.data_rows[row_index][replied_col_index] = replied_value
                 
                 # บันทึกลงไฟล์
                 if self.use_pandas and self.data is not None:
@@ -1545,14 +1604,12 @@ class SimpleExcelManager:
     def save_excel(self):
         """บันทึกไฟล์ Excel"""
         try:
-            filename = filedialog.asksaveasfilename(
-                defaultextension=".xlsx",
-                filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
-            )
+            # บันทึกลงไฟล์ที่กำหนดโดยตรง
+            filename = "หนังสือส่งธนาคารขอข้อมูลบัญชีม้า.xlsx"
             
-            if filename:
-                self.data.to_excel(filename, index=False)
-                messagebox.showinfo("สำเร็จ", f"บันทึกไฟล์ {filename} เรียบร้อย")
+            # บันทึกไฟล์โดยไม่ถามยืนยัน (overwrite if exists)
+            self.data.to_excel(filename, index=False)
+            messagebox.showinfo("สำเร็จ", f"บันทึกไฟล์ {filename} เรียบร้อย")
                 
         except Exception as e:
             messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถบันทึกไฟล์: {str(e)}")
@@ -1781,6 +1838,9 @@ class SimpleExcelManager:
             self.summons_tree.heading(col, text=col)
             self.summons_tree.column(col, width=120, minwidth=80)
         
+        # กำหนดสีสำหรับแถวที่ตอบกลับแล้ว
+        self.summons_tree.tag_configure('replied', foreground='green')
+        
         # เพิ่มข้อมูล
         for row in data_rows:
             if self.use_pandas:
@@ -1791,7 +1851,15 @@ class SimpleExcelManager:
                     values = [str(val) if val else "" for val in row]
             else:
                 values = [str(val) if val else "" for val in row]
-            self.summons_tree.insert('', 'end', values=values)
+            
+            # ตรวจสอบว่าแถวนี้ตอบกลับแล้วหรือไม่
+            tags = ()
+            if "ตอบกลับ" in columns:
+                replied_index = columns.index("ตอบกลับ")
+                if replied_index < len(values) and str(values[replied_index]).strip().upper() == "X":
+                    tags = ('replied',)
+            
+            self.summons_tree.insert('', 'end', values=values, tags=tags)
     
     def save_summons_data(self):
         """บันทึกข้อมูลหมายเรียกใหม่ลงไฟล์เดิม"""
@@ -2240,6 +2308,28 @@ class SimpleExcelManager:
             button_main_frame = ttk.Frame(main_frame)
             button_main_frame.pack(side='bottom', fill='x', pady=(15, 0))
             
+            # เพิ่ม checkbox สำหรับ "ตอบกลับ"
+            replied_frame = ttk.Frame(button_main_frame)
+            replied_frame.pack(pady=5)
+            
+            replied_var = tk.BooleanVar()
+            # ตรวจสอบสถานะปัจจุบันจากคอลัมน์ "ตอบกลับ" หากมี
+            replied_status = ""
+            if "ตอบกลับ" in columns:
+                replied_col_index = columns.index("ตอบกลับ")
+                if replied_col_index < len(row_values):
+                    replied_status = str(row_values[replied_col_index]) if row_values[replied_col_index] else ""
+            
+            replied_var.set(replied_status.strip().upper() == "X")
+            
+            replied_checkbox = ttk.Checkbutton(
+                replied_frame, 
+                text="ได้รับข้อมูลตอบกลับแล้ว", 
+                variable=replied_var,
+                style="TCheckbutton"
+            )
+            replied_checkbox.pack(pady=5)
+            
             btn_frame = ttk.Frame(button_main_frame)
             btn_frame.pack()
             
@@ -2269,6 +2359,33 @@ class SimpleExcelManager:
                                 updated_values.append("")
                         else:
                             updated_values.append("")
+                    
+                    # จัดการคอลัมน์ "ตอบกลับ"
+                    replied_value = "X" if replied_var.get() else ""
+                    
+                    # เพิ่มคอลัมน์ "ตอบกลับ" ถ้ายังไม่มี
+                    if "ตอบกลับ" not in columns:
+                        columns.append("ตอบกลับ")
+                        if hasattr(self, 'summons_data_headers'):
+                            self.summons_data_headers.append("ตอบกลับ")
+                        updated_values.append(replied_value)
+                        
+                        # เพิ่มคอลัมน์ว่างให้ทุกแถวที่มีอยู่
+                        if self.use_pandas and self.summons_data is not None:
+                            self.summons_data["ตอบกลับ"] = ""
+                        else:
+                            for i in range(len(self.summons_data_rows)):
+                                self.summons_data_rows[i].append("")
+                    else:
+                        # อัพเดทค่า "ตอบกลับ" ในตำแหน่งที่ถูกต้อง
+                        replied_col_index = columns.index("ตอบกลับ")
+                        if replied_col_index < len(updated_values):
+                            updated_values[replied_col_index] = replied_value
+                        else:
+                            # ขยาง list ถ้าจำเป็น
+                            while len(updated_values) <= replied_col_index:
+                                updated_values.append("")
+                            updated_values[replied_col_index] = replied_value
                     
                     # อัพเดทข้อมูลในโครงสร้าง
                     if self.use_pandas and self.summons_data is not None:

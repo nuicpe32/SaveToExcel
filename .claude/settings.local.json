@@ -9,7 +9,11 @@
       "Bash(rg:*)",
       "Bash(sudo apt:*)",
       "Bash(sudo apt install:*)",
-      "Bash(pip3 install:*)"
+      "Bash(pip3 install:*)",
+      "Bash(python:*)",
+      "Bash(rm:*)",
+      "Bash(ls:*)",
+      "Bash(git restore:*)"
     ],
     "deny": []
   }
