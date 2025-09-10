@@ -32,6 +32,134 @@ def get_default_appointment_date():
     """ได้วันที่กำหนดพบเริ่มต้น (วันปัจจุบัน + 7 วัน)"""
     return datetime.now() + timedelta(days=7)
 
+def clean_document_number(doc_number):
+    """ทำความสะอาดเลขที่หนังสือ - ลบ .0 ออกจากท้าย"""
+    if not doc_number:
+        return doc_number
+    
+    doc_str = str(doc_number).strip()
+    if doc_str.endswith('.0'):
+        doc_str = doc_str[:-2]  # ลบ .0 ออก
+    
+    return doc_str
+
+def calculate_days_since_document(doc_date_str):
+    """คำนวณจำนวนวันตั้งแต่วันที่ลงหนังสือจนถึงปัจจุบัน"""
+    if not doc_date_str or str(doc_date_str).strip() == '' or str(doc_date_str).strip() == 'nan':
+        return None
+    
+    try:
+        from datetime import datetime
+        doc_date_str = str(doc_date_str).strip()
+        
+        # ลองแปลงรูปแบบต่างๆ
+        date_formats = [
+            "%d/%m/%Y",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d",
+            "%d %B %Y",
+            "%d %m %Y"
+        ]
+        
+        # แปลงชื่อเดือนไทยเป็นอังกฤษ
+        thai_months = {
+            'มกราคม': 'January', 'กุมภาพันธ์': 'February', 'มีนาคม': 'March',
+            'เมษายน': 'April', 'พฤษภาคม': 'May', 'มิถุนายน': 'June',
+            'กรกฎาคม': 'July', 'สิงหาคม': 'August', 'กันยายน': 'September',
+            'ตุลาคม': 'October', 'พฤศจิกายน': 'November', 'ธันวาคม': 'December'
+        }
+        
+        # แทนที่ชื่อเดือนไทยเป็นอังกฤษและแปลงปี พ.ศ. เป็น ค.ศ.
+        doc_date_converted = doc_date_str
+        for thai, eng in thai_months.items():
+            doc_date_converted = doc_date_converted.replace(thai, eng)
+        
+        # แปลงปี พ.ศ. เป็น ค.ศ.
+        import re
+        if re.search(r'25\d{2}', doc_date_converted):
+            doc_date_converted = re.sub(r'(25\d{2})', lambda m: str(int(m.group(1)) - 543), doc_date_converted)
+        
+        # ลองแปลงวันที่
+        doc_date = None
+        for fmt in date_formats:
+            try:
+                doc_date = datetime.strptime(doc_date_converted, fmt)
+                break
+            except ValueError:
+                continue
+        
+        if not doc_date:
+            # ลองแยกส่วนและสร้างวันที่ใหม่
+            parts = doc_date_str.split()
+            if len(parts) >= 3:
+                try:
+                    day = int(parts[0])
+                    month_name = parts[1]
+                    year = int(parts[2])
+                    
+                    # แปลงปี พ.ศ. เป็น ค.ศ.
+                    if year > 2500:
+                        year -= 543
+                    
+                    # แปลงเดือนไทยเป็นหมายเลข
+                    month_map = {
+                        'มกราคม': 1, 'กุมภาพันธ์': 2, 'มีนาคม': 3,
+                        'เมษายน': 4, 'พฤษภาคม': 5, 'มิถุนายน': 6,
+                        'กรกฎาคม': 7, 'สิงหาคม': 8, 'กันยายน': 9,
+                        'ตุลาคม': 10, 'พฤศจิกายน': 11, 'ธันวาคม': 12
+                    }
+                    
+                    month_num = month_map.get(month_name, None)
+                    if month_num:
+                        doc_date = datetime(year, month_num, day)
+                except (ValueError, KeyError):
+                    pass
+        
+        if doc_date:
+            # คำนวณจำนวนวันจนถึงวันปัจจุบัน
+            today = datetime.now()
+            days_diff = (today - doc_date).days
+            return days_diff if days_diff >= 0 else None
+        
+        return None
+        
+    except Exception as e:
+        print(f"Error calculating days since document: {e}")
+        return None
+
+def parse_thai_date_components(day, month, year):
+    """แปลงส่วนประกอบวันที่ไทยเป็น datetime"""
+    if not all([day, month, year]):
+        return None
+    
+    try:
+        day = int(str(day).strip())
+        year = int(str(year).strip())
+        month_str = str(month).strip()
+        
+        # แปลงปี พ.ศ. เป็น ค.ศ.
+        if year > 2500:
+            year -= 543
+        
+        # แปลงเดือนไทยเป็นหมายเลข
+        month_map = {
+            'มกราคม': 1, 'กุมภาพันธ์': 2, 'มีนาคม': 3,
+            'เมษายน': 4, 'พฤษภาคม': 5, 'มิถุนายน': 6,
+            'กรกฎาคม': 7, 'สิงหาคม': 8, 'กันยายน': 9,
+            'ตุลาคม': 10, 'พฤศจิกายน': 11, 'ธันวาคม': 12
+        }
+        
+        month_num = month_map.get(month_str, None)
+        if month_num:
+            doc_date = datetime(year, month_num, day)
+            today = datetime.now()
+            days_diff = (today - doc_date).days
+            return days_diff if days_diff >= 0 else None
+        
+        return None
+    except (ValueError, KeyError):
+        return None
+
 
 # ตรวจสอบและติดตั้ง dependencies
 def check_and_install_deps():
@@ -89,6 +217,12 @@ class SimpleExcelManager:
         self.summons_data_rows = []
         self.summons_data_headers = []
         
+        # ไฟล์ Excel สำหรับข้อมูลการจับกุม
+        self.arrest_file = os.path.join(os.getcwd(), "เอกสารหลังการจับกุม.xlsx")
+        self.arrest_data = None
+        self.arrest_data_rows = []
+        self.arrest_data_headers = []
+        
         self.use_pandas = False
         
         # โหลดข้อมูลธนาคาร
@@ -107,6 +241,7 @@ class SimpleExcelManager:
         # โหลดข้อมูลไม่ว่า GUI จะพร้อมหรือไม่
         self.load_data()  # โหลดข้อมูลธนาคาร
         self.load_summons_data()  # โหลดข้อมูลหมายเรียก
+        self.load_arrest_data()  # โหลดข้อมูลการจับกุม
         
         if GUI_AVAILABLE:
             self.create_gui()
@@ -224,18 +359,333 @@ class SimpleExcelManager:
         self.notebook = ttk.Notebook(main_frame)
         self.notebook.pack(fill='both', expand=True)
         
+        # แท็บคดีอาญา
+        self.create_criminal_cases_tab()
+        
         # แท็บกรอกข้อมูล
         self.create_input_tab()
         
         # แท็บดูข้อมูล
         self.create_view_tab()
         
-        # แท็บหมายเรียกผู้ต้องหา
+        # แท็บหมายเรียก
         self.create_summons_input_tab()
-        
-        # แท็บดูข้อมูลหมายเรียก
         self.create_summons_view_tab()
-    
+        
+        # แท็บการจับกุม
+        self.create_arrest_input_tab()
+        self.create_arrest_view_tab()
+        
+        # เริ่มการทำงานของ GUI
+        self.root.mainloop()
+
+    def create_criminal_cases_tab(self):
+        """สร้างแท็บแสดงข้อมูลคดีอาญา"""
+        criminal_frame = ttk.Frame(self.notebook)
+        self.notebook.add(criminal_frame, text="⚖️ คดีอาญาในความรับผิดชอบ")
+        header_frame = ttk.Frame(criminal_frame)
+        header_frame.pack(fill='x', padx=20, pady=(20, 10))
+        title_label = ttk.Label(header_frame, text="คดีอาญาในความรับผิดชอบ", font=('Arial', 16, 'bold'))
+        title_label.pack(side='left')
+        stats_frame = ttk.Frame(header_frame)
+        stats_frame.pack(side='left', fill='x', expand=True, padx=(20, 0))
+        self.stats_label = ttk.Label(stats_frame, text="", font=('Arial', 10), foreground='#666666')
+        self.stats_label.pack(side='left')
+        refresh_btn = ttk.Button(header_frame, text="🔄 รีเฟรชข้อมูล", command=self.refresh_criminal_cases)
+        refresh_btn.pack(side='right', padx=(10, 0))
+        table_frame = ttk.Frame(criminal_frame)
+        table_frame.pack(fill='both', expand=True, padx=20, pady=(0, 20))
+        columns = ("เลขที่คดี", "สถานะคดี", "ผู้ร้องทุกข์", "ผู้ต้องหา", "วันที่/เวลา รับคำร้องทุกข์")
+        self.criminal_tree = ttk.Treeview(table_frame, columns=columns, show='headings', height=15)
+        for col in columns:
+            self.criminal_tree.heading(col, text=col)
+        self.criminal_tree.column("เลขที่คดี", width=120, anchor='center')
+        self.criminal_tree.column("สถานะคดี", width=130, anchor='center')
+        self.criminal_tree.column("ผู้ร้องทุกข์", width=180, anchor='w')
+        self.criminal_tree.column("ผู้ต้องหา", width=180, anchor='w')
+        self.criminal_tree.column("วันที่/เวลา รับคำร้องทุกข์", width=180, anchor='center')
+        v_scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.criminal_tree.yview)
+        h_scrollbar = ttk.Scrollbar(table_frame, orient="horizontal", command=self.criminal_tree.xview)
+        self.criminal_tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
+        self.criminal_tree.grid(row=0, column=0, sticky='nsew')
+        v_scrollbar.grid(row=0, column=1, sticky='ns')
+        h_scrollbar.grid(row=1, column=0, sticky='ew')
+        table_frame.grid_rowconfigure(0, weight=1)
+        table_frame.grid_columnconfigure(0, weight=1)
+        detail_btn_frame = ttk.Frame(criminal_frame)
+        detail_btn_frame.pack(fill='x', padx=20, pady=(0, 20))
+        detail_btn = ttk.Button(detail_btn_frame, text="📋 ดูรายละเอียดคดี", command=self.show_case_detail)
+        detail_btn.pack(side='left')
+        self.criminal_tree.bind("<Double-1>", lambda event: self.show_case_detail())
+        self.load_criminal_cases()
+
+    def is_case_older_than_6_months(self, date_string):
+        """ตรวจสอบว่าคดีอายุเกิน 6 เดือนหรือไม่"""
+        if not date_string or date_string.strip() == '' or date_string.strip().lower() == 'nan':
+            return False
+        
+        try:
+            from datetime import datetime, timedelta
+            import re
+            
+            # รูปแบบวันที่ภาษาไทย เช่น "01 ม.ค. 02568 11:08"
+            thai_date_pattern = r'(\d{1,2})\s+([^\s]+)\s+0?(\d{4})'
+            thai_months = {
+                'ม.ค.': 1, 'มกรา': 1, 'มกราคม': 1,
+                'ก.พ.': 2, 'กุมภา': 2, 'กุมภาพันธ์': 2,
+                'มี.ค.': 3, 'มีนา': 3, 'มีนาคม': 3,
+                'เม.ย.': 4, 'เมษา': 4, 'เมษายน': 4,
+                'พ.ค.': 5, 'พฤษ': 5, 'พฤษภาคม': 5,
+                'มิ.ย.': 6, 'มิถุ': 6, 'มิถุนายน': 6,
+                'ก.ค.': 7, 'กรก': 7, 'กรกฎาคม': 7,
+                'ส.ค.': 8, 'สิงหา': 8, 'สิงหาคม': 8,
+                'ก.ย.': 9, 'กันยา': 9, 'กันยายน': 9,
+                'ต.ค.': 10, 'ตุลา': 10, 'ตุลาคม': 10,
+                'พ.ย.': 11, 'พฤศจิกา': 11, 'พฤศจิกายน': 11,
+                'ธ.ค.': 12, 'ธันวา': 12, 'ธันวาคม': 12
+            }
+            
+            complaint_date = None
+            
+            # ลองรูปแบบภาษาไทยก่อน
+            match = re.search(thai_date_pattern, date_string.strip())
+            if match:
+                day, month_thai, year = match.groups()
+                month_num = thai_months.get(month_thai)
+                
+                if month_num:
+                    try:
+                        # แปลงปี พ.ศ. เป็น ค.ศ.
+                        year_int = int(year)
+                        if year_int > 2400:  # ปี พ.ศ.
+                            year_int -= 543
+                        
+                        complaint_date = datetime(year_int, month_num, int(day))
+                    except ValueError:
+                        pass
+            
+            # ถ้ายังไม่ได้ ลองรูปแบบตัวเลข
+            if not complaint_date:
+                date_patterns = [
+                    r'(\d{1,2})/(\d{1,2})/(\d{4})',      # dd/mm/yyyy
+                    r'(\d{1,2})-(\d{1,2})-(\d{4})',      # dd-mm-yyyy  
+                    r'(\d{4})-(\d{1,2})-(\d{1,2})',      # yyyy-mm-dd
+                    r'(\d{1,2})\.(\d{1,2})\.(\d{4})',     # dd.mm.yyyy
+                ]
+                
+                for pattern in date_patterns:
+                    match = re.search(pattern, date_string.strip())
+                    if match:
+                        if pattern == r'(\d{4})-(\d{1,2})-(\d{1,2})':  # yyyy-mm-dd
+                            year, month, day = match.groups()
+                        else:  # dd/mm/yyyy, dd-mm-yyyy, dd.mm.yyyy
+                            day, month, year = match.groups()
+                        
+                        try:
+                            year_int = int(year)
+                            # แปลงปี พ.ศ. เป็น ค.ศ. ถ้าจำเป็น
+                            if year_int > 2400:
+                                year_int -= 543
+                            
+                            complaint_date = datetime(year_int, int(month), int(day))
+                            break
+                        except ValueError:
+                            continue
+            
+            if not complaint_date:
+                return False
+            
+            # คำนวณความแตกต่าง
+            current_date = datetime.now()
+            six_months_ago = current_date - timedelta(days=180)  # ประมาณ 6 เดือน
+            
+            return complaint_date < six_months_ago
+            
+        except Exception as e:
+            print(f"Error parsing date '{date_string}': {e}")
+            return False
+
+    def format_thai_date_display(self, date_string):
+        """จัดรูปแบบการแสดงวันที่ภาษาไทยให้ถูกต้อง (ลบ 0 หน้าปี)"""
+        if not date_string or date_string.strip() == '' or date_string.strip().lower() == 'nan':
+            return date_string
+        
+        try:
+            import re
+            
+            # รูปแบบวันที่ภาษาไทย เช่น "01 ม.ค. 02568 11:08"
+            thai_date_pattern = r'(\d{1,2})\s+([^\s]+)\s+0?(\d{4})(\s+\d{1,2}:\d{2})?'
+            
+            match = re.search(thai_date_pattern, date_string.strip())
+            if match:
+                day, month_thai, year, time_part = match.groups()
+                
+                # ลบ 0 หน้าปี ถ้ามี
+                year_display = year.lstrip('0') if year.startswith('0') else year
+                
+                # สร้างข้อความใหม่
+                time_display = time_part if time_part else ""
+                formatted_date = f"{day} {month_thai} {year_display}{time_display}"
+                
+                return formatted_date
+            else:
+                # ถ้าไม่ตรงรูปแบบ ส่งค่าเดิมกลับ
+                return date_string
+                
+        except Exception as e:
+            print(f"Error formatting date '{date_string}': {e}")
+            return date_string
+
+    def load_criminal_cases(self):
+        """โหลดข้อมูลคดีอาญา"""
+        try:
+            if not self.use_pandas:
+                if GUI_AVAILABLE:
+                    messagebox.showerror("ข้อผิดพลาด", "ไม่พบ pandas กรุณาติดตั้ง: pip install pandas")
+                else:
+                    print("Error: ไม่พบ pandas กรุณาติดตั้ง: pip install pandas")
+                return
+            
+            import pandas as pd
+            possible_dirs = [os.getcwd(), '/mnt/c/SaveToExcel', os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()]
+            criminal_file_xlsx = None
+            criminal_file_xls = None
+            for directory in possible_dirs:
+                # ลองหาไฟล์ที่เป็นไปได้ (ให้ความสำคัญกับ .xlsx ก่อน)
+                files_to_try = [
+                    'export_คดีอาญาในความรับผิดชอบ.xlsx',
+                    'export_คดีอาญาในความรับผิดชอบ.xls',
+                    'รายละเอียดที่รับคดี.xls'
+                ]
+                
+                for filename in files_to_try:
+                    file_path = os.path.join(directory, filename)
+                    if os.path.exists(file_path):
+                        if filename.endswith('.xlsx'):
+                            criminal_file_xlsx = file_path
+                            break  # หาไฟล์ .xlsx ได้แล้วหยุดทันที
+                        else:
+                            criminal_file_xls = file_path
+                
+                if criminal_file_xlsx:
+                    break
+            if criminal_file_xlsx and os.path.exists(criminal_file_xlsx):
+                criminal_file = criminal_file_xlsx
+                engine = 'openpyxl'
+            elif criminal_file_xls and os.path.exists(criminal_file_xls):
+                criminal_file = criminal_file_xls
+                engine = 'xlrd'
+            else:
+                searched_dirs = "\n".join([f"- {d}" for d in possible_dirs])
+                msg = f"ไม่พบไฟล์ข้อมูลคดีอาญา (.xlsx หรือ .xls)\nค้นหาใน:\n{searched_dirs}"
+                if GUI_AVAILABLE:
+                    messagebox.showwarning("คำเตือน", msg)
+                else:
+                    print(f"Warning: {msg}")
+                return
+            try:
+                df = pd.read_excel(criminal_file, engine=engine)
+            except Exception as excel_error:
+                msg = f"ไม่สามารถอ่านไฟล์ Excel ได้: {criminal_file}\nข้อผิดพลาด: {str(excel_error)}"
+                if GUI_AVAILABLE:
+                    messagebox.showerror("ข้อผิดพลาด", msg)
+                else:
+                    print(f"Error: {msg}")
+                return
+            self.criminal_data = df
+            for item in self.criminal_tree.get_children():
+                self.criminal_tree.delete(item)
+            for index, row in df.iterrows():
+                case_no = str(row.get('เลขที่คดี', '')).strip()
+                status = str(row.get('สถานะคดี', '')).strip()
+                complainant = str(row.get('ชื่อผู้ร้องทุกข์', '')).strip()[:35] + ("..." if len(str(row.get('ชื่อผู้ร้องทุกข์', ''))) > 35 else "")
+                suspect = str(row.get('ชื่อผู้ต้องหา', '')).strip()[:35] + ("..." if len(str(row.get('ชื่อผู้ต้องหา', ''))) > 35 else "")
+                complaint_date_raw = str(row.get('วันที่/เวลา รับคำร้องทุกข์', '')).strip()
+                complaint_date = self.format_thai_date_display(complaint_date_raw)
+                
+                # คำนวณอายุคดี และกำหนดสี
+                case_tags = [str(index)]
+                
+                # ตรวจสอบสถานะคดีก่อน (จำหน่าย = สีเขียว)
+                if status == 'จำหน่าย':
+                    case_tags.append("closed_case")
+                else:
+                    # ถ้าไม่ใช่คดีจำหน่าย ตรวจสอบอายุคดี (เก่า = สีแดง)
+                    is_old_case = self.is_case_older_than_6_months(complaint_date_raw)
+                    if is_old_case:
+                        case_tags.append("old_case")
+                
+                item_id = self.criminal_tree.insert("", "end", values=(case_no, status, complainant, suspect, complaint_date), tags=case_tags)
+            if GUI_AVAILABLE:
+                style = ttk.Style()
+                style.configure("Treeview", background="#ffffff", foreground="#333333", rowheight=25)
+                style.configure("Treeview.Heading", background="#4a90e2", foreground="#ffffff", font=('Arial', 10, 'bold'))
+                style.map('Treeview', background=[('selected', '#e3f2fd')], foreground=[('selected', '#1565c0')])
+            self.criminal_tree.tag_configure('evenrow', background='#f8f9fa')
+            self.criminal_tree.tag_configure('oddrow', background='#ffffff')
+            self.criminal_tree.tag_configure('old_case', background='#ffebee', foreground='#c62828')
+            self.criminal_tree.tag_configure('closed_case', background='#e8f5e8', foreground='#2e7d32')
+            for i, item in enumerate(self.criminal_tree.get_children()):
+                current_tags = list(self.criminal_tree.item(item, "tags"))
+                
+                # ถ้าไม่ใช่คดีพิเศษ (เก่าหรือจำหน่าย) ให้ใส่สีแถบสลับ
+                if 'old_case' not in current_tags and 'closed_case' not in current_tags:
+                    if i % 2 == 0:
+                        current_tags.append('evenrow')
+                    else:
+                        current_tags.append('oddrow')
+                
+                self.criminal_tree.item(item, tags=current_tags)
+            total_cases = len(df)
+            processing_cases = len(df[df['สถานะคดี'] == 'ระหว่างสอบสวน'])
+            closed_cases = len(df[df['สถานะคดี'] == 'จำหน่าย'])
+            self.stats_label.config(text=f"จำนวนคดีทั้งหมด: {total_cases} | กำลังดำเนินการ: {processing_cases} | จำหน่ายแล้ว: {closed_cases}")
+        except Exception as e:
+            error_msg = f"ไม่สามารถโหลดข้อมูลได้: {str(e)}"
+            if GUI_AVAILABLE:
+                messagebox.showerror("ข้อผิดพลาด", error_msg)
+            else:
+                print(f"Error: {error_msg}")
+
+    def refresh_criminal_cases(self):
+        """รีเฟรชข้อมูลคดีอาญา"""
+        self.load_criminal_cases()
+        if GUI_AVAILABLE:
+            messagebox.showinfo("สำเร็จ", "รีเฟรชข้อมูลเรียบร้อย")
+        else:
+            print("Info: รีเฟรชข้อมูลเรียบร้อย")
+
+    def show_case_detail(self):
+        """แสดงรายละเอียดคดี"""
+        if not GUI_AVAILABLE:
+            print("Info: GUI ไม่พร้อมใช้งาน - ไม่สามารถแสดงรายละเอียดได้")
+            return
+        try:
+            selected = self.criminal_tree.selection()
+            if not selected:
+                messagebox.showwarning("คำเตือน", "กรุณาเลือกคดีที่ต้องการดูรายละเอียด")
+                return
+            if not hasattr(self, 'criminal_data') or self.criminal_data is None:
+                messagebox.showerror("ข้อผิดพลาด", "ไม่มีข้อมูลคดีอาญา กรุณารีเฟรชข้อมูล")
+                return
+            item = self.criminal_tree.item(selected[0])
+            row_tags = self.criminal_tree.item(selected[0], "tags")
+            if row_tags and len(row_tags) > 0:
+                try:
+                    row_index = int(row_tags[0])
+                    if row_index < len(self.criminal_data):
+                        case_data = self.criminal_data.iloc[row_index]
+                        self.create_case_detail_window(case_data)
+                    else:
+                        messagebox.showerror("ข้อผิดพลาด", f"ดัชนีข้อมูลไม่ถูกต้อง: {row_index}")
+                except ValueError as e:
+                    messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถแปลงดัชนี: {row_tags[0]}")
+            else:
+                messagebox.showerror("ข้อผิดพลาด", "ไม่พบข้อมูลแถวที่เลือก")
+        except Exception as e:
+            messagebox.showerror("ข้อผิดพลาด", f"เกิดข้อผิดพลาดในการแสดงรายละเอียด: {str(e)}")
+            print(f"Debug: show_case_detail error: {e}")
+
     def create_input_tab(self):
         """สร้างแท็บกรอกข้อมูล"""
         input_frame = ttk.Frame(self.notebook)
@@ -999,7 +1449,11 @@ class SimpleExcelManager:
                 
                 for form_key, excel_col in column_mapping.items():
                     if excel_col in excel_columns:
-                        new_row_data[excel_col] = form_data.get(form_key, '')
+                        value = form_data.get(form_key, '')
+                        # ทำความสะอาดเลขหนังสือ
+                        if form_key == 'document_no':
+                            value = clean_document_number(value)
+                        new_row_data[excel_col] = value
                 
                 # เพิ่มข้อมูลใหม่
                 import pandas as pd
@@ -1829,14 +2283,20 @@ class SimpleExcelManager:
             columns = self.summons_data_headers
             data_rows = self.summons_data_rows
         
+        # เพิ่มคอลัมน์สถานะ
+        display_columns = columns + ['สถานะ']
+        
         # ตั้งค่าคอลัมน์
-        self.summons_tree['columns'] = columns
+        self.summons_tree['columns'] = display_columns
         self.summons_tree['show'] = 'headings'
         
         # ตั้งค่าหัวข้อ
-        for col in columns:
+        for col in display_columns:
             self.summons_tree.heading(col, text=col)
-            self.summons_tree.column(col, width=120, minwidth=80)
+            if col == 'สถานะ':
+                self.summons_tree.column(col, width=250, minwidth=200)  # กว้างขึ้นสำหรับสถานะ
+            else:
+                self.summons_tree.column(col, width=120, minwidth=80)
         
         # กำหนดสีสำหรับแถวที่ตอบกลับแล้ว
         self.summons_tree.tag_configure('replied', foreground='green')
@@ -1852,14 +2312,42 @@ class SimpleExcelManager:
             else:
                 values = [str(val) if val else "" for val in row]
             
-            # ตรวจสอบว่าแถวนี้ตอบกลับแล้วหรือไม่
-            tags = ()
+            # สร้างสถานะที่มีการคำนวณจำนวนวัน
+            status_text = ""
+            reply_status = ""
             if "ตอบกลับ" in columns:
                 replied_index = columns.index("ตอบกลับ")
-                if replied_index < len(values) and str(values[replied_index]).strip().upper() == "X":
-                    tags = ('replied',)
+                if replied_index < len(values):
+                    reply_status = str(values[replied_index]).strip()
             
-            self.summons_tree.insert('', 'end', values=values, tags=tags)
+            if reply_status.upper() == "X":
+                status_text = "✓ ได้รับผลตอบกลับหมายเรียกแล้ว"
+            elif reply_status and reply_status != 'nan':
+                status_text = f"📝 {reply_status}"
+            else:
+                status_text = "⏳ รอผลหมายเรียกตอบกลับ"
+                
+                # คำนวณจำนวนวันถ้าสถานะเป็น "รอผลหมายเรียกตอบกลับ"
+                doc_date = ""
+                if "ลงวันที่" in columns:
+                    date_index = columns.index("ลงวันที่")
+                    if date_index < len(values):
+                        doc_date = str(values[date_index]).strip()
+                
+                if doc_date:
+                    days_since = calculate_days_since_document(doc_date)
+                    if days_since is not None and days_since >= 0:
+                        status_text += f" [ส่งไปแล้ว {days_since} วัน]"
+            
+            # เพิ่มคอลัมน์สถานะ
+            display_values = values + [status_text]
+            
+            # ตรวจสอบว่าแถวนี้ตอบกลับแล้วหรือไม่
+            tags = ()
+            if reply_status.upper() == "X":
+                tags = ('replied',)
+            
+            self.summons_tree.insert('', 'end', values=display_values, tags=tags)
     
     def save_summons_data(self):
         """บันทึกข้อมูลหมายเรียกใหม่ลงไฟล์เดิม"""
@@ -1899,8 +2387,11 @@ class SimpleExcelManager:
                 for form_key, excel_col in column_mapping.items():
                     if excel_col in excel_columns:
                         value = form_data.get(form_key, '')
+                        # ทำความสะอาดเลขหนังสือ
+                        if form_key == 'doc_number':
+                            value = clean_document_number(value)
                         # ลบตัวเลขลำดับออกจากประเภทคดี
-                        if form_key == 'case_type' and value:
+                        elif form_key == 'case_type' and value:
                             # ลบตัวเลขและจุดออกจากหน้าข้อความ เช่น "1.คดีไม่เข้า พรก." -> "คดีไม่เข้า พรก."
                             import re
                             value = re.sub(r'^\d+\.', '', value).strip()
@@ -2544,6 +3035,492 @@ class SimpleExcelManager:
                 
         except Exception as e:
             messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถบันทึกไฟล์: {str(e)}")
+
+    def load_arrest_data(self):
+        """โหลดข้อมูลการจับกุม"""
+        try:
+            if self.use_pandas:
+                try:
+                    import pandas as pd
+                    if os.path.exists(self.arrest_file):
+                        self.arrest_data = pd.read_excel(self.arrest_file)
+                        print(f"โหลดข้อมูลการจับกุมสำเร็จ: {len(self.arrest_data)} รายการ")
+                    else:
+                        self.arrest_data = pd.DataFrame()
+                        print("ไม่พบไฟล์ข้อมูลการจับกุม - สร้างชุดข้อมูลใหม่")
+                except ImportError:
+                    print("ไม่พบ pandas สำหรับโหลดข้อมูลการจับกุม")
+                    self.arrest_data_headers, self.arrest_data_rows = [], []
+            else:
+                if os.path.exists(self.arrest_file):
+                    self.arrest_data_headers, self.arrest_data_rows = self.read_excel_direct(self.arrest_file)
+                    print(f"โหลดข้อมูลการจับกุมสำเร็จ: {len(self.arrest_data_rows)} รายการ")
+                else:
+                    self.arrest_data_headers, self.arrest_data_rows = [], []
+                    print("ไม่พบไฟล์ข้อมูลการจับกุม - สร้างชุดข้อมูลใหม่")
+        except Exception as e:
+            print(f"เกิดข้อผิดพลาดในการโหลดข้อมูลการจับกุม: {e}")
+            if self.use_pandas:
+                try:
+                    import pandas as pd
+                    self.arrest_data = pd.DataFrame()
+                except ImportError:
+                    self.arrest_data_headers, self.arrest_data_rows = [], []
+            else:
+                self.arrest_data_headers, self.arrest_data_rows = [], []
+
+    def create_arrest_input_tab(self):
+        """สร้างแท็บกรอกข้อมูลการจับกุม"""
+        arrest_input_frame = ttk.Frame(self.notebook)
+        self.notebook.add(arrest_input_frame, text="🚔 การจับกุม")
+        
+        ttk.Label(arrest_input_frame, text="ข้อมูลการจับกุม", font=('Arial', 14)).pack(pady=20)
+        
+    def create_arrest_view_tab(self):
+        """สร้างแท็บดูข้อมูลการจับกุม"""
+        arrest_view_frame = ttk.Frame(self.notebook)
+        self.notebook.add(arrest_view_frame, text="👁️ ดูการจับกุม")
+        
+        ttk.Label(arrest_view_frame, text="ดูข้อมูลการจับกุม", font=('Arial', 14)).pack(pady=20)
+
+    def find_related_bank_data(self, complainant_name):
+        """ค้นหาข้อมูลธนาคารที่เกี่ยวข้อง"""
+        related_bank = []
+        try:
+            if not self.use_pandas:
+                return related_bank
+                
+            import pandas as pd
+            
+            # หาไฟล์ข้อมูลธนาคาร
+            possible_dirs = [os.getcwd(), '/mnt/c/SaveToExcel', os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()]
+            bank_file = None
+            
+            for directory in possible_dirs:
+                bank_path = os.path.join(directory, 'หนังสือส่งธนาคารขอข้อมูลบัญชีม้า.xlsx')
+                if os.path.exists(bank_path):
+                    bank_file = bank_path
+                    break
+            
+            if not bank_file:
+                print("ไม่พบไฟล์ข้อมูลธนาคาร หนังสือส่งธนาคารขอข้อมูลบัญชีม้า.xlsx")
+                return related_bank
+            
+            # โหลดข้อมูลธนาคาร
+            bank_df = pd.read_excel(bank_file, engine='openpyxl')
+            
+            # ค้นหาข้อมูลที่ตรงกับชื่อผู้ร้องทุกข์
+            for _, row in bank_df.iterrows():
+                victim_name = str(row.get('ผู้เสียหาย', '')).strip()
+                
+                if complainant_name and victim_name:
+                    # ทำความสะอาดชื่อทั้งสองฝั่ง
+                    # กรองคำทั่วไป ลำดับหมายเลข และคำนำหน้า
+                    common_words = ['นางสาว', 'นาย', 'นาง', 'น.ส.', 'ด.ช.', 'ด.ญ.', '1)', '2)', '3)', '4)', '5)']
+                    
+                    # ทำความสะอาดชื่อผู้ร้องทุกข์
+                    complainant_clean = complainant_name
+                    for word in common_words:
+                        complainant_clean = complainant_clean.replace(word, '').strip()
+                    complainant_parts = [part.strip() for part in complainant_clean.split() if part.strip()]
+                    
+                    # ทำความสะอาดชื่อผู้เสียหาย
+                    victim_clean = victim_name
+                    for word in common_words:
+                        victim_clean = victim_clean.replace(word, '').strip()
+                    victim_parts = [part.strip() for part in victim_clean.split() if part.strip()]
+                    
+                    match = False
+                    
+                    # เงื่อนไข 1: ชื่อผู้ร้องทุกข์อยู่ในชื่อผู้เสียหาย (ตรงทั้งหมด)
+                    if complainant_name in victim_name:
+                        match = True
+                    # เงื่อนไข 2: ชื่อผู้เสียหายอยู่ในชื่อผู้ร้องทุกข์ (ตรงทั้งหมด)  
+                    elif victim_name in complainant_name:
+                        match = True
+                    # เงื่อนไข 3: ตรวจ ชื่อ + นามสกุล หลังทำความสะอาด
+                    elif len(complainant_parts) >= 2 and len(victim_parts) >= 2:
+                        # เอาชื่อ-สกุลมาเปรียบเทียบ
+                        complainant_first = complainant_parts[0]
+                        complainant_last = complainant_parts[-1]  # เอาคำสุดท้ายเป็นนามสกุล
+                        
+                        # ตรวจสอบว่าทั้งชื่อและสกุลมีในข้อมูลผู้เสียหาย
+                        if (complainant_first in victim_clean and complainant_last in victim_clean):
+                            match = True
+                    
+                    if match:
+                        reply_status = str(row.get('ตอบกลับ', '')).strip()
+                        if reply_status == 'X':
+                            status_text = "✓ ได้รับตอบกลับแล้ว"
+                            status_color = "green"
+                        elif reply_status and reply_status != 'nan':
+                            status_text = f"📝 {reply_status}"
+                            status_color = "orange"
+                        else:
+                            status_text = "⏳ รอตอบกลับ"
+                            status_color = "red"
+                        
+                        related_bank.append({
+                            'เจ้าของบัญชีม้า': str(row.get('เจ้าของบัญชีม้า', '')),
+                            'ชื่อธนาคาร': str(row.get('ชื่อธนาคาร', '')),
+                            'เลขบัญชี': str(row.get('เลขบัญชี', '')),
+                            'ชื่อบัญชี': str(row.get('ชื่อบัญชี', '')),
+                            'เคสไอดี': str(row.get('เคสไอดี', '')),
+                            'ช่วงเวลา': str(row.get('ช่วงเวลา', '')),
+                            'ตอบกลับ': str(row.get('ตอบกลับ', '')),
+                            'สถานะตอบกลับ': status_text,
+                            'สถานะสี': status_color,
+                            'status_text': status_text,
+                            'status_color': status_color,
+                            # เพิ่มข้อมูลเลขที่หนังสือ
+                            'เลขหนังสือ': str(row.get('เลขหนังสือ', '')),
+                            'เลขที่หนังสือ': str(row.get('เลขที่หนังสือ', '')),
+                            'วัน': str(row.get('วัน', '')),
+                            'เดือน': str(row.get('เดือน ', '')) or str(row.get('เดือน', '')),  # คอลัมน์มีเว้นวรรค
+                            'ปี': str(row.get('ปี ', '')) or str(row.get('ปี', '')),  # คอลัมน์มีเว้นวรรค
+                            'ลงวันที่': str(row.get('ลงวันที่', ''))
+                        })
+                    
+        except Exception as e:
+            print(f"Error in find_related_bank_data: {e}")
+        return related_bank
+
+    def find_related_summons_data(self, complainant_name):
+        """ค้นหาข้อมูลหมายเรียกที่เกี่ยวข้อง"""
+        related_summons = []
+        try:
+            if not self.use_pandas:
+                return related_summons
+                
+            import pandas as pd
+            
+            # หาไฟล์ข้อมูลหมายเรียก
+            possible_dirs = [os.getcwd(), '/mnt/c/SaveToExcel', os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()]
+            summons_file = None
+            
+            for directory in possible_dirs:
+                summons_path = os.path.join(directory, 'ข้อมูลสำหรับออกหมายเรียกผู้ต้องหา.xlsx')
+                if os.path.exists(summons_path):
+                    summons_file = summons_path
+                    break
+            
+            if not summons_file:
+                print("ไม่พบไฟล์ข้อมูลหมายเรียก ข้อมูลสำหรับออกหมายเรียกผู้ต้องหา.xlsx")
+                return related_summons
+            
+            # โหลดข้อมูลหมายเรียก
+            summons_df = pd.read_excel(summons_file, engine='openpyxl')
+            
+            # ค้นหาข้อมูลที่ตรงกับชื่อผู้ร้องทุกข์
+            for _, row in summons_df.iterrows():
+                victim_name = str(row.get('ชื่อผู้เสียหาย', '')).strip()
+                
+                if complainant_name and victim_name:
+                    # ทำความสะอาดชื่อทั้งสองฝั่ง
+                    # กรองคำทั่วไป ลำดับหมายเลข และคำนำหน้า
+                    common_words = ['นางสาว', 'นาย', 'นาง', 'น.ส.', 'ด.ช.', 'ด.ญ.', '1)', '2)', '3)', '4)', '5)']
+                    
+                    # ทำความสะอาดชื่อผู้ร้องทุกข์
+                    complainant_clean = complainant_name
+                    for word in common_words:
+                        complainant_clean = complainant_clean.replace(word, '').strip()
+                    complainant_parts = [part.strip() for part in complainant_clean.split() if part.strip()]
+                    
+                    # ทำความสะอาดชื่อผู้เสียหาย
+                    victim_clean = victim_name
+                    for word in common_words:
+                        victim_clean = victim_clean.replace(word, '').strip()
+                    victim_parts = [part.strip() for part in victim_clean.split() if part.strip()]
+                    
+                    match = False
+                    
+                    # เงื่อนไข 1: ชื่อผู้ร้องทุกข์อยู่ในชื่อผู้เสียหาย (ตรงทั้งหมด)
+                    if complainant_name in victim_name:
+                        match = True
+                    # เงื่อนไข 2: ชื่อผู้เสียหายอยู่ในชื่อผู้ร้องทุกข์ (ตรงทั้งหมด)
+                    elif victim_name in complainant_name:
+                        match = True
+                    # เงื่อนไข 3: ตรวจ ชื่อ + นามสกุล หลังทำความสะอาด
+                    elif len(complainant_parts) >= 2 and len(victim_parts) >= 2:
+                        # เอาชื่อ-สกุลมาเปรียบเทียบ
+                        complainant_first = complainant_parts[0]
+                        complainant_last = complainant_parts[-1]  # เอาคำสุดท้ายเป็นนามสกุล
+                        
+                        # ตรวจสอบว่าทั้งชื่อและสกุลมีในข้อมูลผู้เสียหาย
+                        if (complainant_first in victim_clean and complainant_last in victim_clean):
+                            match = True
+                    
+                    if match:
+                        reply_status = str(row.get('ตอบกลับ', '')).strip()
+                        if reply_status == 'X':
+                            status_text = "✓ ได้รับผลตอบกลับหมายเรียกแล้ว"
+                            status_color = "green"
+                        elif reply_status and reply_status != 'nan':
+                            status_text = f"📝 {reply_status}"
+                            status_color = "orange"
+                        else:
+                            status_text = "⏳ รอผลหมายเรียกตอบกลับ"
+                            status_color = "red"
+                        
+                        # คำนวณจำนวนวันถ้าสถานะเป็น "รอผลหมายเรียกตอบกลับ"
+                        if "รอผลหมายเรียกตอบกลับ" in status_text:
+                            days_since = None
+                            # คำนวณจากข้อมูลวันที่ลงหนังสือ
+                            doc_date = str(row.get('ลงวันที่', '')).strip()
+                            if doc_date and doc_date != 'nan':
+                                days_since = calculate_days_since_document(doc_date)
+                            
+                            if days_since is not None and days_since >= 0:
+                                status_text += f" [ส่งไปแล้ว {days_since} วัน]"
+                        
+                        related_summons.append({
+                            'ชื่อ ผตห.': str(row.get('ชื่อ ผตห.', '')),
+                            'เลขประจำตัว ปชช. ผตห.': str(row.get('เลขประจำตัว ปชช. ผตห.', '')),
+                            'สภ.พื้นที่รับผิดชอบ': str(row.get('สภ.พื้นที่รับผิดชอบ', '')),
+                            'ประเภทคดี': str(row.get('ประเภทคดี', '')),
+                            'ความเสียหาย': str(row.get('ความเสียหาย', '')),
+                            'เลขเคสไอดี': str(row.get('เลขเคสไอดี', '')),
+                            'กำหนดให้มาพบ': str(row.get('กำหนดให้มาพบ', '')),
+                            'ตอบกลับ': str(row.get('ตอบกลับ', '')),
+                            'สถานะตอบกลับ': status_text,
+                            'สถานะสี': status_color,
+                            'status_text': status_text,
+                            'status_color': status_color,
+                            # เพิ่มข้อมูลเลขที่หนังสือ
+                            'เลขที่หนังสือ': str(row.get('เลขที่หนังสือ', '')),
+                            'เลขหนังสือ': str(row.get('เลขหนังสือ', '')),
+                            'ลงวันที่': str(row.get('ลงวันที่', '')),
+                            # เพิ่มข้อมูลที่อยู่และสภ.พื้นที่รับผิดชอบ
+                            'ที่อยู่ ผตห.': str(row.get('ที่อยู่ ผตห.', '')),
+                            'สภ.พื้นที่รับผิดชอบ': str(row.get('สภ.พื้นที่รับผิดชอบ', '')),
+                            'จังหวัด สภ.พื้นที่รับผิดชอบ': str(row.get('จังหวัด สภ.พื้นที่รับผิดชอบ', ''))
+                        })
+                    
+        except Exception as e:
+            print(f"Error in find_related_summons_data: {e}")
+        return related_summons
+
+    def create_case_detail_window(self, case_data):
+        """สร้างหน้าต่างแสดงรายละเอียดคดี"""
+        if not GUI_AVAILABLE:
+            print("GUI ไม่พร้อมใช้งาน")
+            return
+            
+        try:
+            # สร้างหน้าต่างใหม่
+            detail_window = tk.Toplevel(self.root)
+            detail_window.title(f"รายละเอียดคดี - {case_data.get('เลขที่คดี', 'ไม่ระบุ')}")
+            detail_window.geometry("800x600")
+            detail_window.configure(bg='#f0f0f0')
+            
+            # สร้าง scrollable frame
+            canvas = tk.Canvas(detail_window, bg='#f0f0f0')
+            scrollbar = ttk.Scrollbar(detail_window, orient="vertical", command=canvas.yview)
+            scrollable_frame = ttk.Frame(canvas)
+            
+            scrollable_frame.bind(
+                "<Configure>",
+                lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+            )
+            
+            canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+            canvas.configure(yscrollcommand=scrollbar.set)
+            
+            # Header
+            header_frame = ttk.Frame(scrollable_frame)
+            header_frame.pack(fill='x', padx=20, pady=20)
+            
+            title_label = ttk.Label(header_frame, text="รายละเอียดคดีอาญา", 
+                                  font=('Arial', 18, 'bold'), foreground='#1f4e79')
+            title_label.pack()
+            
+            case_no = case_data.get('เลขที่คดี', 'ไม่ระบุ')
+            case_label = ttk.Label(header_frame, text=f"เลขที่คดี: {case_no}", 
+                                 font=('Arial', 14, 'bold'), foreground='#c55a11')
+            case_label.pack(pady=(5, 0))
+            
+            # ข้อมูลคดี
+            info_frame = ttk.LabelFrame(scrollable_frame, text="ข้อมูลคดี", padding=15)
+            info_frame.pack(fill='x', padx=20, pady=10)
+            
+            # รายการข้อมูลคดี (ใช้ชื่อคอลัมน์จริงจากไฟล์ Excel)
+            case_fields = [
+                ('เลขคำแจ้งความ', 'เลขคำแจ้งความ'),
+                ('เลขที่คดี', 'เลขที่คดี'),
+                ('สถานะคดี', 'สถานะคดี'),
+                ('ผลดำเนินการ', 'ผลดำเนินการ'),
+                ('ชื่อผู้ร้องทุกข์', 'ชื่อผู้ร้องทุกข์'),
+                ('ชื่อผู้ต้องหา', 'ชื่อผู้ต้องหา'),
+                ('วันที่/เวลา รับคำร้องทุกข์', 'วันที่/เวลา รับคำร้องทุกข์'),
+                ('Polis', 'Polis')
+            ]
+            
+            for i, (label, key) in enumerate(case_fields):
+                field_frame = ttk.Frame(info_frame)
+                field_frame.pack(fill='x', pady=2)
+                
+                label_widget = ttk.Label(field_frame, text=f"{label}:", 
+                                       font=('Arial', 10, 'bold'), width=15, anchor='w')
+                label_widget.pack(side='left', padx=(0, 10))
+                
+                value = str(case_data.get(key, '-')).strip()
+                if not value or value.lower() == 'nan':
+                    value = '-'
+                    
+                value_widget = ttk.Label(field_frame, text=value, 
+                                       font=('Arial', 10), wraplength=500, anchor='w')
+                value_widget.pack(side='left', fill='x', expand=True)
+            
+            # ข้อมูลธนาคารที่เกี่ยวข้อง
+            complainant_name = str(case_data.get('ชื่อผู้ร้องทุกข์', '')).strip()
+            bank_data = self.find_related_bank_data(complainant_name)
+            
+            if bank_data:
+                bank_frame = ttk.LabelFrame(scrollable_frame, text="ข้อมูลบัญชีธนาคารที่เกี่ยวข้อง", padding=15)
+                bank_frame.pack(fill='x', padx=20, pady=10)
+                
+                for i, bank in enumerate(bank_data[:5]):  # แสดงแค่ 5 รายการแรก
+                    bank_item_frame = ttk.Frame(bank_frame)
+                    bank_item_frame.pack(fill='x', pady=5, padx=10)
+                    
+                    bank_text = f"🏦 {bank.get('ชื่อธนาคาร', '')}"
+                    bank_label = ttk.Label(bank_item_frame, text=bank_text, font=('Arial', 10, 'bold'))
+                    bank_label.pack(anchor='w')
+                    
+                    account_text = f"   บัญชี: {bank.get('เลขบัญชี', '')} ({bank.get('เจ้าของบัญชีม้า', '')})"
+                    account_label = ttk.Label(bank_item_frame, text=account_text, font=('Arial', 9))
+                    account_label.pack(anchor='w')
+                    
+                    # แสดงเลขที่หนังสือ
+                    doc_number = bank.get('เลขหนังสือ', '') or bank.get('เลขที่หนังสือ', '')
+                    doc_date_parts = []
+                    if bank.get('วัน'):
+                        doc_date_parts.append(str(bank.get('วัน', '')))
+                    if bank.get('เดือน'):
+                        doc_date_parts.append(str(bank.get('เดือน', '')).strip())
+                    if bank.get('ปี'):
+                        doc_date_parts.append(str(bank.get('ปี', '')))
+                    doc_date = ' '.join(doc_date_parts) if doc_date_parts else bank.get('ลงวันที่', '')
+                    
+                    if doc_number and str(doc_number).strip() and str(doc_number).strip() != 'nan':
+                        doc_number = clean_document_number(doc_number)  # ทำความสะอาดเลขหนังสือ
+                        if not doc_number.startswith('ตช.0039.52/'):
+                            doc_number = f"ตช.0039.52/{doc_number}"
+                        doc_text = f"   เลขที่หนังสือ: {doc_number}"
+                        if doc_date and str(doc_date).strip():
+                            doc_text += f" ลงวันที่ {doc_date}"
+                        doc_label = ttk.Label(bank_item_frame, text=doc_text, font=('Arial', 9))
+                        doc_label.pack(anchor='w')
+                    
+                    status_text = bank.get('status_text', 'ไม่ระบุสถานะ')
+                    
+                    # คำนวณจำนวนวันถ้าสถานะเป็น "รอตอบกลับ"
+                    if "รอตอบกลับ" in status_text:
+                        days_since = None
+                        # ลองคำนวณจากข้อมูลวันที่แยกส่วน
+                        day = bank.get('วัน', '')
+                        month = bank.get('เดือน', '')
+                        year = bank.get('ปี', '')
+                        
+                        if day and month and year:
+                            days_since = parse_thai_date_components(day, month, year)
+                        else:
+                            # ลองคำนวณจากข้อมูลวันที่รวม
+                            doc_date = bank.get('ลงวันที่', '')
+                            if doc_date:
+                                days_since = calculate_days_since_document(doc_date)
+                        
+                        if days_since is not None and days_since >= 0:
+                            status_text += f" [ส่งไปแล้ว {days_since} วัน]"
+                    
+                    status_color = 'green' if '✓' in status_text else 'red'
+                    status_label = ttk.Label(bank_item_frame, text=f"   สถานะ: {status_text}", 
+                                           font=('Arial', 9), foreground=status_color)
+                    status_label.pack(anchor='w')
+            
+            # ข้อมูลหมายเรียกที่เกี่ยวข้อง
+            summons_data = self.find_related_summons_data(complainant_name)
+            
+            if summons_data:
+                summons_frame = ttk.LabelFrame(scrollable_frame, text="ข้อมูลหมายเรียกผู้ต้องหา", padding=15)
+                summons_frame.pack(fill='x', padx=20, pady=10)
+                
+                for summons in summons_data:  # แสดงทุกรายการที่เกี่ยวข้อง
+                    summons_item_frame = ttk.Frame(summons_frame)
+                    summons_item_frame.pack(fill='x', pady=5, padx=10)
+                    
+                    suspect_text = f"👤 {summons.get('ชื่อ ผตห.', '')}"
+                    suspect_label = ttk.Label(summons_item_frame, text=suspect_text, font=('Arial', 10, 'bold'))
+                    suspect_label.pack(anchor='w')
+                    
+                    id_text = f"   บัตรประชาชน: {summons.get('เลขประจำตัว ปชช. ผตห.', '')}"
+                    id_label = ttk.Label(summons_item_frame, text=id_text, font=('Arial', 9))
+                    id_label.pack(anchor='w')
+                    
+                    # แสดงที่อยู่ของผู้ต้องหา
+                    suspect_address = summons.get('ที่อยู่ ผตห.', '')
+                    if suspect_address and str(suspect_address).strip():
+                        address_text = f"   ที่อยู่: {suspect_address}"
+                        address_label = ttk.Label(summons_item_frame, text=address_text, font=('Arial', 9))
+                        address_label.pack(anchor='w')
+                    
+                    # แสดงสภ.พื้นที่รับผิดชอบและจังหวัด
+                    police_station = summons.get('สภ.พื้นที่รับผิดชอบ', '')
+                    province = summons.get('จังหวัด สภ.พื้นที่รับผิดชอบ', '')
+                    if police_station and str(police_station).strip():
+                        police_text = f"   สภ.พื้นที่รับผิดชอบ: {police_station}"
+                        if province and str(province).strip():
+                            police_text += f" จ.{province}"
+                        police_label = ttk.Label(summons_item_frame, text=police_text, font=('Arial', 9))
+                        police_label.pack(anchor='w')
+                    
+                    # แสดงเลขที่หนังสือ
+                    doc_number = summons.get('เลขที่หนังสือ', '') or summons.get('เลขหนังสือ', '')
+                    doc_date = summons.get('ลงวันที่', '')
+                    
+                    if doc_number and str(doc_number).strip() and str(doc_number).strip() != 'nan':
+                        doc_number = clean_document_number(doc_number)  # ทำความสะอาดเลขหนังสือ
+                        if not doc_number.startswith('ตช.0039.52/'):
+                            doc_number = f"ตช.0039.52/{doc_number}"
+                        doc_text = f"   เลขที่หนังสือ: {doc_number}"
+                        if doc_date and str(doc_date).strip():
+                            doc_text += f" ลงวันที่ {doc_date}"
+                        doc_label = ttk.Label(summons_item_frame, text=doc_text, font=('Arial', 9))
+                        doc_label.pack(anchor='w')
+                    
+                    # ใช้ status_text ที่คำนวณแล้วจาก find_related_summons_data
+                    status_text = summons.get('status_text', 'ไม่ระบุสถานะ')
+                    
+                    status_color = 'green' if '✓' in status_text else 'red'
+                    status_label = ttk.Label(summons_item_frame, text=f"   สถานะ: {status_text}", 
+                                           font=('Arial', 9), foreground=status_color)
+                    status_label.pack(anchor='w')
+            
+            # ปุ่มด้านล่าง
+            button_frame = ttk.Frame(scrollable_frame)
+            button_frame.pack(fill='x', padx=20, pady=20)
+            
+            close_btn = ttk.Button(button_frame, text="❌ ปิด", 
+                                 command=detail_window.destroy)
+            close_btn.pack(side='right')
+            
+            # Pack canvas และ scrollbar
+            canvas.pack(side="left", fill="both", expand=True)
+            scrollbar.pack(side="right", fill="y")
+            
+            # ทำให้หน้าต่างอยู่กลางจอ
+            detail_window.transient(self.root)
+            detail_window.grab_set()
+            
+            # คำนวณตำแหน่งกลางจอ
+            detail_window.update_idletasks()
+            x = (detail_window.winfo_screenwidth() - 800) // 2
+            y = (detail_window.winfo_screenheight() - 600) // 2
+            detail_window.geometry(f"800x600+{x}+{y}")
+            
+        except Exception as e:
+            messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถแสดงรายละเอียดได้: {str(e)}")
+            print(f"Error in create_case_detail_window: {e}")
 
 def main():
     """ฟังก์ชันหลัก"""
