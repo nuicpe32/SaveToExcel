@@ -3,15 +3,16 @@
 ## Project Overview
 
 **Project Name:** Excel Data Manager  
-**Version:** 2.0  
-**Last Updated:** December 2024  
+**Version:** 2.1  
+**Last Updated:** January 2025  
 **Status:** Production Ready  
 
 ## Description
 
-A comprehensive GUI application for managing Excel data with dual functionality:
+A comprehensive GUI application for managing Excel data with multi-functional capabilities:
 1. **Bank Account Data Management** - For handling bank account information requests
 2. **Suspect Summons Data Management** - For managing suspect summons documentation
+3. **Criminal Cases Management** - For viewing and managing criminal case data with detailed case information
 
 ## Current Features
 
@@ -34,6 +35,14 @@ A comprehensive GUI application for managing Excel data with dual functionality:
 - **Automatic number removal** from case types when saving to Excel
 - **Dedicated file management** saves to `ข้อมูลสำหรับออกหมายเรียกผู้ต้องหา.xlsx`
 
+#### ⚖️ Criminal Cases Management
+- **Streamlined case display** without complaint number column for better readability
+- **Comprehensive case details window** with scrollable content
+- **Related bank data search** using victim name matching
+- **Related summons data search** using victim name matching
+- **Reply status tracking** with visual indicators (✓ replied, ⏳ pending, 📝 partial)
+- **Case information display** including case number, status, complainant, suspect, charges, and report date
+
 ### ✅ User Interface
 
 #### Tab Structure
@@ -41,6 +50,7 @@ A comprehensive GUI application for managing Excel data with dual functionality:
 - **📊 ดูข้อมูลบัญชีธนาคาร** - Bank account data viewing and management
 - **👤 ข้อมูล ผตห.** - Suspect summons data entry form
 - **👁️ ดูข้อมูล ผตห.** - Suspect summons data viewing and management
+- **⚖️ คดีอาญาในความรับผิดชอบ** - Criminal cases viewing and detailed case management
 
 #### Form Features
 - **Scrollable forms** for better navigation
@@ -100,6 +110,16 @@ A comprehensive GUI application for managing Excel data with dual functionality:
 ```
 
 ## Recent Improvements
+
+### Version 2.1 Updates (January 2025)
+
+#### Criminal Cases Module
+- ✅ Added comprehensive criminal cases viewing functionality
+- ✅ Implemented detailed case information window with scrollable content
+- ✅ Fixed data search algorithms to use victim name matching ("ผู้เสียหาย" column)
+- ✅ Removed complaint number column from criminal cases display for better UX
+- ✅ Enhanced related data search for bank accounts and summons
+- ✅ Added reply status tracking with visual indicators
 
 ### Version 2.0 Updates (December 2024)
 
@@ -274,6 +294,6 @@ This project is designed for internal use. For modifications or enhancements, re
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** December 2024  
+**Document Version:** 1.1  
+**Last Updated:** January 2025  
 **Status:** Current and Complete
