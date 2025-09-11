@@ -1,18 +1,19 @@
-# Excel Data Manager - Project State Document
+# ระบบจัดการคดีอาญา - Project State Document
 
 ## Project Overview
 
-**Project Name:** Excel Data Manager  
-**Version:** 2.3  
+**Project Name:** ระบบจัดการคดีอาญา (Criminal Case Management System)  
+**Version:** 2.3.2  
 **Last Updated:** September 2025  
 **Status:** Production Ready  
 
 ## Description
 
-A comprehensive GUI application for managing Excel data with multi-functional capabilities:
+A comprehensive GUI application for managing criminal case data with multi-functional capabilities:
 1. **Bank Account Data Management** - For handling bank account information requests
 2. **Suspect Summons Data Management** - For managing suspect summons documentation
 3. **Criminal Cases Management** - For viewing and managing criminal case data with detailed case information
+4. **Arrest Management System** - For complete arrest process documentation from warrant to prosecution
 
 ## Current Features
 
@@ -49,6 +50,25 @@ A comprehensive GUI application for managing Excel data with multi-functional ca
 - **Suspects column** showing <total>/<replied> format
 - **Enhanced statistics bar** showing total, processing, over 6 months, and closed cases
 
+#### 🚔 Arrest Management System
+- **Comprehensive arrest documentation** covering complete process from warrant to prosecution
+- **43-column Excel integration** with `เอกสารหลังการจับกุม.xlsx` file structure
+- **9 organized field groups** for logical data entry workflow:
+  - ⚖️ Case and accuser information (คดีอาญาที่, ผู้กล่าวหา, crime scene, damage)
+  - 👤 Suspect details (name, age, nationality, address, ID, occupation)
+  - 📜 Warrant information (court, warrant number, petition dates)
+  - 🚔 Arrest details (date, time, arresting officer, unit, location)
+  - 📋 Post-arrest documentation (warrant revocation, custody transfer)
+  - ⚖️ Criminal charges (charges, law sections, penalties, circumstances)
+  - 📦 Evidence and detention (evidence items, detention periods)
+  - 📤 Prosecutor documentation (case transfer, document numbers)
+  - 🏛️ Court proceedings (detention requests, custody transfers)
+- **Smart table display** showing key information: case number, suspect name, age, court, warrant number, arrest date, arresting officer, location
+- **Complete data management** with add, edit, delete, copy, and Excel export functionality
+- **Field validation** for essential information (suspect name, case number, arrest date)
+- **Default values** for nationality (Thai) and arresting unit
+- **Scrollable forms** for complex multi-section data entry
+
 ### ✅ User Interface
 
 #### Tab Structure
@@ -57,6 +77,8 @@ A comprehensive GUI application for managing Excel data with multi-functional ca
 - **👤 ข้อมูล ผตห.** - Suspect summons data entry form
 - **👁️ ดูข้อมูล ผตห.** - Suspect summons data viewing and management
 - **⚖️ คดีอาญาในความรับผิดชอบ** - Criminal cases viewing and detailed case management
+- **🚔 การจับกุม** - Arrest documentation data entry form
+- **👁️ ดูการจับกุม** - Arrest data viewing and management
 
 #### Form Features
 - **Scrollable forms** for better navigation
@@ -68,10 +90,11 @@ A comprehensive GUI application for managing Excel data with multi-functional ca
 ### ✅ Data Management
 
 #### File Handling
-- **Dual file system** - separate files for bank and summons data
-- **Auto-save functionality** for both data types
+- **Multi-file system** - separate files for bank, summons, criminal cases, and arrest data
+- **Auto-save functionality** for all data types
 - **Excel format support** with fallback to CSV
 - **Path-relative file access** for portability
+- **Complex Excel structure support** - handles 43-column arrest documentation
 
 #### Data Validation
 - **Field type validation** (text, entry, dropdown, date)
@@ -120,8 +143,11 @@ A comprehensive GUI application for managing Excel data with multi-functional ca
 ├── bank_data.json                   # Bank branch data
 ├── README.md                        # User documentation
 ├── PROJECT_STATE.md                 # This document
+├── THSarabunNew/                    # Thai fonts for reports
+├── logo ccib.png                    # CCIB logo for reports
 ├── หนังสือส่งธนาคารขอข้อมูลบัญชีม้า.xlsx    # Bank data file
-└── ข้อมูลสำหรับออกหมายเรียกผู้ต้องหา.xlsx   # Summons data file
+├── ข้อมูลสำหรับออกหมายเรียกผู้ต้องหา.xlsx   # Summons data file
+└── เอกสารหลังการจับกุม.xlsx              # Arrest documentation file
 ```
 
 ## Recent Improvements
@@ -150,6 +176,27 @@ A comprehensive GUI application for managing Excel data with multi-functional ca
 - ✅ Enhanced bank account and suspect tracking with reply status counters
 - ✅ Implemented yellow highlighting for cases with fully replied bank accounts (ระหว่างสอบสวน status only)
 - ✅ Added comprehensive case relationship tracking between criminal cases, bank data, and summons
+
+#### Arrest Management System Implementation
+- ✅ Created comprehensive arrest documentation system with 43-column Excel integration
+- ✅ Designed 9 logical field groups covering complete arrest process workflow
+- ✅ Implemented full CRUD operations (Create, Read, Update, Delete) for arrest data
+- ✅ Built smart table display showing key arrest information in organized columns
+- ✅ Added field validation for essential arrest documentation requirements
+- ✅ Integrated with existing `เอกสารหลังการจับกุม.xlsx` file structure
+- ✅ Created scrollable forms for complex multi-section data entry
+- ✅ Established default values and data integrity checks
+
+#### Bug Fixes and UI Improvements
+- ✅ Fixed criminal case detail view displaying all bank accounts instead of limiting to 5
+- ✅ Updated program name from "ระบบจัดการข้อมูล Excel" to "ระบบจัดการคดีอาญา"
+- ✅ Enhanced application title and branding consistency across all interfaces
+- ✅ Optimized case detail window layout with responsive content area
+- ✅ Implemented main window maximized on startup for better user experience
+- ✅ Fixed case detail window sizing to prevent taskbar overlap
+- ✅ Redesigned case detail window with 40% width and centered positioning
+- ✅ Relocated Print and Close buttons to top of case detail window for better accessibility
+- ✅ Enhanced scrollable content area to utilize full window space effectively
 
 #### Data Management Improvements
 - ✅ Enhanced CaseID integration from bank Excel file (เคสไอดี column)

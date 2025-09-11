@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Simple Excel Data Manager - เวอร์ชันง่าย
-โปรแกรม GUI สำหรับจัดการข้อมูล Excel
+ระบบจัดการคดีอาญา - เวอร์ชันง่าย
+โปรแกรม GUI สำหรับจัดการข้อมูลคดีอาญา
 """
 
 import os
@@ -391,9 +391,12 @@ class SimpleExcelManager:
     def create_gui(self):
         """สร้าง GUI"""
         self.root = tk.Tk()
-        self.root.title("Excel Data Manager - จัดการข้อมูล Excel")
-        self.root.geometry("1200x800")
+        self.root.title("ระบบจัดการคดีอาญา - Criminal Case Management System")
         self.root.configure(bg='#f0f0f0')
+        
+        # ขยายหน้าต่างหลักเต็มจอ
+        self.root.state('zoomed')  # Windows
+        # สำหรับ Linux/macOS ใช้ self.root.attributes('-zoomed', True)
         
         # ธีมสีสวย
         style = ttk.Style()
@@ -404,7 +407,7 @@ class SimpleExcelManager:
         main_frame.pack(fill='both', expand=True, padx=10, pady=10)
         
         # หัวข้อ
-        title_label = ttk.Label(main_frame, text="ระบบจัดการข้อมูล Excel", 
+        title_label = ttk.Label(main_frame, text="ระบบจัดการคดีอาญา", 
                                font=('Arial', 18, 'bold'))
         title_label.pack(pady=(0, 20))
         
@@ -1752,7 +1755,7 @@ class SimpleExcelManager:
         # docProps/app.xml
         app_props = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
-<Application>Excel Data Manager</Application>
+<Application>ระบบจัดการคดีอาญา</Application>
 <ScaleCrop>false</ScaleCrop>
 <SharedDoc>false</SharedDoc>
 <HyperlinksChanged>false</HyperlinksChanged>
@@ -1766,7 +1769,7 @@ class SimpleExcelManager:
         now = datetime.now().isoformat()
         core_props = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-<dc:creator>Excel Data Manager</dc:creator>
+<dc:creator>ระบบจัดการคดีอาญา</dc:creator>
 <dcterms:created xsi:type="dcterms:W3CDTF">{now}</dcterms:created>
 <dcterms:modified xsi:type="dcterms:W3CDTF">{now}</dcterms:modified>
 </cp:coreProperties>'''
@@ -3213,14 +3216,757 @@ class SimpleExcelManager:
         arrest_input_frame = ttk.Frame(self.notebook)
         self.notebook.add(arrest_input_frame, text="🚔 การจับกุม")
         
-        ttk.Label(arrest_input_frame, text="ข้อมูลการจับกุม", font=('Arial', 14)).pack(pady=20)
+        # สร้าง scrollable frame
+        canvas = tk.Canvas(arrest_input_frame)
+        scrollbar = ttk.Scrollbar(arrest_input_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
         
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # หัวข้อ
+        title = ttk.Label(scrollable_frame, text="📋 กรอกข้อมูลการจับกุม", font=('Arial', 16, 'bold'))
+        title.pack(pady=20)
+        
+        # ฟิลด์กรอกข้อมูลการจับกุม
+        self.arrest_entries = {}
+        
+        # จัดกลุ่มฟิลด์การจับกุม (ตามโครงสร้างไฟล์ Excel จริง)
+        arrest_groups = [
+            ("⚖️ ข้อมูลคดีและผู้กล่าวหา", [
+                ("คดีอาญาที่", "case_criminal_no", "entry"),
+                ("ผู้กล่าวหา", "accuser", "entry"),
+                ("ที่เกิดเหตุในคดี", "crime_scene", "text"),
+                ("ความเสียหาย", "damage_amount", "entry")
+            ]),
+            ("👤 ข้อมูลผู้ต้องหา", [
+                ("ชื่อผู้ต้องหา", "suspect_name", "entry"),
+                ("อายุ", "age", "entry"),
+                ("สัญชาติ", "nationality", "entry"),
+                ("ที่อยู่", "address", "text"),
+                ("เลข ปชช", "id_number", "entry"),
+                ("อาชีพ", "occupation", "entry")
+            ]),
+            ("📜 ข้อมูลหมายจับ", [
+                ("ศาล", "court", "entry"),
+                ("เลขหมาย", "warrant_number", "entry"),
+                ("ลงหมาย", "warrant_date", "entry"),
+                ("วันยื่นคำร้อง", "petition_day", "entry"),
+                ("เดือนยื่น", "petition_month", "entry"),
+                ("ปียื่น", "petition_year", "entry")
+            ]),
+            ("🚔 ข้อมูลการจับกุม", [
+                ("วันที่จับ", "arrest_date", "entry"),
+                ("เวลาจับ", "arrest_time", "entry"),
+                ("ผู้จับ", "arresting_officer", "entry"),
+                ("หน่วยจับ", "arresting_unit", "entry"),
+                ("สถานที่จับ", "arrest_location", "text"),
+                ("บันทึกจับกุมลง", "arrest_record", "text")
+            ]),
+            ("📋 เอกสารหลังการจับกุม", [
+                ("เลขหนังสือถอนหมาย", "revoke_warrant_no", "entry"),
+                ("วันถอนหมาย", "revoke_warrant_date", "entry"),
+                ("วันรับตัว", "custody_date", "entry"),
+                ("เวลารับ", "custody_time", "entry")
+            ]),
+            ("⚖️ ข้อหาและฐานความผิด", [
+                ("ฐานความผิด", "criminal_charge", "text"),
+                ("มาตรา", "law_section", "entry"),
+                ("โทษ", "penalty", "text"),
+                ("พฤติการณ์", "circumstances", "text")
+            ]),
+            ("📦 ของกลางและการฝากขัง", [
+                ("ของกลาง", "evidence_items", "text"),
+                ("วันฝาก", "deposit_date", "entry"),
+                ("ถึง", "deposit_until", "entry"),
+                ("เลขหนังสือฝาก สภ.", "station_deposit_no", "entry"),
+                ("วันลง สภ.", "station_deposit_date", "entry")
+            ]),
+            ("📤 ส่งเอกสารอัยการ", [
+                ("ส่งเอกสารอัยการ", "send_to_prosecutor", "entry"),
+                ("เลขหนังสือ", "document_number", "entry"),
+                ("ลงวันที่", "document_date", "entry")
+            ]),
+            ("🏛️ คำร้องและการรับตัว", [
+                ("คำร้องฝากขัง", "detention_request", "entry"),
+                ("ครบฝากสุดท้าย", "final_detention_end", "entry"),
+                ("ในวันที่", "on_date", "entry"),
+                ("เลขหนังสือรับตัว สภ.", "station_custody_no", "entry"),
+                ("วันลงรับตัว สภ.", "station_custody_date", "entry")
+            ])
+        ]
+        
+        for group_title, group_fields in arrest_groups:
+            # หัวข้อกลุ่ม
+            group_label = ttk.Label(scrollable_frame, text=group_title, 
+                                   font=('Arial', 12, 'bold'))
+            group_label.pack(pady=(20, 10))
+            
+            # สร้างเฟรมสำหรับกลุ่ม
+            group_frame = ttk.LabelFrame(scrollable_frame, text="", padding=15)
+            group_frame.pack(fill='x', padx=30, pady=(0, 10))
+            
+            for label_text, key, field_type in group_fields:
+                field_frame = ttk.Frame(group_frame)
+                field_frame.pack(fill='x', pady=3)
+                
+                label = ttk.Label(field_frame, text=label_text, width=18, font=('Arial', 10))
+                label.pack(side='left', padx=(0, 10))
+                
+                # สร้าง widget ตามประเภท
+                if field_type == "text":
+                    # Text area สำหรับข้อความยาว
+                    entry = tk.Text(field_frame, width=47, height=3, font=('Arial', 10))
+                elif field_type == "auto":
+                    # ฟิลด์อัตโนมัติ (readonly)
+                    entry = ttk.Entry(field_frame, width=50, font=('Arial', 10), state="readonly")
+                else:
+                    # ฟิลด์ปกติ
+                    entry = ttk.Entry(field_frame, width=50, font=('Arial', 10))
+                
+                entry.pack(side='left', fill='x', expand=True)
+                self.arrest_entries[key] = entry
+        
+        # กำหนดค่าเริ่มต้น
+        self.set_arrest_defaults()
+        
+        # ปุ่มบันทึกและล้างข้อมูล
+        button_frame = ttk.Frame(scrollable_frame)
+        button_frame.pack(fill='x', padx=30, pady=20)
+        
+        save_btn = ttk.Button(button_frame, text="💾 บันทึกข้อมูลการจับกุม", 
+                             command=self.save_arrest_data)
+        save_btn.pack(side='left', padx=(0, 10))
+        
+        clear_btn = ttk.Button(button_frame, text="🗑️ ล้างข้อมูล", 
+                              command=self.clear_arrest_form)
+        clear_btn.pack(side='left')
+        
+        # Pack canvas และ scrollbar
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+    
+    def set_arrest_defaults(self):
+        """กำหนดค่าเริ่มต้นสำหรับฟอร์มการจับกุม"""
+        try:
+            from datetime import datetime
+            
+            # กำหนดค่าเริ่มต้นอื่นๆ
+            self.set_arrest_field_value('nationality', "ไทย")
+            self.set_arrest_field_value('arresting_unit', "กองบังคับการปราบปรามอาชญากรรมทางเทคโนโลยี")
+            
+            # กำหนดวันที่ปัจจุบันในรูปแบบไทย
+            current_date = format_thai_date(datetime.now())
+            current_time = datetime.now().strftime("%H:%M")
+            
+            # ไม่ต้องกำหนด default สำหรับวันที่ เพราะแต่ละคดีจะมีวันที่ต่างกัน
+            # แต่สามารถกำหนดเวลาปัจจุบันได้
+            
+        except Exception as e:
+            print(f"Error setting arrest defaults: {e}")
+    
+    def set_arrest_field_value(self, field_key, value):
+        """กำหนดค่าให้กับฟิลด์การจับกุม"""
+        try:
+            if field_key in self.arrest_entries:
+                widget = self.arrest_entries[field_key]
+                if isinstance(widget, tk.Text):
+                    widget.delete('1.0', tk.END)
+                    widget.insert('1.0', str(value))
+                elif isinstance(widget, ttk.Entry):
+                    # สำหรับ readonly field ต้องเปลี่ยนสถานะก่อน
+                    current_state = widget['state']
+                    if current_state == 'readonly':
+                        widget.config(state='normal')
+                    widget.delete(0, tk.END)
+                    widget.insert(0, str(value))
+                    if current_state == 'readonly':
+                        widget.config(state='readonly')
+        except Exception as e:
+            print(f"Error setting arrest field {field_key}: {e}")
+    
+    def clear_arrest_form(self):
+        """ล้างข้อมูลในฟอร์มการจับกุม"""
+        try:
+            for key, widget in self.arrest_entries.items():
+                if isinstance(widget, tk.Text):
+                    widget.delete('1.0', tk.END)
+                elif isinstance(widget, ttk.Entry):
+                    current_state = widget['state']
+                    if current_state == 'readonly':
+                        widget.config(state='normal')
+                    widget.delete(0, tk.END)
+                    if current_state == 'readonly':
+                        widget.config(state='readonly')
+            
+            # กำหนดค่าเริ่มต้นใหม่
+            self.set_arrest_defaults()
+            
+            if GUI_AVAILABLE:
+                messagebox.showinfo("สำเร็จ", "ล้างข้อมูลเรียบร้อย")
+            else:
+                print("Info: ล้างข้อมูลเรียบร้อย")
+                
+        except Exception as e:
+            if GUI_AVAILABLE:
+                messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถล้างข้อมูลได้: {str(e)}")
+            else:
+                print(f"Error: ไม่สามารถล้างข้อมูลได้: {str(e)}")
+    
+    def save_arrest_data(self):
+        """บันทึกข้อมูลการจับกุม"""
+        try:
+            # ดึงข้อมูลจากฟอร์ม
+            arrest_data = {}
+            for key, widget in self.arrest_entries.items():
+                if isinstance(widget, tk.Text):
+                    arrest_data[key] = widget.get('1.0', tk.END).strip()
+                elif isinstance(widget, ttk.Entry):
+                    arrest_data[key] = widget.get().strip()
+                else:
+                    arrest_data[key] = ""
+            
+            # ตรวจสอบข้อมูลจำเป็น
+            required_fields = ['suspect_name', 'case_criminal_no', 'arrest_date']
+            for field in required_fields:
+                if not arrest_data.get(field, '').strip():
+                    field_labels = {
+                        'suspect_name': 'ชื่อผู้ต้องหา',
+                        'case_criminal_no': 'คดีอาญาที่',
+                        'arrest_date': 'วันที่จับ'
+                    }
+                    if GUI_AVAILABLE:
+                        messagebox.showwarning("คำเตือน", f"กรุณากรอก{field_labels[field]}")
+                    else:
+                        print(f"Warning: กรุณากรอก{field_labels[field]}")
+                    return
+            
+            # เพิ่มข้อมูลลงใน list
+            if not hasattr(self, 'arrest_data_headers') or not self.arrest_data_headers:
+                self.create_empty_arrest_data()
+            
+            # สร้างแถวข้อมูลใหม่
+            new_row = []
+            for header in self.arrest_data_headers:
+                # แปลงชื่อ header เป็น key (ตามโครงสร้างไฟล์ Excel จริง)
+                key_mapping = {
+                    'คดีอาญาที่': 'case_criminal_no',
+                    'ผู้กล่าวหา': 'accuser',
+                    'ชื่อผู้ต้องหา': 'suspect_name',
+                    'อายุ': 'age',
+                    'สัญชาติ': 'nationality',
+                    'ที่อยุ่': 'address',
+                    'เลข ปชช': 'id_number',
+                    'อาชีพ': 'occupation',
+                    'ศาล': 'court',
+                    'เลขหมาย': 'warrant_number',
+                    'ลงหมาย': 'warrant_date',
+                    'วันยื่นคำร้อง': 'petition_day',
+                    'เดือนยื่น': 'petition_month',
+                    'ปียื่น': 'petition_year',
+                    'วันที่จับ ': 'arrest_date',
+                    'เวลาจับ': 'arrest_time',
+                    'บันทึกจับกุมลง': 'arrest_record',
+                    'เลขหนังสือถอนหมาย': 'revoke_warrant_no',
+                    'วันถอนหมาย': 'revoke_warrant_date',
+                    'ผู้จับ': 'arresting_officer',
+                    'หน่วยจับ': 'arresting_unit',
+                    'สถานที่จับ': 'arrest_location',
+                    'วันรับตัว': 'custody_date',
+                    'เวลารับ': 'custody_time',
+                    'ฐานความผิด': 'criminal_charge',
+                    'มาตรา': 'law_section',
+                    'โทษ': 'penalty',
+                    'พฤติการณ์': 'circumstances',
+                    'ที่เกิดเหตุในคดี': 'crime_scene',
+                    'ความเสียหาย': 'damage_amount',
+                    'วันฝาก': 'deposit_date',
+                    'ถึง': 'deposit_until',
+                    'ของกลาง': 'evidence_items',
+                    'เลขหนังสือฝาก สภ.': 'station_deposit_no',
+                    'วันลง สภ.': 'station_deposit_date',
+                    'ส่งเอกสารอัยการ': 'send_to_prosecutor',
+                    'เลขหนังสือ': 'document_number',
+                    'ลงวันที่': 'document_date',
+                    'คำร้องฝากขัง': 'detention_request',
+                    'ครบฝากสุดท้าย': 'final_detention_end',
+                    'ในวันที่': 'on_date',
+                    'เลขหนังสือรับตัว สภ.': 'station_custody_no',
+                    'วันลงรับตัว สภ.': 'station_custody_date'
+                }
+                
+                key = key_mapping.get(header, header.lower().replace(' ', '_'))
+                value = arrest_data.get(key, '')
+                new_row.append(value)
+            
+            # เพิ่มข้อมูลลงในรายการ
+            self.arrest_data_rows.append(new_row)
+            
+            # บันทึกลงไฟล์
+            if self.save_arrest_excel_file():
+                if GUI_AVAILABLE:
+                    messagebox.showinfo("สำเร็จ", "บันทึกข้อมูลการจับกุมเรียบร้อย")
+                else:
+                    print("Info: บันทึกข้อมูลการจับกุมเรียบร้อย")
+                
+                # ล้างฟอร์มและกำหนดค่าเริ่มต้นใหม่
+                self.clear_arrest_form()
+                
+                # รีเฟรช view tab ถ้ามี
+                if hasattr(self, 'arrest_tree'):
+                    self.load_arrest_data()
+            else:
+                if GUI_AVAILABLE:
+                    messagebox.showerror("ข้อผิดพลาด", "ไม่สามารถบันทึกไฟล์ได้")
+                else:
+                    print("Error: ไม่สามารถบันทึกไฟล์ได้")
+                    
+        except Exception as e:
+            if GUI_AVAILABLE:
+                messagebox.showerror("ข้อผิดพลาด", f"เกิดข้อผิดพลาดในการบันทึก: {str(e)}")
+            else:
+                print(f"Error: เกิดข้อผิดพลาดในการบันทึก: {str(e)}")
+
     def create_arrest_view_tab(self):
         """สร้างแท็บดูข้อมูลการจับกุม"""
         arrest_view_frame = ttk.Frame(self.notebook)
         self.notebook.add(arrest_view_frame, text="👁️ ดูการจับกุม")
         
-        ttk.Label(arrest_view_frame, text="ดูข้อมูลการจับกุม", font=('Arial', 14)).pack(pady=20)
+        # หัวข้อและปุ่ม
+        top_frame = ttk.Frame(arrest_view_frame)
+        top_frame.pack(fill='x', padx=20, pady=10)
+        
+        title_label = ttk.Label(top_frame, text="📋 ข้อมูลการจับกุม", font=('Arial', 16, 'bold'))
+        title_label.pack(side='left')
+        
+        # ปุ่มรีเฟรช
+        refresh_btn = ttk.Button(top_frame, text="🔄 รีเฟรช", command=self.load_arrest_data)
+        refresh_btn.pack(side='right', padx=(10, 0))
+        
+        # ตาราง
+        table_frame = ttk.Frame(arrest_view_frame)
+        table_frame.pack(fill='both', expand=True, padx=20, pady=(0, 20))
+        
+        # คอลัมน์สำหรับตารางการจับกุม (ตามโครงสร้างไฟล์ Excel จริง)
+        arrest_columns = ("คดีอาญาที่", "ชื่อผู้ต้องหา", "อายุ", "ศาล", "เลขหมาย", "วันที่จับ", "ผู้จับ", "สถานที่จับ")
+        self.arrest_tree = ttk.Treeview(table_frame, columns=arrest_columns, show='headings', height=15)
+        
+        # กำหนดหัวข้อคอลัมน์
+        for col in arrest_columns:
+            self.arrest_tree.heading(col, text=col)
+        
+        # กำหนดความกว้างคอลัมน์
+        self.arrest_tree.column("คดีอาญาที่", width=120, anchor='center')
+        self.arrest_tree.column("ชื่อผู้ต้องหา", width=200, anchor='w')
+        self.arrest_tree.column("อายุ", width=80, anchor='center')
+        self.arrest_tree.column("ศาล", width=150, anchor='w')
+        self.arrest_tree.column("เลขหมาย", width=120, anchor='center')
+        self.arrest_tree.column("วันที่จับ", width=120, anchor='center')
+        self.arrest_tree.column("ผู้จับ", width=180, anchor='w')
+        self.arrest_tree.column("สถานที่จับ", width=200, anchor='w')
+        
+        # Scrollbars
+        v_scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.arrest_tree.yview)
+        h_scrollbar = ttk.Scrollbar(table_frame, orient="horizontal", command=self.arrest_tree.xview)
+        self.arrest_tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
+        
+        # Pack scrollbars และ treeview
+        self.arrest_tree.grid(row=0, column=0, sticky='nsew')
+        v_scrollbar.grid(row=0, column=1, sticky='ns')
+        h_scrollbar.grid(row=1, column=0, sticky='ew')
+        
+        table_frame.grid_rowconfigure(0, weight=1)
+        table_frame.grid_columnconfigure(0, weight=1)
+        
+        # ปุ่มจัดการข้อมูล
+        button_frame = ttk.Frame(arrest_view_frame)
+        button_frame.pack(fill='x', padx=20, pady=10)
+        
+        edit_btn = ttk.Button(button_frame, text="✏️ แก้ไข", command=self.edit_arrest_data)
+        edit_btn.pack(side='left', padx=(0, 10))
+        
+        delete_btn = ttk.Button(button_frame, text="🗑️ ลบ", command=self.delete_arrest_data)
+        delete_btn.pack(side='left', padx=(0, 10))
+        
+        copy_btn = ttk.Button(button_frame, text="📋 คัดลอก", command=self.copy_arrest_data)
+        copy_btn.pack(side='left', padx=(0, 10))
+        
+        save_excel_btn = ttk.Button(button_frame, text="💾 บันทึก Excel", command=self.save_arrest_excel_file)
+        save_excel_btn.pack(side='right')
+        
+        # โหลดข้อมูลเริ่มต้น
+        self.load_arrest_data()
+    
+    def create_empty_arrest_data(self):
+        """สร้างข้อมูลเปล่าสำหรับการจับกุม (ตามโครงสร้างไฟล์ Excel จริง)"""
+        columns = [
+            "คดีอาญาที่", "ผู้กล่าวหา", "ชื่อผู้ต้องหา", "อายุ", "สัญชาติ", "ที่อยุ่", "เลข ปชช", "อาชีพ",
+            "ศาล", "เลขหมาย", "ลงหมาย", "วันยื่นคำร้อง", "เดือนยื่น", "ปียื่น", "วันที่จับ ", "เวลาจับ",
+            "บันทึกจับกุมลง", "เลขหนังสือถอนหมาย", "วันถอนหมาย", "ผู้จับ", "หน่วยจับ", "สถานที่จับ",
+            "วันรับตัว", "เวลารับ", "ฐานความผิด", "มาตรา", "โทษ", "พฤติการณ์", "ที่เกิดเหตุในคดี",
+            "ความเสียหาย", "วันฝาก", "ถึง", "ของกลาง", "เลขหนังสือฝาก สภ.", "วันลง สภ.",
+            "ส่งเอกสารอัยการ", "เลขหนังสือ", "ลงวันที่", "คำร้องฝากขัง", "ครบฝากสุดท้าย",
+            "ในวันที่", "เลขหนังสือรับตัว สภ.", "วันลงรับตัว สภ."
+        ]
+        
+        self.arrest_data_headers = columns
+        self.arrest_data_rows = []
+    
+    def load_arrest_data(self):
+        """โหลดข้อมูลการจับกุม"""
+        try:
+            if not self.use_pandas:
+                if GUI_AVAILABLE:
+                    messagebox.showerror("ข้อผิดพลาด", "ไม่พบ pandas กรุณาติดตั้ง: pip install pandas")
+                else:
+                    print("Error: ไม่พบ pandas กรุณาติดตั้ง: pip install pandas")
+                return
+            
+            import pandas as pd
+            possible_dirs = [os.getcwd(), '/mnt/c/SaveToExcel', os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()]
+            arrest_file = None
+            
+            for directory in possible_dirs:
+                arrest_path = os.path.join(directory, 'เอกสารหลังการจับกุม.xlsx')
+                if os.path.exists(arrest_path):
+                    arrest_file = arrest_path
+                    break
+            
+            if not arrest_file:
+                print("ไม่พบไฟล์ เอกสารหลังการจับกุม.xlsx สร้างข้อมูลเปล่า")
+                self.create_empty_arrest_data()
+                return
+            
+            # โหลดข้อมูลจากไฟล์
+            df = pd.read_excel(arrest_file, engine='openpyxl')
+            self.arrest_data_headers = list(df.columns)
+            self.arrest_data_rows = df.values.tolist()
+            
+            # อัปเดตตาราง
+            if hasattr(self, 'arrest_tree'):
+                self.update_arrest_tree()
+                
+        except Exception as e:
+            error_msg = f"ไม่สามารถโหลดข้อมูลการจับกุมได้: {str(e)}"
+            if GUI_AVAILABLE:
+                messagebox.showerror("ข้อผิดพลาด", error_msg)
+            else:
+                print(f"Error: {error_msg}")
+            self.create_empty_arrest_data()
+    
+    def update_arrest_tree(self):
+        """อัปเดตตารางแสดงข้อมูลการจับกุม"""
+        try:
+            if not hasattr(self, 'arrest_tree'):
+                return
+                
+            # ล้างข้อมูลเดิม
+            for item in self.arrest_tree.get_children():
+                self.arrest_tree.delete(item)
+            
+            if not hasattr(self, 'arrest_data_rows') or not self.arrest_data_rows:
+                return
+            
+            # หาตำแหน่งคอลัมน์ที่ต้องการแสดง
+            header_mapping = {}
+            if hasattr(self, 'arrest_data_headers'):
+                for i, header in enumerate(self.arrest_data_headers):
+                    header_mapping[header] = i
+            
+            # แสดงข้อมูลในตาราง
+            for row_index, row in enumerate(self.arrest_data_rows):
+                try:
+                    # ดึงข้อมูลจากคอลัมน์ที่ต้องการแสดง (ตามโครงสร้างไฟล์ Excel จริง)
+                    case_criminal_no = row[header_mapping.get("คดีอาญาที่", 0)] if "คดีอาญาที่" in header_mapping else ""
+                    suspect_name = row[header_mapping.get("ชื่อผู้ต้องหา", 2)] if "ชื่อผู้ต้องหา" in header_mapping else ""
+                    age = row[header_mapping.get("อายุ", 3)] if "อายุ" in header_mapping else ""
+                    court = row[header_mapping.get("ศาล", 8)] if "ศาล" in header_mapping else ""
+                    warrant_number = row[header_mapping.get("เลขหมาย", 9)] if "เลขหมาย" in header_mapping else ""
+                    arrest_date = row[header_mapping.get("วันที่จับ ", 14)] if "วันที่จับ " in header_mapping else ""
+                    arresting_officer = row[header_mapping.get("ผู้จับ", 19)] if "ผู้จับ" in header_mapping else ""
+                    arrest_location = row[header_mapping.get("สถานที่จับ", 21)] if "สถานที่จับ" in header_mapping else ""
+                    
+                    # แสดงข้อมูลในตาราง
+                    self.arrest_tree.insert("", "end", 
+                                          values=(case_criminal_no, suspect_name, age, court, 
+                                                 warrant_number, arrest_date, arresting_officer, arrest_location),
+                                          tags=(str(row_index),))
+                    
+                except Exception as e:
+                    print(f"Error processing arrest row {row_index}: {e}")
+                    continue
+            
+            # กำหนดสีสำหรับแถบสลับ
+            if GUI_AVAILABLE:
+                style = ttk.Style()
+                style.configure("Treeview", background="#ffffff", foreground="#333333", rowheight=25)
+                style.configure("Treeview.Heading", background="#4a90e2", foreground="#ffffff", font=('Arial', 10, 'bold'))
+                style.map('Treeview', background=[('selected', '#e3f2fd')], foreground=[('selected', '#1565c0')])
+            
+            self.arrest_tree.tag_configure('evenrow', background='#f8f9fa')
+            self.arrest_tree.tag_configure('oddrow', background='#ffffff')
+            
+            # ใส่สีแถบสลับ
+            for i, item in enumerate(self.arrest_tree.get_children()):
+                if i % 2 == 0:
+                    current_tags = list(self.arrest_tree.item(item, "tags"))
+                    current_tags.append('evenrow')
+                    self.arrest_tree.item(item, tags=current_tags)
+                else:
+                    current_tags = list(self.arrest_tree.item(item, "tags"))
+                    current_tags.append('oddrow')
+                    self.arrest_tree.item(item, tags=current_tags)
+                    
+        except Exception as e:
+            print(f"Error updating arrest tree: {e}")
+    
+    def save_arrest_excel_file(self):
+        """บันทึกไฟล์ Excel การจับกุม"""
+        try:
+            filename = "เอกสารหลังการจับกุม.xlsx"
+            
+            if not hasattr(self, 'arrest_data_headers') or not self.arrest_data_headers:
+                self.create_empty_arrest_data()
+            
+            if self.use_pandas:
+                import pandas as pd
+                df = pd.DataFrame(self.arrest_data_rows, columns=self.arrest_data_headers)
+                df.to_excel(filename, index=False, engine='openpyxl')
+                print(f"บันทึกข้อมูลการจับกุมลงไฟล์ {filename} สำเร็จ ({len(self.arrest_data_rows)} แถว)")
+                return True
+            else:
+                # ใช้วิธี native ถ้าไม่มี pandas
+                return self.write_excel_native(filename, self.arrest_data_headers, self.arrest_data_rows)
+                
+        except Exception as e:
+            print(f"เกิดข้อผิดพลาดในการบันทึกไฟล์การจับกุม: {e}")
+            return False
+    
+    def edit_arrest_data(self):
+        """แก้ไขข้อมูลการจับกุม"""
+        try:
+            selected = self.arrest_tree.selection()
+            if not selected:
+                if GUI_AVAILABLE:
+                    messagebox.showwarning("คำเตือน", "กรุณาเลือกข้อมูลที่ต้องการแก้ไข")
+                else:
+                    print("Warning: กรุณาเลือกข้อมูลที่ต้องการแก้ไข")
+                return
+            
+            # ดึงข้อมูลแถวที่เลือก
+            item = self.arrest_tree.item(selected[0])
+            row_tags = item.get("tags", [])
+            if not row_tags:
+                return
+            
+            row_index = int(row_tags[0])
+            if row_index >= len(self.arrest_data_rows):
+                return
+            
+            # สร้างหน้าต่างแก้ไข
+            edit_window = tk.Toplevel(self.root)
+            edit_window.title("แก้ไขข้อมูลการจับกุม")
+            edit_window.geometry("600x800")
+            
+            # สร้าง scrollable frame
+            canvas = tk.Canvas(edit_window)
+            scrollbar = ttk.Scrollbar(edit_window, orient="vertical", command=canvas.yview)
+            scrollable_frame = ttk.Frame(canvas)
+            
+            scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+            canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+            canvas.configure(yscrollcommand=scrollbar.set)
+            
+            # หัวข้อ
+            title = ttk.Label(scrollable_frame, text="แก้ไขข้อมูลการจับกุม", font=('Arial', 14, 'bold'))
+            title.pack(pady=10)
+            
+            # สร้างฟิลด์แก้ไข
+            edit_entries = {}
+            row_data = self.arrest_data_rows[row_index]
+            
+            for i, header in enumerate(self.arrest_data_headers):
+                frame = ttk.Frame(scrollable_frame)
+                frame.pack(fill='x', padx=20, pady=5)
+                
+                label = ttk.Label(frame, text=header, width=20, anchor='w')
+                label.pack(side='left', padx=(0, 10))
+                
+                if i < len(row_data):
+                    current_value = str(row_data[i]) if row_data[i] is not None else ""
+                else:
+                    current_value = ""
+                
+                # สร้าง Text widget สำหรับข้อมูลที่อาจยาว
+                if header in ["ข้อหา", "สถานที่เกิดเหตุ", "สถานที่จับกุม", "บันทึกการจับกุม", "ของกลางที่ยึด", "หมายเหตุ"]:
+                    entry = tk.Text(frame, height=3, width=40)
+                    entry.insert('1.0', current_value)
+                else:
+                    entry = ttk.Entry(frame, width=50)
+                    entry.insert(0, current_value)
+                
+                entry.pack(side='left', fill='x', expand=True)
+                edit_entries[header] = entry
+            
+            # ปุ่มบันทึกและยกเลิก
+            button_frame = ttk.Frame(scrollable_frame)
+            button_frame.pack(fill='x', padx=20, pady=20)
+            
+            def save_changes():
+                try:
+                    # อัปเดตข้อมูล
+                    for i, header in enumerate(self.arrest_data_headers):
+                        if header in edit_entries:
+                            widget = edit_entries[header]
+                            if isinstance(widget, tk.Text):
+                                new_value = widget.get('1.0', tk.END).strip()
+                            else:
+                                new_value = widget.get().strip()
+                            
+                            if i < len(self.arrest_data_rows[row_index]):
+                                self.arrest_data_rows[row_index][i] = new_value
+                            else:
+                                # ขยายแถวถ้าจำเป็น
+                                while len(self.arrest_data_rows[row_index]) <= i:
+                                    self.arrest_data_rows[row_index].append("")
+                                self.arrest_data_rows[row_index][i] = new_value
+                    
+                    # บันทึกลงไฟล์
+                    if self.save_arrest_excel_file():
+                        self.update_arrest_tree()
+                        edit_window.destroy()
+                        if GUI_AVAILABLE:
+                            messagebox.showinfo("สำเร็จ", "แก้ไขข้อมูลเรียบร้อย")
+                        else:
+                            print("Info: แก้ไขข้อมูลเรียบร้อย")
+                    else:
+                        if GUI_AVAILABLE:
+                            messagebox.showerror("ข้อผิดพลาด", "ไม่สามารถบันทึกการเปลี่ยนแปลงได้")
+                        else:
+                            print("Error: ไม่สามารถบันทึกการเปลี่ยนแปลงได้")
+                            
+                except Exception as e:
+                    if GUI_AVAILABLE:
+                        messagebox.showerror("ข้อผิดพลาด", f"เกิดข้อผิดพลาดในการบันทึก: {str(e)}")
+                    else:
+                        print(f"Error: เกิดข้อผิดพลาดในการบันทึก: {str(e)}")
+            
+            save_btn = ttk.Button(button_frame, text="💾 บันทึก", command=save_changes)
+            save_btn.pack(side='left', padx=(0, 10))
+            
+            cancel_btn = ttk.Button(button_frame, text="❌ ยกเลิก", command=edit_window.destroy)
+            cancel_btn.pack(side='left')
+            
+            # Pack canvas และ scrollbar
+            canvas.pack(side="left", fill="both", expand=True)
+            scrollbar.pack(side="right", fill="y")
+            
+        except Exception as e:
+            if GUI_AVAILABLE:
+                messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถแก้ไขข้อมูลได้: {str(e)}")
+            else:
+                print(f"Error: ไม่สามารถแก้ไขข้อมูลได้: {str(e)}")
+    
+    def delete_arrest_data(self):
+        """ลบข้อมูลการจับกุม"""
+        try:
+            selected = self.arrest_tree.selection()
+            if not selected:
+                if GUI_AVAILABLE:
+                    messagebox.showwarning("คำเตือน", "กรุณาเลือกข้อมูลที่ต้องการลบ")
+                else:
+                    print("Warning: กรุณาเลือกข้อมูลที่ต้องการลบ")
+                return
+            
+            # ยืนยันการลบ
+            if GUI_AVAILABLE:
+                result = messagebox.askyesno("ยืนยันการลบ", "คุณต้องการลบข้อมูลนี้หรือไม่?")
+                if not result:
+                    return
+            else:
+                print("Info: ลบข้อมูลการจับกุม")
+            
+            # ลบข้อมูล
+            item = self.arrest_tree.item(selected[0])
+            row_tags = item.get("tags", [])
+            if row_tags:
+                row_index = int(row_tags[0])
+                if 0 <= row_index < len(self.arrest_data_rows):
+                    del self.arrest_data_rows[row_index]
+                    
+                    # บันทึกและอัปเดต
+                    if self.save_arrest_excel_file():
+                        self.update_arrest_tree()
+                        if GUI_AVAILABLE:
+                            messagebox.showinfo("สำเร็จ", "ลบข้อมูลเรียบร้อย")
+                        else:
+                            print("Info: ลบข้อมูลเรียบร้อย")
+                    else:
+                        if GUI_AVAILABLE:
+                            messagebox.showerror("ข้อผิดพลาด", "ไม่สามารถบันทึกการเปลี่ยนแปลงได้")
+                        else:
+                            print("Error: ไม่สามารถบันทึกการเปลี่ยนแปลงได้")
+                            
+        except Exception as e:
+            if GUI_AVAILABLE:
+                messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถลบข้อมูลได้: {str(e)}")
+            else:
+                print(f"Error: ไม่สามารถลบข้อมูลได้: {str(e)}")
+    
+    def copy_arrest_data(self):
+        """คัดลอกข้อมูลการจับกุม"""
+        try:
+            selected = self.arrest_tree.selection()
+            if not selected:
+                if GUI_AVAILABLE:
+                    messagebox.showwarning("คำเตือน", "กรุณาเลือกข้อมูลที่ต้องการคัดลอก")
+                else:
+                    print("Warning: กรุณาเลือกข้อมูลที่ต้องการคัดลอก")
+                return
+            
+            # ดึงข้อมูลแถวที่เลือก
+            item = self.arrest_tree.item(selected[0])
+            row_tags = item.get("tags", [])
+            if not row_tags:
+                return
+                
+            row_index = int(row_tags[0])
+            if row_index >= len(self.arrest_data_rows):
+                return
+            
+            # คัดลอกข้อมูล
+            source_row = self.arrest_data_rows[row_index].copy()
+            
+            # เปลี่ยนลำดับให้เป็นลำดับใหม่
+            if len(source_row) > 0:
+                source_row[0] = str(len(self.arrest_data_rows) + 1)
+            
+            # เพิ่มข้อมูลใหม่
+            self.arrest_data_rows.append(source_row)
+            
+            # บันทึกและอัปเดต
+            if self.save_arrest_excel_file():
+                self.update_arrest_tree()
+                if GUI_AVAILABLE:
+                    messagebox.showinfo("สำเร็จ", "คัดลอกข้อมูลเรียบร้อย")
+                else:
+                    print("Info: คัดลอกข้อมูลเรียบร้อย")
+            else:
+                if GUI_AVAILABLE:
+                    messagebox.showerror("ข้อผิดพลาด", "ไม่สามารถบันทึกข้อมูลใหม่ได้")
+                else:
+                    print("Error: ไม่สามารถบันทึกข้อมูลใหม่ได้")
+                    
+        except Exception as e:
+            if GUI_AVAILABLE:
+                messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถคัดลอกข้อมูลได้: {str(e)}")
+            else:
+                print(f"Error: ไม่สามารถคัดลอกข้อมูลได้: {str(e)}")
 
     def find_related_bank_data(self, complainant_name):
         """ค้นหาข้อมูลธนาคารที่เกี่ยวข้อง"""
@@ -3526,33 +4272,80 @@ class SimpleExcelManager:
             # สร้างหน้าต่างใหม่
             detail_window = tk.Toplevel(self.root)
             detail_window.title(f"รายละเอียดคดี - {case_data.get('เลขที่คดี', 'ไม่ระบุ')}")
-            detail_window.geometry("800x600")
-            detail_window.configure(bg='#f0f0f0')
+            detail_window.configure(bg='#f8f9fa')
+            detail_window.resizable(True, True)
+            
+            # ตั้งขนาดหน้าต่างเป็น 70% ของหน้าจอและจัดกลาง
+            try:
+                detail_window.state('normal')
+                detail_window.update_idletasks()
+                
+                # คำนวณขนาดหน้าจอ
+                screen_width = detail_window.winfo_screenwidth()
+                screen_height = detail_window.winfo_screenheight()
+                
+                # คำนวณขนาด 40% ความกว้าง, 70% ความสูง ของหน้าจอ
+                window_width = int(screen_width * 0.4)
+                window_height = int(screen_height * 0.7)
+                
+                # คำนวณตำแหน่งกลางจอ
+                x = (screen_width - window_width) // 2
+                y = (screen_height - window_height) // 2
+                
+                # ตั้งค่าขนาดและตำแหน่ง
+                detail_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+                
+            except:
+                # fallback ถ้าไม่ได้
+                detail_window.geometry("1000x700+200+100")
             
             # สร้าง scrollable frame
-            canvas = tk.Canvas(detail_window, bg='#f0f0f0')
+            canvas = tk.Canvas(detail_window, bg='#f8f9fa', highlightthickness=0)
             scrollbar = ttk.Scrollbar(detail_window, orient="vertical", command=canvas.yview)
             scrollable_frame = ttk.Frame(canvas)
             
-            scrollable_frame.bind(
-                "<Configure>",
-                lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-            )
+            # Pack canvas และ scrollbar เต็มจอ
+            canvas.pack(side="left", fill="both", expand=True)
+            scrollbar.pack(side="right", fill="y")
             
-            canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+            def on_frame_configure(event):
+                canvas.configure(scrollregion=canvas.bbox("all"))
+            
+            def on_canvas_configure(event):
+                # ปรับ scrollable_frame ให้กว้างเต็ม canvas
+                canvas.itemconfig(canvas_window, width=event.width)
+            
+            scrollable_frame.bind("<Configure>", on_frame_configure)
+            canvas.bind("<Configure>", on_canvas_configure)
+            
+            canvas_window = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
             canvas.configure(yscrollcommand=scrollbar.set)
+            
+            # ปุ่มด้านบน
+            top_button_frame = ttk.Frame(scrollable_frame)
+            top_button_frame.pack(fill='x', padx=20, pady=(10, 0))
+            
+            # ปุ่มพิมพ์รายงาน
+            print_btn = ttk.Button(top_button_frame, text="🖨️ พิมพ์รายงาน", 
+                                 command=lambda: self.print_case_report(case_data))
+            print_btn.pack(side='left')
+            
+            # ปุ่มปิด
+            close_btn = ttk.Button(top_button_frame, text="❌ ปิด", 
+                                 command=detail_window.destroy)
+            close_btn.pack(side='right')
             
             # Header
             header_frame = ttk.Frame(scrollable_frame)
             header_frame.pack(fill='x', padx=20, pady=20)
             
             title_label = ttk.Label(header_frame, text="รายละเอียดคดีอาญา", 
-                                  font=('Arial', 18, 'bold'), foreground='#1f4e79')
+                                  font=('Segoe UI', 18, 'bold'), foreground='#1f4e79')
             title_label.pack()
             
             case_no = case_data.get('เลขที่คดี', 'ไม่ระบุ')
             case_label = ttk.Label(header_frame, text=f"เลขที่คดี: {case_no}", 
-                                 font=('Arial', 14, 'bold'), foreground='#c55a11')
+                                 font=('Segoe UI', 14, 'bold'), foreground='#c55a11')
             case_label.pack(pady=(5, 0))
             
             # แสดง CaseID (ดึงจากไฟล์ธนาคาร)
@@ -3560,7 +4353,7 @@ class SimpleExcelManager:
             case_id = self.get_case_id_from_bank_data(complainant_name)
             if case_id and str(case_id).strip() and str(case_id).strip().lower() != 'nan':
                 case_id_label = ttk.Label(header_frame, text=f"CaseID: {case_id}", 
-                                        font=('Arial', 12), foreground='#2c5aa0')
+                                        font=('Segoe UI', 12), foreground='#2c5aa0')
                 case_id_label.pack(pady=(2, 0))
             
             # ข้อมูลคดี
@@ -3584,7 +4377,7 @@ class SimpleExcelManager:
                 field_frame.pack(fill='x', pady=2)
                 
                 label_widget = ttk.Label(field_frame, text=f"{label}:", 
-                                       font=('Arial', 10, 'bold'), width=15, anchor='w')
+                                       font=('Segoe UI', 10, 'bold'), width=15, anchor='w')
                 label_widget.pack(side='left', padx=(0, 10))
                 
                 value = str(case_data.get(key, '-')).strip()
@@ -3592,7 +4385,7 @@ class SimpleExcelManager:
                     value = '-'
                     
                 value_widget = ttk.Label(field_frame, text=value, 
-                                       font=('Arial', 10), wraplength=500, anchor='w')
+                                       font=('Segoe UI', 10), wraplength=500, anchor='w')
                 value_widget.pack(side='left', fill='x', expand=True)
             
             # ข้อมูลธนาคารที่เกี่ยวข้อง
@@ -3603,16 +4396,16 @@ class SimpleExcelManager:
                 bank_frame = ttk.LabelFrame(scrollable_frame, text="ข้อมูลบัญชีธนาคารที่เกี่ยวข้อง", padding=15)
                 bank_frame.pack(fill='x', padx=20, pady=10)
                 
-                for i, bank in enumerate(bank_data[:5]):  # แสดงแค่ 5 รายการแรก
+                for i, bank in enumerate(bank_data):  # แสดงบัญชีธนาคารทั้งหมด
                     bank_item_frame = ttk.Frame(bank_frame)
                     bank_item_frame.pack(fill='x', pady=5, padx=10)
                     
                     bank_text = f"🏦 {bank.get('ชื่อธนาคาร', '')}"
-                    bank_label = ttk.Label(bank_item_frame, text=bank_text, font=('Arial', 10, 'bold'))
+                    bank_label = ttk.Label(bank_item_frame, text=bank_text, font=('Segoe UI', 10, 'bold'))
                     bank_label.pack(anchor='w')
                     
                     account_text = f"   บัญชี: {bank.get('เลขบัญชี', '')} ({bank.get('เจ้าของบัญชีม้า', '')})"
-                    account_label = ttk.Label(bank_item_frame, text=account_text, font=('Arial', 9))
+                    account_label = ttk.Label(bank_item_frame, text=account_text, font=('Segoe UI', 9))
                     account_label.pack(anchor='w')
                     
                     # แสดงเลขที่หนังสือ
@@ -3633,7 +4426,7 @@ class SimpleExcelManager:
                         doc_text = f"   เลขที่หนังสือ: {doc_number}"
                         if doc_date and str(doc_date).strip():
                             doc_text += f" ลงวันที่ {doc_date}"
-                        doc_label = ttk.Label(bank_item_frame, text=doc_text, font=('Arial', 9))
+                        doc_label = ttk.Label(bank_item_frame, text=doc_text, font=('Segoe UI', 9))
                         doc_label.pack(anchor='w')
                     
                     status_text = bank.get('status_text', 'ไม่ระบุสถานะ')
@@ -3659,7 +4452,7 @@ class SimpleExcelManager:
                     
                     status_color = 'green' if '✓' in status_text else 'red'
                     status_label = ttk.Label(bank_item_frame, text=f"   สถานะ: {status_text}", 
-                                           font=('Arial', 9), foreground=status_color)
+                                           font=('Segoe UI', 9), foreground=status_color)
                     status_label.pack(anchor='w')
             
             # ข้อมูลหมายเรียกที่เกี่ยวข้อง
@@ -3674,18 +4467,18 @@ class SimpleExcelManager:
                     summons_item_frame.pack(fill='x', pady=5, padx=10)
                     
                     suspect_text = f"👤 {summons.get('ชื่อ ผตห.', '')}"
-                    suspect_label = ttk.Label(summons_item_frame, text=suspect_text, font=('Arial', 10, 'bold'))
+                    suspect_label = ttk.Label(summons_item_frame, text=suspect_text, font=('Segoe UI', 10, 'bold'))
                     suspect_label.pack(anchor='w')
                     
                     id_text = f"   บัตรประชาชน: {summons.get('เลขประจำตัว ปชช. ผตห.', '')}"
-                    id_label = ttk.Label(summons_item_frame, text=id_text, font=('Arial', 9))
+                    id_label = ttk.Label(summons_item_frame, text=id_text, font=('Segoe UI', 9))
                     id_label.pack(anchor='w')
                     
                     # แสดงที่อยู่ของผู้ต้องหา
                     suspect_address = summons.get('ที่อยู่ ผตห.', '')
                     if suspect_address and str(suspect_address).strip():
                         address_text = f"   ที่อยู่: {suspect_address}"
-                        address_label = ttk.Label(summons_item_frame, text=address_text, font=('Arial', 9))
+                        address_label = ttk.Label(summons_item_frame, text=address_text, font=('Segoe UI', 9))
                         address_label.pack(anchor='w')
                     
                     # แสดงสภ.พื้นที่รับผิดชอบและจังหวัด
@@ -3695,7 +4488,7 @@ class SimpleExcelManager:
                         police_text = f"   สภ.พื้นที่รับผิดชอบ: {police_station}"
                         if province and str(province).strip():
                             police_text += f" จ.{province}"
-                        police_label = ttk.Label(summons_item_frame, text=police_text, font=('Arial', 9))
+                        police_label = ttk.Label(summons_item_frame, text=police_text, font=('Segoe UI', 9))
                         police_label.pack(anchor='w')
                     
                     # แสดงเลขที่หนังสือ
@@ -3709,7 +4502,7 @@ class SimpleExcelManager:
                         doc_text = f"   เลขที่หนังสือ: {doc_number}"
                         if doc_date and str(doc_date).strip():
                             doc_text += f" ลงวันที่ {doc_date}"
-                        doc_label = ttk.Label(summons_item_frame, text=doc_text, font=('Arial', 9))
+                        doc_label = ttk.Label(summons_item_frame, text=doc_text, font=('Segoe UI', 9))
                         doc_label.pack(anchor='w')
                     
                     # ใช้ status_text ที่คำนวณแล้วจาก find_related_summons_data
@@ -3717,35 +4510,21 @@ class SimpleExcelManager:
                     
                     status_color = 'green' if '✓' in status_text else 'red'
                     status_label = ttk.Label(summons_item_frame, text=f"   สถานะ: {status_text}", 
-                                           font=('Arial', 9), foreground=status_color)
+                                           font=('Segoe UI', 9), foreground=status_color)
                     status_label.pack(anchor='w')
-            
-            # ปุ่มด้านล่าง
-            button_frame = ttk.Frame(scrollable_frame)
-            button_frame.pack(fill='x', padx=20, pady=20)
-            
-            # ปุ่มพิมพ์รายงาน
-            print_btn = ttk.Button(button_frame, text="🖨️ พิมพ์รายงาน", 
-                                 command=lambda: self.print_case_report(case_data))
-            print_btn.pack(side='left', padx=(0, 10))
-            
-            close_btn = ttk.Button(button_frame, text="❌ ปิด", 
-                                 command=detail_window.destroy)
-            close_btn.pack(side='right')
             
             # Pack canvas และ scrollbar
             canvas.pack(side="left", fill="both", expand=True)
             scrollbar.pack(side="right", fill="y")
             
-            # ทำให้หน้าต่างอยู่กลางจอ
+            # ทำให้หน้าต่างอยู่เหนือหน้าต่างหลัก
             detail_window.transient(self.root)
             detail_window.grab_set()
             
-            # คำนวณตำแหน่งกลางจอ
-            detail_window.update_idletasks()
-            x = (detail_window.winfo_screenwidth() - 800) // 2
-            y = (detail_window.winfo_screenheight() - 600) // 2
-            detail_window.geometry(f"800x600+{x}+{y}")
+            # เพิ่มการสนับสนุน mouse wheel scrolling
+            def _on_mousewheel(event):
+                canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            canvas.bind_all("<MouseWheel>", _on_mousewheel)
             
         except Exception as e:
             messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถแสดงรายละเอียดได้: {str(e)}")
@@ -4145,7 +4924,7 @@ class SimpleExcelManager:
 
 def main():
     """ฟังก์ชันหลัก"""
-    print("=== Excel Data Manager ===")
+    print("=== ระบบจัดการคดีอาญา ===")
     
     if not GUI_AVAILABLE:
         print("⚠️  GUI ไม่พร้อมใช้งาน - รันในโหมด Command Line")
