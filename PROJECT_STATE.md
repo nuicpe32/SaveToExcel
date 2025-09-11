@@ -3,8 +3,8 @@
 ## Project Overview
 
 **Project Name:** Excel Data Manager  
-**Version:** 2.1  
-**Last Updated:** January 2025  
+**Version:** 2.3  
+**Last Updated:** September 2025  
 **Status:** Production Ready  
 
 ## Description
@@ -36,12 +36,18 @@ A comprehensive GUI application for managing Excel data with multi-functional ca
 - **Dedicated file management** saves to `ข้อมูลสำหรับออกหมายเรียกผู้ต้องหา.xlsx`
 
 #### ⚖️ Criminal Cases Management
-- **Streamlined case display** without complaint number column for better readability
-- **Comprehensive case details window** with scrollable content
-- **Related bank data search** using victim name matching
+- **Enhanced case display** with CaseID column positioned after case number
+- **Comprehensive case details window** with scrollable content and CaseID display
+- **Professional print reports** with THSarabunNew font and optimized CCIB logo (30% larger)
+- **6-month case statistics** with visual red highlighting for overdue cases (ระหว่างสอบสวน only)
+- **Advanced CaseID integration** automatically retrieved from bank data using sophisticated name matching
+- **Related bank data search** using victim name matching with reply status counters
 - **Related summons data search** using victim name matching
-- **Reply status tracking** with visual indicators (✓ replied, ⏳ pending, 📝 partial)
-- **Case information display** including case number, status, complainant, suspect, charges, and report date
+- **Visual status indicators** with reply tracking (✓ replied, ⏳ pending, 📝 partial)
+- **Yellow highlighting** for cases with fully replied bank accounts (ระหว่างสอบสวน status only)
+- **Bank accounts column** showing <total>/<replied> format
+- **Suspects column** showing <total>/<replied> format
+- **Enhanced statistics bar** showing total, processing, over 6 months, and closed cases
 
 ### ✅ User Interface
 
@@ -79,11 +85,20 @@ A comprehensive GUI application for managing Excel data with multi-functional ca
 - **tkinter GUI** with comprehensive widget support
 - **Cross-platform compatibility** (Windows, Linux, macOS)
 - **Dependency management** with auto-installation
+- **HTML report generation** with embedded fonts and images
+- **Web browser integration** for printing functionality
 
 #### Error Handling
 - **Graceful degradation** when dependencies are missing
 - **Command-line mode** fallback when GUI is unavailable
 - **Comprehensive error messages** in Thai language
+- **Robust date parsing** with multiple Thai format support
+
+#### Advanced Features
+- **Thai date calculation** with exact month precision
+- **Font embedding** for professional document output
+- **Base64 image encoding** for standalone HTML reports
+- **Dynamic CaseID retrieval** from related data sources
 
 ## Technical Architecture
 
@@ -110,6 +125,55 @@ A comprehensive GUI application for managing Excel data with multi-functional ca
 ```
 
 ## Recent Improvements
+
+### Version 2.3 Updates (September 2025)
+
+#### Print Report Functionality
+- ✅ Added professional print report feature for criminal case details
+- ✅ Integrated THSarabunNew font for Thai language support
+- ✅ Embedded CCIB logo in report header with optimized sizing (30% larger)
+- ✅ HTML-based report generation with print-optimized CSS
+- ✅ Automatic CaseID retrieval from bank data using victim name matching
+- ✅ Comprehensive case information including bank accounts and summons data
+- ✅ Browser-based printing with proper formatting
+
+#### 6-Month Case Statistics Enhancement
+- ✅ Added statistics for cases over 6 months old (ระหว่างสอบสวน status only)
+- ✅ Implemented exact month calculation for precise age determination
+- ✅ Fixed visual consistency between red row highlighting and statistics count
+- ✅ Enhanced case age detection with Thai date format support
+- ✅ Updated statistics display: "จำนวนคดีทั้งหมด | กำลังดำเนินการ | เกิน 6 เดือน | จำหน่ายแล้ว"
+
+#### Enhanced Case Display and Management
+- ✅ Added CaseID column to criminal cases table (positioned after case number)
+- ✅ Integrated CaseID display in case detail windows
+- ✅ Enhanced bank account and suspect tracking with reply status counters
+- ✅ Implemented yellow highlighting for cases with fully replied bank accounts (ระหว่างสอบสวน status only)
+- ✅ Added comprehensive case relationship tracking between criminal cases, bank data, and summons
+
+#### Data Management Improvements
+- ✅ Enhanced CaseID integration from bank Excel file (เคสไอดี column)
+- ✅ Improved date parsing algorithms for Thai date formats
+- ✅ Unified logic for case age calculation across display and statistics
+- ✅ Better error handling for date format edge cases
+- ✅ Advanced name matching algorithms for cross-referencing victim data
+
+### Version 2.2 Updates (September 2025)
+
+#### Data Management Enhancements
+- ✅ Fixed warrant data display issues with improved error handling
+- ✅ Enhanced document number formatting across all modules
+- ✅ Implemented comprehensive bank data search functionality
+- ✅ Simplified and streamlined bank form interface
+- ✅ Removed unused bank data fields for cleaner UX
+- ✅ Added automated testing for replied checkbox logic
+- ✅ Improved file tracking by removing Excel files from git tracking
+- ✅ Enhanced .gitignore configuration for better repository management
+
+#### Testing and Quality Assurance
+- ✅ Implemented unit tests for replied checkbox functionality
+- ✅ Added test coverage for simplified bank form operations
+- ✅ Enhanced error handling and validation throughout the application
 
 ### Version 2.1 Updates (January 2025)
 
@@ -294,6 +358,6 @@ This project is designed for internal use. For modifications or enhancements, re
 
 ---
 
-**Document Version:** 1.1  
-**Last Updated:** January 2025  
+**Document Version:** 1.3  
+**Last Updated:** September 2025  
 **Status:** Current and Complete
