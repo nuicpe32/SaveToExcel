@@ -259,19 +259,19 @@ except ImportError:
 class SimpleExcelManager:
     def __init__(self):
         # ไฟล์ Excel สำหรับข้อมูลธนาคาร
-        self.excel_file = os.path.join(os.getcwd(), "หนังสือส่งธนาคารขอข้อมูลบัญชีม้า.xlsx")
+        self.excel_file = os.path.join(os.getcwd(), "Xlsx", "หนังสือส่งธนาคารขอข้อมูลบัญชีม้า.xlsx")
         self.data = None  # จะเป็น DataFrame หรือ dict ขึ้นอยู่กับว่ามี pandas หรือไม่
         self.data_rows = []  # สำหรับเก็บข้อมูลแบบ list
         self.data_headers = []  # สำหรับเก็บหัวข้อ
         
         # ไฟล์ Excel สำหรับข้อมูลหมายเรียกผู้ต้องหา
-        self.summons_file = os.path.join(os.getcwd(), "ข้อมูลสำหรับออกหมายเรียกผู้ต้องหา.xlsx")
+        self.summons_file = os.path.join(os.getcwd(), "Xlsx", "ข้อมูลสำหรับออกหมายเรียกผู้ต้องหา.xlsx")
         self.summons_data = None
         self.summons_data_rows = []
         self.summons_data_headers = []
         
         # ไฟล์ Excel สำหรับข้อมูลการจับกุม
-        self.arrest_file = os.path.join(os.getcwd(), "เอกสารหลังการจับกุม.xlsx")
+        self.arrest_file = os.path.join(os.getcwd(), "Xlsx", "เอกสารหลังการจับกุม.xlsx")
         self.arrest_data = None
         self.arrest_data_rows = []
         self.arrest_data_headers = []
@@ -475,6 +475,8 @@ class SimpleExcelManager:
         detail_btn_frame.pack(fill='x', padx=20, pady=(0, 20))
         detail_btn = ttk.Button(detail_btn_frame, text="📋 ดูรายละเอียดคดี", command=self.show_case_detail)
         detail_btn.pack(side='left')
+        print_bulk_btn = ttk.Button(detail_btn_frame, text="🖨️ ปริ้นรายงานคดี", command=self.show_bulk_print_dialog)
+        print_bulk_btn.pack(side='left', padx=(10, 0))
         self.criminal_tree.bind("<Double-1>", lambda event: self.show_case_detail())
         self.load_criminal_cases()
 
@@ -660,7 +662,7 @@ class SimpleExcelManager:
             for directory in possible_dirs:
                 # ลองหาไฟล์ที่เป็นไปได้ (ให้ความสำคัญกับ .xlsx ก่อน)
                 files_to_try = [
-                    'export_คดีอาญาในความรับผิดชอบ.xlsx',
+                    'Xlsx/export_คดีอาญาในความรับผิดชอบ.xlsx',
                     'export_คดีอาญาในความรับผิดชอบ.xls',
                     'รายละเอียดที่รับคดี.xls'
                 ]
@@ -1154,6 +1156,15 @@ class SimpleExcelManager:
         ttk.Button(btn_frame, text="💾 บันทึก Excel", 
                   command=self.save_excel).pack(side='left', padx=2)
         
+        # แถบสถิติ
+        stats_frame = ttk.Frame(view_frame)
+        stats_frame.pack(fill='x', padx=20, pady=5)
+        
+        # สร้าง label สำหรับแสดงสถิติ
+        self.bank_stats_label = ttk.Label(stats_frame, text="กำลังโหลดข้อมูล...", 
+                                         font=('Arial', 10))
+        self.bank_stats_label.pack()
+        
         # ตารางข้อมูล
         tree_frame = ttk.Frame(view_frame)
         tree_frame.pack(fill='both', expand=True, padx=20, pady=10)
@@ -1475,6 +1486,79 @@ class SimpleExcelManager:
         
         return False
     
+    def calculate_bank_statistics(self):
+        """คำนวณสถิติข้อมูลธนาคาร"""
+        if self.use_pandas:
+            if self.data is None or self.data.empty:
+                return 0, 0, 0, 0
+            columns = list(self.data.columns)
+            data_rows = self.data.values.tolist()
+        else:
+            if not self.data_headers or not self.data_rows:
+                return 0, 0, 0, 0
+            columns = self.data_headers
+            data_rows = self.data_rows
+        
+        # หาตำแหน่งคอลัมน์สำคัญ
+        replied_col_idx = -1
+        account_col_idx = -1
+        case_id_col_idx = -1
+        
+        for i, col in enumerate(columns):
+            col_clean = str(col).strip()
+            if col_clean == "ตอบกลับ":
+                replied_col_idx = i
+            elif col_clean == "เลขบัญชี":
+                account_col_idx = i
+            elif col_clean == "เคสไอดี":
+                case_id_col_idx = i
+        
+        # คำนวณสถิติ
+        total_records = len(data_rows)
+        replied_count = 0
+        
+        # นับการซ้ำ (เคสไอดี + เลขบัญชี)
+        duplicate_counts = {}
+        if account_col_idx >= 0 and case_id_col_idx >= 0:
+            for row in data_rows:
+                if account_col_idx < len(row) and case_id_col_idx < len(row):
+                    account_num = str(row[account_col_idx]).strip()
+                    case_id = str(row[case_id_col_idx]).strip()
+                    
+                    if (account_num and account_num != '' and account_num.lower() != 'nan' and
+                        case_id and case_id != '' and case_id.lower() != 'nan'):
+                        duplicate_key = f"{case_id}|{account_num}"
+                        duplicate_counts[duplicate_key] = duplicate_counts.get(duplicate_key, 0) + 1
+        
+        # นับหมายเรียกที่ส่งมากกว่า 1 ครั้ง
+        duplicate_records_count = sum(count for count in duplicate_counts.values() if count > 1)
+        
+        # นับการตอบกลับ
+        if replied_col_idx >= 0:
+            for row in data_rows:
+                if replied_col_idx < len(row):
+                    replied_val = str(row[replied_col_idx]).strip().upper()
+                    if replied_val == "X":
+                        replied_count += 1
+        
+        not_replied_count = total_records - replied_count
+        
+        return total_records, replied_count, not_replied_count, duplicate_records_count
+    
+    def update_bank_statistics(self):
+        """อัปเดตการแสดงสถิติธนาคาร"""
+        if not GUI_AVAILABLE or not hasattr(self, 'bank_stats_label'):
+            return
+        
+        total, replied, not_replied, duplicates = self.calculate_bank_statistics()
+        
+        stats_text = (f"📊 จำนวนหมายเรียกทั้งหมด: {total} | "
+                     f"✅ ตอบกลับแล้ว: {replied} | "
+                     f"⏳ ยังไม่ตอบกลับ: {not_replied} | "
+                     f"🔄 ส่งมากกว่า 1 ครั้ง: {duplicates}")
+        
+        self.bank_stats_label.config(text=stats_text)
+    
     def update_treeview(self):
         """อัพเดทตารางแสดงข้อมูล"""
         if not GUI_AVAILABLE:
@@ -1499,6 +1583,14 @@ class SimpleExcelManager:
         # กรองคอลัมน์ที่จะแสดง (เฉพาะคอลัมน์ที่มีข้อมูลและเป็นภาษาไทย)
         display_columns = self.filter_display_columns(columns, data_rows)
         
+        # เพิ่มคอลัมน์ "วันที่ส่งไป" ที่หน้าสุด
+        if "วันที่ส่งไป" not in display_columns:
+            display_columns.insert(0, "วันที่ส่งไป")
+        
+        # เพิ่มคอลัมน์ "หมายเหตุ" ที่ท้ายสุด
+        if "หมายเหตุ" not in display_columns:
+            display_columns.append("หมายเหตุ")
+        
         # ตั้งค่าคอลัมน์
         self.tree['columns'] = display_columns
         self.tree['show'] = 'headings'
@@ -1506,12 +1598,53 @@ class SimpleExcelManager:
         # ตั้งค่าหัวข้อ
         for col in display_columns:
             self.tree.heading(col, text=col)
-            self.tree.column(col, width=120, minwidth=80)
+            if col == "วันที่ส่งไป":
+                self.tree.column(col, width=100, minwidth=80)
+            elif col == "หมายเหตุ":
+                self.tree.column(col, width=150, minwidth=100)
+            else:
+                self.tree.column(col, width=120, minwidth=80)
         
-        # กำหนดสีสำหรับแถวที่ตอบกลับแล้ว
+        # กำหนดสีสำหรับแถวต่างๆ
         self.tree.tag_configure('replied', foreground='green')
+        self.tree.tag_configure('overdue', foreground='red', font=('Arial', 10, 'bold'))
+        self.tree.tag_configure('duplicate', background='yellow')
         
-        # เพิ่มข้อมูล (เฉพาะคอลัมน์ที่เลือกแสดง)
+        # หาตำแหน่งคอลัมน์สำคัญ
+        day_col_idx = -1
+        month_col_idx = -1
+        year_col_idx = -1
+        account_col_idx = -1
+        case_id_col_idx = -1
+        
+        for i, col in enumerate(columns):
+            col_clean = str(col).strip()  # ตัดเว้นวรรคออก
+            if col_clean == "วัน":
+                day_col_idx = i
+            elif col_clean == "เดือน":
+                month_col_idx = i
+            elif col_clean == "ปี":
+                year_col_idx = i
+            elif col_clean == "เลขบัญชี":
+                account_col_idx = i
+            elif col_clean == "เคสไอดี":
+                case_id_col_idx = i
+        
+        # สร้างดิกชั่นสำหรับนับจำนวนการซ้ำ (เคสไอดี + เลขบัญชี)
+        duplicate_counts = {}
+        if account_col_idx >= 0 and case_id_col_idx >= 0:
+            for row in data_rows:
+                if account_col_idx < len(row) and case_id_col_idx < len(row):
+                    account_num = str(row[account_col_idx]).strip()
+                    case_id = str(row[case_id_col_idx]).strip()
+                    
+                    if (account_num and account_num != '' and account_num.lower() != 'nan' and
+                        case_id and case_id != '' and case_id.lower() != 'nan'):
+                        # สร้าง key จาก case_id + account_num
+                        duplicate_key = f"{case_id}|{account_num}"
+                        duplicate_counts[duplicate_key] = duplicate_counts.get(duplicate_key, 0) + 1
+        
+        # เพิ่มข้อมูล
         column_indices = [columns.index(col) for col in display_columns if col in columns]
         
         for row in data_rows:
@@ -1524,22 +1657,87 @@ class SimpleExcelManager:
             else:
                 full_values = [str(val) if val else "" for val in row]
             
-            # เลือกเฉพาะคอลัมน์ที่ต้องแสดง
+            # คำนวณจำนวนวันที่ผ่านไป
+            days_passed = ""
+            days_since_num = None
+            if day_col_idx >= 0 and month_col_idx >= 0 and year_col_idx >= 0:
+                try:
+                    day = str(full_values[day_col_idx]).strip() if day_col_idx < len(full_values) else ""
+                    month = str(full_values[month_col_idx]).strip() if month_col_idx < len(full_values) else ""
+                    year = str(full_values[year_col_idx]).strip() if year_col_idx < len(full_values) else ""
+                    
+                    if day and month and year:
+                        # สร้างสตริงวันที่
+                        date_str = f"{day} {month} {year}"
+                        days_since = calculate_days_since_document(date_str)
+                        if days_since is not None:
+                            days_since_num = days_since
+                            days_passed = f"{days_since} วัน"
+                except Exception as e:
+                    print(f"เกิดข้อผิดพลาดในการคำนวณวันที่: {e}")
+            
+            # เตรียมข้อมูลสำหรับคอลัมน์หมายเหตุ (ตรวจสอบการซ้ำจากเคสไอดี + เลขบัญชี)
+            remarks = ""
+            account_num = ""
+            case_id = ""
+            duplicate_key = ""
+            
+            if (account_col_idx >= 0 and account_col_idx < len(full_values) and
+                case_id_col_idx >= 0 and case_id_col_idx < len(full_values)):
+                
+                account_num = str(full_values[account_col_idx]).strip()
+                case_id = str(full_values[case_id_col_idx]).strip()
+                
+                if (account_num and account_num != '' and account_num.lower() != 'nan' and
+                    case_id and case_id != '' and case_id.lower() != 'nan'):
+                    duplicate_key = f"{case_id}|{account_num}"
+                    count = duplicate_counts.get(duplicate_key, 1)
+                    if count > 1:
+                        remarks = f"ส่งหมายเรียกครั้งที่ {count} ไปแล้ว"
+            
+            # เตรียมข้อมูลสำหรับแสดง
             filtered_values = []
-            for i in column_indices:
-                if i < len(full_values):
-                    filtered_values.append(full_values[i])
+            for col in display_columns:
+                if col == "วันที่ส่งไป":
+                    filtered_values.append(days_passed)
+                elif col == "หมายเหตุ":
+                    filtered_values.append(remarks)
+                elif col in columns:
+                    col_idx = columns.index(col)
+                    if col_idx < len(full_values):
+                        filtered_values.append(full_values[col_idx])
+                    else:
+                        filtered_values.append("")
                 else:
                     filtered_values.append("")
             
-            # ตรวจสอบว่าแถวนี้ตอบกลับแล้วหรือไม่
-            tags = ()
+            # ตรวจสอบสถานะต่างๆ
+            tags = []
+            is_replied = False
+            is_duplicate = False
+            
+            # ตรวจสอบการตอบกลับ
             if "ตอบกลับ" in columns:
                 replied_index = columns.index("ตอบกลับ")
                 if replied_index < len(full_values) and str(full_values[replied_index]).strip().upper() == "X":
-                    tags = ('replied',)
+                    is_replied = True
             
-            self.tree.insert('', 'end', values=filtered_values, tags=tags)
+            # ตรวจสอบการซ้ำ (เคสไอดี + เลขบัญชี)
+            if duplicate_key and duplicate_counts.get(duplicate_key, 1) > 1:
+                is_duplicate = True
+            
+            # กำหนด tags ตามลำดับความสำคัญ
+            if is_duplicate:
+                tags.append('duplicate')  # สีเหลือง (ความสำคัญสูงสุด)
+            elif is_replied:
+                tags.append('replied')  # สีเขียว
+            elif not is_replied and days_since_num is not None and days_since_num > 30:
+                tags.append('overdue')  # สีแดงตัวหนา
+            
+            self.tree.insert('', 'end', values=filtered_values, tags=tuple(tags))
+        
+        # อัปเดตสถิติหลังจากแสดงข้อมูลเสร็จ
+        self.update_bank_statistics()
     
     def save_data(self):
         """บันทึกข้อมูลใหม่ลงไฟล์เดิม"""
@@ -2201,7 +2399,7 @@ class SimpleExcelManager:
         """บันทึกไฟล์ Excel"""
         try:
             # บันทึกลงไฟล์ที่กำหนดโดยตรง
-            filename = "หนังสือส่งธนาคารขอข้อมูลบัญชีม้า.xlsx"
+            filename = os.path.join("Xlsx", "หนังสือส่งธนาคารขอข้อมูลบัญชีม้า.xlsx")
             
             # บันทึกไฟล์โดยไม่ถามยืนยัน (overwrite if exists)
             self.data.to_excel(filename, index=False)
@@ -2387,6 +2585,27 @@ class SimpleExcelManager:
         # Treeview สำหรับหมายเรียก
         self.summons_tree = ttk.Treeview(tree_frame)
         
+        # เพิ่มความสูงของแถวและการจัดแต่งสีสำหรับแสดงข้อมูลที่อยู่ได้เต็ม
+        style = ttk.Style()
+        style.configure("Summons.Treeview", 
+                       rowheight=60,  # เพิ่มความสูงเป็น 60 pixels
+                       relief="groove",  # เพิ่มเส้นขอบแบบ groove
+                       borderwidth=2,   # ความหนาของเส้นขอบ
+                       fieldbackground="white")
+        
+        # กำหนดสีสำหรับแถวสลับ (จะใช้ใน tags)
+        style.configure("Summons.Treeview.Heading", 
+                       background="#e1e1e1", 
+                       foreground="black",
+                       font=('Arial', 10, 'bold'))
+        
+        # กำหนดสีเมื่อเลือก
+        style.map("Summons.Treeview",
+                 background=[('selected', '#347083')],  # สีพื้นหลังเมื่อเลือก
+                 foreground=[('selected', 'white')])    # สีตัวอักษรเมื่อเลือก
+        
+        self.summons_tree.configure(style="Summons.Treeview")
+        
         # Scrollbars
         summons_v_scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", 
                                            command=self.summons_tree.yview)
@@ -2435,16 +2654,21 @@ class SimpleExcelManager:
         # ตั้งค่าหัวข้อ
         for col in display_columns:
             self.summons_tree.heading(col, text=col)
+            col_clean = str(col).strip()
             if col == 'สถานะ':
                 self.summons_tree.column(col, width=250, minwidth=200)  # กว้างขึ้นสำหรับสถานะ
+            elif col_clean in ['ที่อยู่ ผตห.', 'ที่อยู่ สภ. พื้นที่รับผิดชอบ']:
+                self.summons_tree.column(col, width=300, minwidth=200)  # กว้างขึ้นสำหรับที่อยู่
             else:
                 self.summons_tree.column(col, width=120, minwidth=80)
         
-        # กำหนดสีสำหรับแถวที่ตอบกลับแล้ว
+        # กำหนดสีสำหรับแถวต่างๆ
         self.summons_tree.tag_configure('replied', foreground='green')
+        self.summons_tree.tag_configure('even_row', background='#f8f9fa')  # สีเทาอ่อนสำหรับแถวคู่
+        self.summons_tree.tag_configure('odd_row', background='white')     # สีขาวสำหรับแถวคี่
         
         # เพิ่มข้อมูล
-        for row in data_rows:
+        for row_index, row in enumerate(data_rows):
             if self.use_pandas:
                 try:
                     import pandas as pd
@@ -2484,12 +2708,20 @@ class SimpleExcelManager:
             # เพิ่มคอลัมน์สถานะ
             display_values = values + [status_text]
             
-            # ตรวจสอบว่าแถวนี้ตอบกลับแล้วหรือไม่
-            tags = ()
-            if reply_status.upper() == "X":
-                tags = ('replied',)
+            # ตรวจสอบว่าแถวนี้ตอบกลับแล้วหรือไม่ และกำหนดสีสลับ
+            tags = []
             
-            self.summons_tree.insert('', 'end', values=display_values, tags=tags)
+            # กำหนดสีสลับสำหรับแถว
+            if row_index % 2 == 0:
+                tags.append('even_row')  # แถวคู่ (0, 2, 4, ...)
+            else:
+                tags.append('odd_row')   # แถวคี่ (1, 3, 5, ...)
+            
+            # เพิ่ม tag สำหรับการตอบกลับ (จะ override สีพื้นหลัง)
+            if reply_status.upper() == "X":
+                tags = ['replied']  # ให้สีเขียวมีความสำคัญมากกว่า
+            
+            self.summons_tree.insert('', 'end', values=display_values, tags=tuple(tags))
     
     def save_summons_data(self):
         """บันทึกข้อมูลหมายเรียกใหม่ลงไฟล์เดิม"""
@@ -3160,7 +3392,7 @@ class SimpleExcelManager:
         """บันทึกข้อมูลหมายเรียกลง Excel"""
         try:
             # บันทึกลงไฟล์ ข้อมูลสำหรับออกหมายเรียกผู้ต้องหา.xlsx ใน path ปัจจุบัน
-            filename = os.path.join(os.getcwd(), "ข้อมูลสำหรับออกหมายเรียกผู้ต้องหา.xlsx")
+            filename = os.path.join(os.getcwd(), "Xlsx", "ข้อมูลสำหรับออกหมายเรียกผู้ต้องหา.xlsx")
             
             if filename:
                 if self.use_pandas and self.summons_data is not None:
@@ -3632,7 +3864,7 @@ class SimpleExcelManager:
             arrest_file = None
             
             for directory in possible_dirs:
-                arrest_path = os.path.join(directory, 'เอกสารหลังการจับกุม.xlsx')
+                arrest_path = os.path.join(directory, 'Xlsx', 'เอกสารหลังการจับกุม.xlsx')
                 if os.path.exists(arrest_path):
                     arrest_file = arrest_path
                     break
@@ -3728,7 +3960,7 @@ class SimpleExcelManager:
     def save_arrest_excel_file(self):
         """บันทึกไฟล์ Excel การจับกุม"""
         try:
-            filename = "เอกสารหลังการจับกุม.xlsx"
+            filename = os.path.join("Xlsx", "เอกสารหลังการจับกุม.xlsx")
             
             if not hasattr(self, 'arrest_data_headers') or not self.arrest_data_headers:
                 self.create_empty_arrest_data()
@@ -3982,7 +4214,7 @@ class SimpleExcelManager:
             bank_file = None
             
             for directory in possible_dirs:
-                bank_path = os.path.join(directory, 'หนังสือส่งธนาคารขอข้อมูลบัญชีม้า.xlsx')
+                bank_path = os.path.join(directory, 'Xlsx', 'หนังสือส่งธนาคารขอข้อมูลบัญชีม้า.xlsx')
                 if os.path.exists(bank_path):
                     bank_file = bank_path
                     break
@@ -4083,7 +4315,7 @@ class SimpleExcelManager:
             bank_file = None
             
             for directory in possible_dirs:
-                bank_path = os.path.join(directory, 'หนังสือส่งธนาคารขอข้อมูลบัญชีม้า.xlsx')
+                bank_path = os.path.join(directory, 'Xlsx', 'หนังสือส่งธนาคารขอข้อมูลบัญชีม้า.xlsx')
                 if os.path.exists(bank_path):
                     bank_file = bank_path
                     break
@@ -4161,7 +4393,7 @@ class SimpleExcelManager:
             summons_file = None
             
             for directory in possible_dirs:
-                summons_path = os.path.join(directory, 'ข้อมูลสำหรับออกหมายเรียกผู้ต้องหา.xlsx')
+                summons_path = os.path.join(directory, 'Xlsx', 'ข้อมูลสำหรับออกหมายเรียกผู้ต้องหา.xlsx')
                 if os.path.exists(summons_path):
                     summons_file = summons_path
                     break
@@ -4558,6 +4790,8 @@ class SimpleExcelManager:
     def generate_case_report_html(self, case_data):
         """สร้างเนื้อหา HTML สำหรับรายงาน"""
         try:
+            from datetime import datetime
+            
             # เส้นทางไฟล์ logo และ font
             logo_path = os.path.join(os.getcwd(), "logo ccib.png")
             font_path = os.path.join(os.getcwd(), "THSarabunNew")
@@ -4620,41 +4854,45 @@ class SimpleExcelManager:
         
         body {{
             font-family: 'THSarabunNew', Arial, sans-serif;
-            font-size: 16pt;
-            line-height: 1.6;
+            font-size: 14pt;
+            line-height: 1.4;
             margin: 0;
-            padding: 20px;
+            padding: 15px;
             background-color: white;
+            max-width: 100%;
+            overflow-x: hidden;
         }}
         
         .header {{
             text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 3px solid #1f4e79;
-            padding-bottom: 20px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #1f4e79;
+            padding-bottom: 15px;
         }}
         
         .logo {{
-            max-width: 104px;
+            max-width: 80px;
             height: auto;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }}
         
         .title {{
-            font-size: 24pt;
+            font-size: 20pt;
             font-weight: bold;
             color: #1f4e79;
-            margin: 10px 0;
+            margin: 8px 0;
+            line-height: 1.2;
         }}
         
         .subtitle {{
-            font-size: 18pt;
+            font-size: 16pt;
             color: #c55a11;
-            margin: 5px 0;
+            margin: 3px 0;
+            line-height: 1.2;
         }}
         
         .report-date {{
-            font-size: 14pt;
+            font-size: 12pt;
             color: #666;
             margin-top: 10px;
         }}
@@ -4665,22 +4903,23 @@ class SimpleExcelManager:
         }}
         
         .section-title {{
-            font-size: 18pt;
+            font-size: 16pt;
             font-weight: bold;
             color: #1f4e79;
-            border-bottom: 2px solid #1f4e79;
-            padding-bottom: 5px;
-            margin-bottom: 15px;
+            border-bottom: 1px solid #1f4e79;
+            padding-bottom: 3px;
+            margin-bottom: 10px;
         }}
         
         .info-table {{
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
+            font-size: 13pt;
         }}
         
         .info-table th, .info-table td {{
-            padding: 8px 12px;
+            padding: 6px 8px;
             text-align: left;
             border: 1px solid #ddd;
         }}
@@ -4696,24 +4935,25 @@ class SimpleExcelManager:
         }}
         
         .item {{
-            margin: 15px 0;
-            padding: 15px;
+            margin: 10px 0;
+            padding: 12px;
             border: 1px solid #e0e0e0;
             border-radius: 5px;
             background-color: #fafafa;
         }}
         
         .item-title {{
-            font-size: 16pt;
+            font-size: 14pt;
             font-weight: bold;
             color: #1f4e79;
             margin-bottom: 8px;
         }}
         
         .item-detail {{
-            font-size: 14pt;
-            margin: 4px 0;
-            padding-left: 10px;
+            font-size: 13pt;
+            margin: 3px 0;
+            padding-left: 8px;
+            line-height: 1.3;
         }}
         
         .status-replied {{
@@ -4731,24 +4971,87 @@ class SimpleExcelManager:
             font-weight: bold;
         }}
         
+
         @media print {{
             body {{
                 padding: 10px;
-                font-size: 14pt;
+                font-size: 12pt;
+                line-height: 1.3;
+                color: black !important;
+                background: white !important;
             }}
+            
             .header {{
-                margin-bottom: 20px;
+                margin-bottom: 15px;
+                padding-bottom: 10px;
+                border-bottom: 1px solid #000 !important;
             }}
+            
+            .logo {{
+                max-width: 60px !important;
+                margin-bottom: 5px;
+            }}
+            
+            .title {{
+                font-size: 16pt !important;
+                margin: 5px 0 !important;
+            }}
+            
+            .subtitle {{
+                font-size: 13pt !important;
+                margin: 2px 0 !important;
+            }}
+            
+            .report-date {{
+                font-size: 10pt !important;
+            }}
+            
             .section {{
-                margin: 15px 0;
+                margin: 15px 0 !important;
             }}
+            
+            .section-title {{
+                font-size: 14pt !important;
+                padding-bottom: 2px !important;
+                margin-bottom: 8px !important;
+                border-bottom: 1px solid #000 !important;
+            }}
+            
+            .info-table {{
+                font-size: 11pt !important;
+                margin-bottom: 10px !important;
+            }}
+            
+            .info-table th, .info-table td {{
+                padding: 4px 6px !important;
+                border: 1px solid #000 !important;
+            }}
+            
+            .item {{
+                margin-bottom: 8px !important;
+                padding: 6px !important;
+                border: 1px solid #000 !important;
+                page-break-inside: avoid;
+            }}
+            
+            .item-title {{
+                font-size: 12pt !important;
+                margin-bottom: 3px !important;
+            }}
+            
+            .item-detail {{
+                font-size: 10pt !important;
+                margin-bottom: 2px !important;
+            }}
+            
             .page-break {{
-                page-break-before: always;
+                page-break-before: always !important;
             }}
         }}
     </style>
 </head>
 <body>
+    
     <div class="header">"""
             
             # เพิ่ม logo ถ้ามี
@@ -4757,11 +5060,7 @@ class SimpleExcelManager:
             
             html += f"""
         <div class="title">รายงานรายละเอียดคดีอาญา</div>
-        <div class="subtitle">เลขที่คดี: {case_no}</div>"""
-            
-            # เพิ่ม CaseID ถ้ามี
-            if case_id and str(case_id).strip() and str(case_id).strip().lower() != 'nan':
-                html += f'        <div class="subtitle">CaseID: {str(case_id).strip()}</div>\n'
+        <div class="subtitle">เลขที่คดี: {case_no}{f' | CaseID: {str(case_id).strip()}' if case_id and str(case_id).strip() and str(case_id).strip().lower() != 'nan' else ''}</div>"""
             
             html += f"""        <div class="report-date">วันที่พิมพ์รายงาน: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}</div>
     </div>
@@ -4800,7 +5099,7 @@ class SimpleExcelManager:
             # ข้อมูลธนาคารที่เกี่ยวข้อง
             if bank_data:
                 html += """
-    <div class="section page-break">
+    <div class="section">
         <div class="section-title">ข้อมูลบัญชีธนาคารที่เกี่ยวข้อง</div>"""
                 
                 for i, bank in enumerate(bank_data):
@@ -4865,8 +5164,8 @@ class SimpleExcelManager:
             # ข้อมูลหมายเรียกที่เกี่ยวข้อง
             if summons_data:
                 html += """
-    <div class="section page-break">
-        <div class="section-title">ข้อมูลหมายเรียกผู้ต้องหา</div>"""
+    <div class="section">
+        <div class="section-title">ข้อมูลหมายเรียกผู้ต้องหาที่เกี่ยวข้อง</div>"""
                 
                 for summons in summons_data:
                     suspect_name = summons.get('ชื่อ ผตห.', '')
@@ -4921,6 +5220,493 @@ class SimpleExcelManager:
         except Exception as e:
             print(f"Error generating HTML report: {e}")
             return f"<html><body><h1>Error generating report: {str(e)}</h1></body></html>"
+    
+    def show_bulk_print_dialog(self):
+        """แสดงหน้าต่างเลือกคดีที่ต้องการปริ้นรายงาน"""
+        try:
+            if not hasattr(self, 'criminal_data') or self.criminal_data is None or self.criminal_data.empty:
+                messagebox.showwarning("ไม่มีข้อมูล", "ไม่มีข้อมูลคดีอาญาสำหรับปริ้นรายงาน")
+                return
+            
+            # สร้างหน้าต่างเลือก
+            select_window = tk.Toplevel(self.root)
+            select_window.title("เลือกคดีที่ต้องการปริ้นรายงาน")
+            select_window.geometry("800x600")
+            select_window.resizable(True, True)
+            
+            # จัดกึ่งกลางหน้าจอ
+            select_window.transient(self.root)
+            select_window.grab_set()
+            
+            # Header
+            header_frame = ttk.Frame(select_window)
+            header_frame.pack(fill='x', padx=20, pady=20)
+            
+            title_label = ttk.Label(header_frame, text="🖨️ เลือกคดีที่ต้องการปริ้นรายงาน", font=('Arial', 16, 'bold'))
+            title_label.pack(anchor='w')
+            
+            subtitle_label = ttk.Label(header_frame, text="เลือก checkbox หน้าคดีที่ต้องการปริ้นรายงาน", font=('Arial', 10), foreground='#666666')
+            subtitle_label.pack(anchor='w', pady=(5, 0))
+            
+            # Control buttons frame
+            control_frame = ttk.Frame(select_window)
+            control_frame.pack(fill='x', padx=20, pady=(0, 10))
+            
+            select_all_btn = ttk.Button(control_frame, text="✅ เลือกทั้งหมด", command=lambda: self.toggle_all_cases(True))
+            select_all_btn.pack(side='left')
+            
+            deselect_all_btn = ttk.Button(control_frame, text="❌ ยกเลิกทั้งหมด", command=lambda: self.toggle_all_cases(False))
+            deselect_all_btn.pack(side='left', padx=(10, 0))
+            
+            # รายการคดี
+            list_frame = ttk.Frame(select_window)
+            list_frame.pack(fill='both', expand=True, padx=20, pady=(0, 20))
+            
+            # Scrollable frame
+            canvas = tk.Canvas(list_frame)
+            scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=canvas.yview)
+            scrollable_frame = ttk.Frame(canvas)
+            
+            scrollable_frame.bind(
+                "<Configure>",
+                lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+            )
+            
+            canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+            canvas.configure(yscrollcommand=scrollbar.set)
+            
+            # เก็บ checkbox variables
+            self.case_checkboxes = {}
+            
+            # สร้าง checkbox สำหรับแต่ละคดี
+            criminal_data_list = self.criminal_data.to_dict('records')
+            for i, case in enumerate(criminal_data_list):
+                case_frame = ttk.Frame(scrollable_frame)
+                case_frame.pack(fill='x', pady=2, padx=5)
+                
+                var = tk.BooleanVar()
+                self.case_checkboxes[i] = var
+                
+                # ข้อมูลคดี
+                case_number = case.get('เลขที่คดี', 'ไม่ระบุ')
+                case_id = case.get('CaseID', case.get('เคสไอดี', ''))
+                victim = case.get('ผู้ร้องทุกข์', case.get('ผู้เสียหาย', 'ไม่ระบุ'))
+                status = case.get('สถานะคดี', 'ไม่ระบุ')
+                
+                case_text = f"{case_number}"
+                if case_id:
+                    case_text += f" ({case_id})"
+                case_text += f" - {victim} - สถานะ: {status}"
+                
+                checkbox = ttk.Checkbutton(case_frame, text=case_text, variable=var)
+                checkbox.pack(anchor='w')
+            
+            canvas.pack(side="left", fill="both", expand=True)
+            scrollbar.pack(side="right", fill="y")
+            
+            # Bottom buttons
+            bottom_frame = ttk.Frame(select_window)
+            bottom_frame.pack(fill='x', padx=20, pady=(0, 20))
+            
+            print_btn = ttk.Button(bottom_frame, text="🖨️ ปริ้นรายงาน", command=lambda: self.execute_bulk_print(select_window))
+            print_btn.pack(side='right')
+            
+            cancel_btn = ttk.Button(bottom_frame, text="❌ ยกเลิก", command=select_window.destroy)
+            cancel_btn.pack(side='right', padx=(0, 10))
+            
+            # เก็บ reference สำหรับ toggle functions
+            self.bulk_select_checkboxes = self.case_checkboxes
+            # เก็บ criminal data list สำหรับใช้ใน execute_bulk_print
+            self.bulk_criminal_data_list = criminal_data_list
+            
+        except Exception as e:
+            messagebox.showerror("ข้อผิดพลาด", f"เกิดข้อผิดพลาดในการแสดงหน้าต่างเลือก: {e}")
+    
+    def toggle_all_cases(self, select_all=True):
+        """เลือกหรือยกเลิกการเลือกคดีทั้งหมด"""
+        try:
+            if hasattr(self, 'bulk_select_checkboxes'):
+                for var in self.bulk_select_checkboxes.values():
+                    var.set(select_all)
+        except Exception as e:
+            print(f"Error toggling cases: {e}")
+    
+    def execute_bulk_print(self, parent_window):
+        """ดำเนินการปริ้นรายงานคดีที่เลือก"""
+        try:
+            if not hasattr(self, 'case_checkboxes'):
+                messagebox.showwarning("ข้อผิดพลาด", "ไม่พบข้อมูลการเลือก")
+                return
+            
+            # หาคดีที่ถูกเลือก
+            selected_cases = []
+            if not hasattr(self, 'bulk_criminal_data_list'):
+                messagebox.showwarning("ข้อผิดพลาด", "ไม่พบข้อมูลคดี")
+                return
+                
+            for i, var in self.case_checkboxes.items():
+                if var.get():
+                    selected_cases.append(self.bulk_criminal_data_list[i])
+            
+            if not selected_cases:
+                messagebox.showwarning("ไม่มีการเลือก", "กรุณาเลือกคดีที่ต้องการปริ้นรายงานอย่างน้อย 1 คดี")
+                return
+            
+            # สร้างรายงานรวม
+            combined_html = self.generate_combined_report_html(selected_cases)
+            
+            # บันทึกไฟล์ HTML
+            import tempfile
+            import os
+            import webbrowser
+            
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.html', encoding='utf-8') as f:
+                f.write(combined_html)
+                temp_path = f.name
+            
+            # เปิดในเบราว์เซอร์
+            webbrowser.open('file://' + temp_path)
+            
+            # แสดงข้อความยืนยัน
+            messagebox.showinfo("สำเร็จ", f"ปริ้นรายงาน {len(selected_cases)} คดี เรียบร้อยแล้ว\nไฟล์รายงานจะเปิดในเบราว์เซอร์")
+            
+            # ปิดหน้าต่างเลือก
+            parent_window.destroy()
+            
+        except Exception as e:
+            messagebox.showerror("ข้อผิดพลาด", f"เกิดข้อผิดพลาดในการปริ้นรายงาน: {e}")
+    
+    def generate_combined_report_html(self, selected_cases):
+        """สร้าง HTML รายงานรวมสำหรับหลายๆ คดี"""
+        try:
+            from datetime import datetime
+            
+            # Header HTML
+            html = """<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>รายงานคดีอาญาในความรับผิดชอบ</title>
+    <style>
+        @font-face {
+            font-family: 'THSarabunNew';
+            src: url('THSarabunNew/THSarabunNew.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'THSarabunNew';
+            src: url('THSarabunNew/THSarabunNew Bold.ttf') format('truetype');
+            font-weight: bold;
+            font-style: normal;
+        }
+        body {
+            font-family: 'THSarabunNew', 'TH Sarabun New', sans-serif;
+            font-size: 16px;
+            line-height: 1.4;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            background: #fff;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #1e40af;
+            padding-bottom: 20px;
+        }
+        .logo {
+            max-width: 120px;
+            height: auto;
+            margin: 0 auto 15px;
+            display: block;
+        }
+        .title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #1e40af;
+            margin: 0;
+        }
+        .subtitle {
+            font-size: 18px;
+            color: #666;
+            margin: 5px 0 0 0;
+        }
+        .case-separator {
+            page-break-before: always;
+            border-top: 2px solid #e5e7eb;
+            margin: 40px 0 30px 0;
+            padding-top: 20px;
+        }
+        .case-separator:first-child {
+            page-break-before: auto;
+            border-top: none;
+            margin-top: 0;
+            padding-top: 0;
+        }
+        .case-header {
+            background: #f8fafc;
+            border-left: 5px solid #3b82f6;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .case-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1e40af;
+            margin: 0 0 5px 0;
+        }
+        .case-id {
+            font-size: 16px;
+            color: #666;
+        }
+        .section {
+            margin-bottom: 25px;
+        }
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1f2937;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #4b5563;
+        }
+        .info-value {
+            color: #1f2937;
+        }
+        .item {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        .item-title {
+            font-weight: bold;
+            color: #1f2937;
+            font-size: 16px;
+            margin-bottom: 6px;
+        }
+        .item-detail {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 3px;
+        }
+        .status-replied {
+            color: #059669;
+            font-weight: bold;
+        }
+        .status-pending {
+            color: #dc2626;
+            font-weight: bold;
+        }
+        .status-partial {
+            color: #d97706;
+            font-weight: bold;
+        }
+        @media print {{
+            @page {{
+                size: A4;
+                margin: 1.5cm;
+            }}
+            
+            body {{ 
+                padding: 0 !important; 
+                font-size: 12pt !important;
+                line-height: 1.3 !important;
+                color: black !important;
+                background: white !important;
+            }}
+            
+            .header {{
+                margin-bottom: 15px !important;
+                padding-bottom: 10px !important;
+                border-bottom: 1px solid #000 !important;
+            }}
+            
+            .case-separator {{
+                page-break-before: always !important;
+                margin: 15px 0 !important;
+                padding-top: 10px !important;
+                border-top: 1px solid #000 !important;
+            }}
+            
+            .case-header {{
+                margin-bottom: 15px !important;
+                padding: 10px !important;
+                border-left: 3px solid #000 !important;
+            }}
+            
+            .case-number {{
+                font-size: 16pt !important;
+                margin: 0 0 3px 0 !important;
+            }}
+            
+            .case-id {{
+                font-size: 12pt !important;
+            }}
+            
+            .logo {{ 
+                max-width: 60px !important;
+                margin-bottom: 5px !important;
+            }}
+            
+            .title {{ 
+                font-size: 16pt !important;
+                margin: 5px 0 !important;
+            }}
+            
+            .subtitle {{
+                font-size: 13pt !important;
+                margin: 2px 0 !important;
+            }}
+            
+            .section {{
+                margin: 15px 0 !important;
+                page-break-inside: avoid;
+            }}
+            
+            .section-title {{
+                font-size: 14pt !important;
+                font-weight: bold !important;
+                color: #000 !important;
+                padding-bottom: 3px !important;
+                margin: 15px 0 10px 0 !important;
+                border-bottom: 2px solid #000 !important;
+                display: block !important;
+                page-break-after: avoid !important;
+            }}
+            
+            .info-grid {{
+                margin-bottom: 10px !important;
+                gap: 8px !important;
+            }}
+            
+            .info-label {{
+                font-size: 11pt !important;
+            }}
+            
+            .info-value {{
+                font-size: 11pt !important;
+            }}
+            
+            .item {{
+                margin-bottom: 8px !important;
+                padding: 6px !important;
+                border: 1px solid #000 !important;
+                page-break-inside: avoid;
+            }}
+            
+            .item-title {{
+                font-size: 12pt !important;
+                margin-bottom: 3px !important;
+            }}
+            
+            .item-detail {{
+                font-size: 10pt !important;
+                margin-bottom: 2px !important;
+            }}
+        }}
+        .print-header {{
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 25px;
+            background: white;
+            border-bottom: 1px solid #ddd;
+            padding: 5px 15px;
+            font-size: 10pt;
+            z-index: 1000;
+        }}
+        
+        .print-header-left {{
+            float: left;
+        }}
+        
+        .print-header-center {{
+            text-align: center;
+        }}
+        
+        .print-header-right {{
+            float: right;
+        }}
+
+        @media print {{
+            body {{ 
+                margin-top: 0 !important;
+                padding-top: 0 !important;
+                font-size: 12pt;
+            }}
+            
+            .print-header {{
+                display: none !important;
+            }}
+            
+            .case-separator {{
+                page-break-before: always;
+            }}
+            
+            .logo {{ 
+                max-width: 60px; 
+            }}
+            
+            .title {{ 
+                font-size: 18pt; 
+            }}
+        }}
+    </style>
+</head>
+<body>
+    
+    <div class="header">
+        <img src="logo ccib.png" alt="CCIB Logo" class="logo" onerror="this.style.display='none'">
+        <h1 class="title">รายงานคดีอาญาในความรับผิดชอบ</h1>
+        <p class="subtitle">ศูนย์ปราบปรามอาชญากรรมทางเทคโนโลยี (CCIB)</p>
+        <p class="subtitle">จำนวน """ + str(len(selected_cases)) + """ คดี</p>
+    </div>
+"""
+
+            # วนลูปสร้างรายงานแต่ละคดี
+            for i, case in enumerate(selected_cases):
+                if i > 0:
+                    html += '<div class="case-separator"></div>'
+                
+                # สร้างรายงานแต่ละคดีโดยใช้ฟังก์ชันเดิม
+                case_html = self.generate_case_report_html(case)
+                
+                # ดึงเฉพาะส่วน body content (ไม่รวม header)
+                import re
+                body_match = re.search(r'<body>(.*?)</body>', case_html, re.DOTALL)
+                if body_match:
+                    case_content = body_match.group(1)
+                    # ลบ header ของแต่ละคดีออก
+                    case_content = re.sub(r'<div class="header">.*?</div>', '', case_content, flags=re.DOTALL)
+                    html += case_content
+                else:
+                    html += f"<p>ไม่สามารถสร้างรายงานสำหรับคดีนี้ได้</p>"
+            
+            html += """
+</body>
+</html>"""
+            
+            return html
+            
+        except Exception as e:
+            print(f"Error generating combined report: {e}")
+            return f"<html><body><h1>Error generating combined report: {str(e)}</h1></body></html>"
 
 def main():
     """ฟังก์ชันหลัก"""
