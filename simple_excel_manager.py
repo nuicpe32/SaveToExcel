@@ -15,6 +15,13 @@ from datetime import datetime, timedelta
 import calendar
 import tempfile
 import webbrowser
+import subprocess
+import platform
+try:
+    from PIL import Image, ImageTk
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
 
 # ฟังก์ชันสำหรับแปลงวันที่เป็นรูปแบบไทย
 def format_thai_date(date_obj):
@@ -415,6 +422,9 @@ class SimpleExcelManager:
         self.notebook = ttk.Notebook(main_frame)
         self.notebook.pack(fill='both', expand=True)
         
+        # แท็บเอกสารหลัก (เป็นแท็บแรกและแท็บหลัก)
+        self.create_documents_tab()
+        
         # แท็บคดีอาญา
         self.create_criminal_cases_tab()
         
@@ -434,6 +444,340 @@ class SimpleExcelManager:
         
         # เริ่มการทำงานของ GUI
         self.root.mainloop()
+
+    def open_document_file(self, filepath):
+        """เปิดไฟล์เอกสาร Word"""
+        try:
+            if not os.path.exists(filepath):
+                messagebox.showerror("ข้อผิดพลาด", f"ไม่พบไฟล์: {filepath}")
+                return
+            
+            # เปิดไฟล์ตามระบบปฏิบัติการ
+            if platform.system() == 'Darwin':  # macOS
+                subprocess.call(('open', filepath))
+            elif platform.system() == 'Windows':  # Windows
+                os.startfile(filepath)
+            else:  # Linux
+                subprocess.call(('xdg-open', filepath))
+                
+        except Exception as e:
+            messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถเปิดไฟล์ได้: {str(e)}")
+
+    def load_word_icon(self):
+        """โหลดไอคอน Word สำหรับใช้ในปุ่ม"""
+        try:
+            if PIL_AVAILABLE and os.path.exists("word.png"):
+                # โหลดและปรับขนาดไอคอน Word
+                img = Image.open("word.png")
+                img = img.resize((16, 16), Image.Resampling.LANCZOS)  # ขนาดเล็ก 16x16 pixels
+                return ImageTk.PhotoImage(img)
+            else:
+                return None
+        except Exception as e:
+            print(f"ไม่สามารถโหลดไอคอน word.png: {e}")
+            return None
+
+    def load_excel_icon(self):
+        """โหลดไอคอน Excel สำหรับใช้ในปุ่ม"""
+        try:
+            if PIL_AVAILABLE and os.path.exists("xls-icon.png"):
+                # โหลดและปรับขนาดไอคอน Excel
+                img = Image.open("xls-icon.png")
+                img = img.resize((16, 16), Image.Resampling.LANCZOS)  # ขนาดเล็ก 16x16 pixels
+                return ImageTk.PhotoImage(img)
+            else:
+                return None
+        except Exception as e:
+            print(f"ไม่สามารถโหลดไอคอน xls-icon.png: {e}")
+            return None
+
+    def create_documents_tab(self):
+        """สร้างแท็บเอกสารหลัก"""
+        docs_frame = ttk.Frame(self.notebook)
+        self.notebook.add(docs_frame, text="📁 เอกสารหลัก")
+        
+        # โหลดไอคอน Word และ Excel
+        self.word_icon_img = self.load_word_icon()
+        self.excel_icon_img = self.load_excel_icon()
+        
+        # Header
+        header_frame = ttk.Frame(docs_frame)
+        header_frame.pack(fill='x', padx=30, pady=(30, 20))
+        
+        title_label = ttk.Label(header_frame, text="ระบบจัดการเอกสารคดีอาญา", 
+                               font=('Arial', 20, 'bold'), foreground='#1f4e79')
+        title_label.pack()
+        
+        subtitle_label = ttk.Label(header_frame, text="เลือกเอกสารที่ต้องการใช้งาน", 
+                                  font=('Arial', 12), foreground='#666666')
+        subtitle_label.pack(pady=(5, 0))
+        
+        # Main content frame และ scrollbar ด้านนอกสุด
+        main_container = ttk.Frame(docs_frame)
+        main_container.pack(fill='both', expand=True, padx=30, pady=(0, 30))
+        
+        # สร้าง scrollbar ด้านขวาสุดก่อน
+        main_scrollbar = ttk.Scrollbar(main_container, orient="vertical")
+        main_scrollbar.pack(side="right", fill="y")
+        
+        # สร้าง canvas สำหรับเนื้อหาทั้งหมด (กำหนดสีพื้นหลังให้ตรงกับ theme)
+        try:
+            # พยายามใช้สีพื้นหลังของ ttk theme
+            style = ttk.Style()
+            bg_color = style.lookup('TFrame', 'background')
+            if not bg_color:
+                bg_color = 'SystemButtonFace'  # fallback color
+        except:
+            bg_color = 'SystemButtonFace'  # fallback color
+            
+        main_canvas = tk.Canvas(main_container, highlightthickness=0, yscrollcommand=main_scrollbar.set,
+                               bg=bg_color)
+        main_canvas.pack(side="left", fill="both", expand=True)
+        
+        # กำหนด scrollbar ให้ควบคุม canvas
+        main_scrollbar.config(command=main_canvas.yview)
+        
+        # สร้าง frame สำหรับเนื้อหาที่จะใส่ใน canvas
+        content_frame = ttk.Frame(main_canvas)
+        
+        # Configure scrollable area
+        content_frame.bind(
+            "<Configure>",
+            lambda e: main_canvas.configure(scrollregion=main_canvas.bbox("all"))
+        )
+        
+        main_canvas.create_window((0, 0), window=content_frame, anchor="nw")
+        
+        # Enable mouse wheel scrolling
+        def _on_mousewheel(event):
+            main_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        def _on_mousewheel_linux(event):
+            main_canvas.yview_scroll(-1 if event.num == 4 else 1, "units")
+        
+        # Bind mouse wheel events to canvas and content
+        main_canvas.bind("<MouseWheel>", _on_mousewheel)  # Windows/Mac
+        main_canvas.bind("<Button-4>", _on_mousewheel_linux)  # Linux
+        main_canvas.bind("<Button-5>", _on_mousewheel_linux)  # Linux
+        
+        content_frame.bind("<MouseWheel>", _on_mousewheel)
+        content_frame.bind("<Button-4>", _on_mousewheel_linux)
+        content_frame.bind("<Button-5>", _on_mousewheel_linux)
+        
+        # Function to bind mouse wheel to all child widgets
+        def bind_mousewheel_to_children(widget):
+            widget.bind("<MouseWheel>", _on_mousewheel)
+            widget.bind("<Button-4>", _on_mousewheel_linux)
+            widget.bind("<Button-5>", _on_mousewheel_linux)
+            for child in widget.winfo_children():
+                bind_mousewheel_to_children(child)
+        
+        # เก็บฟังก์ชันไว้ใช้หลังจากสร้าง widgets เสร็จ
+        self._bind_mousewheel_to_children = bind_mousewheel_to_children
+        
+        # Left column: Word documents
+        left_frame = ttk.Frame(content_frame)
+        left_frame.pack(side='left', fill='both', expand=True, padx=(0, 15))
+        
+        # Right column: Excel/CSV database files
+        right_frame = ttk.Frame(content_frame)
+        right_frame.pack(side='right', fill='both', expand=True, padx=(15, 0))
+        
+        # ======= LEFT COLUMN: WORD DOCUMENTS =======
+        left_title = ttk.Label(left_frame, text="📄 เอกสาร Word", 
+                              font=('Arial', 16, 'bold'), foreground='#1f4e79')
+        left_title.pack(pady=(0, 20))
+        
+        # Section 1: เอกสารเกี่ยวกับหมายเรียกบัญชีธนาคาร
+        bank_section = ttk.LabelFrame(left_frame, text="📋 เอกสารเกี่ยวกับหมายเรียกบัญชีธนาคาร", 
+                                     padding=25)
+        bank_section.pack(fill='x', pady=(0, 20))
+        
+        # คำอธิบายส่วนของเอกสารธนาคาร
+        bank_desc = ttk.Label(bank_section, text="เอกสารสำหรับขอข้อมูลบัญชีธนาคารจากสถาบันการเงิน",
+                              font=('Arial', 12, 'bold'), foreground='#2c5aa0')
+        bank_desc.pack(pady=(0, 15))
+        
+        bank_docs = [
+            ("1.หนังสือขอข้อมูลบัญชีม้า (สอท.4).doc", "📄"),
+            ("2.(กลับด้านหลัง) ซองจดหมาย(ธนาคาร).doc", "✉️")
+        ]
+        
+        for i, (doc_name, icon) in enumerate(bank_docs):
+            doc_frame = ttk.Frame(bank_section)
+            doc_frame.pack(fill='x', pady=7)
+            
+            filepath = os.path.join("Doc", doc_name)
+            
+            # ใช้ไอคอน Word รูปภาพหรือ fallback เป็นข้อความ
+            if self.word_icon_img:
+                btn = ttk.Button(doc_frame, text=f"{icon} {doc_name}", 
+                               image=self.word_icon_img,
+                               compound='right',
+                               command=lambda fp=filepath: self.open_document_file(fp),
+                               width=70)
+            else:
+                word_icon = "🗎"  # Fallback text icon
+                btn = ttk.Button(doc_frame, text=f"{icon} {doc_name} {word_icon}", 
+                               command=lambda fp=filepath: self.open_document_file(fp),
+                               width=70)
+            btn.pack(side='left', padx=(0, 15))
+            
+            status_label = ttk.Label(doc_frame, 
+                                   text="✅ พร้อมใช้งาน" if os.path.exists(filepath) else "❌ ไม่พบไฟล์",
+                                   foreground='green' if os.path.exists(filepath) else 'red',
+                                   font=('Arial', 11, 'bold'))
+            status_label.pack(side='left')
+        
+        # Section 2: เอกสารเกี่ยวกับหมายเรียกผู้ต้องหา
+        summons_section = ttk.LabelFrame(left_frame, text="👤 เอกสารเกี่ยวกับหมายเรียกผู้ต้องหา", 
+                                        padding=25)
+        summons_section.pack(fill='x', pady=(0, 20))
+        
+        # คำอธิบายส่วนของเอกสารหมายเรียก
+        summons_desc = ttk.Label(summons_section, text="เอกสารสำหรับส่งหมายเรียกและแจ้งผู้ต้องหามาให้ปากคำ",
+                                font=('Arial', 12, 'bold'), foreground='#2c5aa0')
+        summons_desc.pack(pady=(0, 15))
+        
+        summons_docs = [
+            ("1.ปะหน้าส่งหมายเรียก ผู้ต้องหา.docx", "📋"),
+            ("2.(กลับด้านหลัง) ซองจดหมาย (ผตห.).doc", "✉️")
+        ]
+        
+        for doc_name, icon in summons_docs:
+            doc_frame = ttk.Frame(summons_section)
+            doc_frame.pack(fill='x', pady=7)
+            
+            filepath = os.path.join("Doc", doc_name)
+            
+            # ใช้ไอคอน Word รูปภาพหรือ fallback เป็นข้อความ
+            if self.word_icon_img:
+                btn = ttk.Button(doc_frame, text=f"{icon} {doc_name}", 
+                               image=self.word_icon_img,
+                               compound='right',
+                               command=lambda fp=filepath: self.open_document_file(fp),
+                               width=70)
+            else:
+                word_icon = "🗎"  # Fallback text icon
+                btn = ttk.Button(doc_frame, text=f"{icon} {doc_name} {word_icon}", 
+                               command=lambda fp=filepath: self.open_document_file(fp),
+                               width=70)
+            btn.pack(side='left', padx=(0, 15))
+            
+            status_label = ttk.Label(doc_frame, 
+                                   text="✅ พร้อมใช้งาน" if os.path.exists(filepath) else "❌ ไม่พบไฟล์",
+                                   foreground='green' if os.path.exists(filepath) else 'red',
+                                   font=('Arial', 11, 'bold'))
+            status_label.pack(side='left')
+        
+        # Section 3: เอกสารหลังการจับกุม
+        arrest_section = ttk.LabelFrame(left_frame, text="🚔 เอกสารหลังการจับกุม", 
+                                       padding=25)
+        arrest_section.pack(fill='both', expand=True, pady=(0, 10))
+        
+        # คำอธิบายส่วนของเอกสารจับกุม
+        arrest_desc = ttk.Label(arrest_section, text="เอกสารประกอบการดำเนินคดีหลังจากการจับกุมผู้ต้องหา",
+                               font=('Arial', 12, 'bold'), foreground='#2c5aa0')
+        arrest_desc.pack(pady=(0, 15))
+        
+        arrest_docs = [
+            ("1.ปะหน้าฝากขัง สภ.ช้างเผือก.docx", "📋"),
+            ("2.ประจำวัน รับตัว (id18).doc", "📝"),
+            ("3.หนังสือแจ้งจับหมาย ถึงศาลจังหวัดเชียงใหม.doc", "⚖️"),
+            ("4.คำร้องขอหมายขังครั้งที่ 1.docx", "📜"),
+            ("5.ส่งเอกสารเพิ่ม สำนวนอัยการ.doc", "📎")
+        ]
+        
+        for i, (doc_name, icon) in enumerate(arrest_docs):
+            doc_frame = ttk.Frame(arrest_section)
+            doc_frame.pack(fill='x', pady=8, padx=5)
+            
+            filepath = os.path.join("Doc", doc_name)
+            
+            # ใช้ไอคอน Word รูปภาพหรือ fallback เป็นข้อความ
+            if self.word_icon_img:
+                btn = ttk.Button(doc_frame, text=f"{icon} {doc_name}", 
+                               image=self.word_icon_img,
+                               compound='right',
+                               command=lambda fp=filepath: self.open_document_file(fp),
+                               width=65)
+            else:
+                word_icon = "🗎"  # Fallback text icon
+                btn = ttk.Button(doc_frame, text=f"{icon} {doc_name} {word_icon}", 
+                               command=lambda fp=filepath: self.open_document_file(fp),
+                               width=65)
+            btn.pack(side='left', padx=(0, 10))
+            
+            status_label = ttk.Label(doc_frame, 
+                                   text="✅ พร้อมใช้งาน" if os.path.exists(filepath) else "❌ ไม่พบไฟล์",
+                                   foreground='green' if os.path.exists(filepath) else 'red',
+                                   font=('Arial', 10, 'bold'))
+            status_label.pack(side='left')
+            
+        
+        # ======= RIGHT COLUMN: EXCEL/CSV DATABASE FILES =======
+        right_title = ttk.Label(right_frame, text="📊 ไฟล์ฐานข้อมูล", 
+                               font=('Arial', 16, 'bold'), foreground='#1f4e79')
+        right_title.pack(pady=(0, 20))
+        
+        # Database files section
+        db_section = ttk.LabelFrame(right_frame, text="🗄️ ไฟล์ Excel และ CSV", 
+                                   padding=25)
+        db_section.pack(fill='x', pady=(0, 0))  # ไม่ expand เต็มหน้า
+        
+        # คำอธิบายส่วนของไฟล์ฐานข้อมูล
+        db_desc = ttk.Label(db_section, text="ไฟล์ข้อมูลทั้งหมดที่ใช้ในระบบจัดการคดีอาญา",
+                           font=('Arial', 12, 'bold'), foreground='#2c5aa0')
+        db_desc.pack(pady=(0, 15))
+        
+        # ดึงรายการไฟล์จากโฟลเดอร์ Xlsx
+        xlsx_folder = "Xlsx"
+        if os.path.exists(xlsx_folder):
+            xlsx_files = []
+            for file in os.listdir(xlsx_folder):
+                if file.lower().endswith(('.xlsx', '.csv', '.xls')):
+                    xlsx_files.append(file)
+            
+            # แสดงไฟล์แต่ละไฟล์
+            for file in sorted(xlsx_files):
+                doc_frame = ttk.Frame(db_section)
+                doc_frame.pack(fill='x', pady=7)
+                
+                filepath = os.path.join(xlsx_folder, file)
+                
+                # กำหนดไอคอนตามประเภทไฟล์
+                if file.lower().endswith('.csv'):
+                    file_icon = "📈"  # CSV icon
+                else:
+                    file_icon = "📊"  # Excel icon
+                
+                # ใช้ไอคอน Excel รูปภาพหรือ fallback เป็นข้อความ
+                if self.excel_icon_img:
+                    btn = ttk.Button(doc_frame, text=f"{file_icon} {file}", 
+                                   image=self.excel_icon_img,
+                                   compound='right',
+                                   command=lambda fp=filepath: self.open_document_file(fp),
+                                   width=70)
+                else:
+                    excel_icon = "📊"  # Fallback text icon
+                    btn = ttk.Button(doc_frame, text=f"{file_icon} {file} {excel_icon}", 
+                                   command=lambda fp=filepath: self.open_document_file(fp),
+                                   width=70)
+                btn.pack(side='left', padx=(0, 15))
+                
+                status_label = ttk.Label(doc_frame, 
+                                       text="✅ พร้อมใช้งาน" if os.path.exists(filepath) else "❌ ไม่พบไฟล์",
+                                       foreground='green' if os.path.exists(filepath) else 'red',
+                                       font=('Arial', 11, 'bold'))
+                status_label.pack(side='left')
+        else:
+            # ถ้าไม่พบโฟลเดอร์ Xlsx
+            error_label = ttk.Label(db_section, text="❌ ไม่พบโฟลเดอร์ Xlsx",
+                                   foreground='red', font=('Arial', 12))
+            error_label.pack(pady=10)
+        
+        # Apply mouse wheel binding to all widgets after creation
+        self._bind_mousewheel_to_children(content_frame)
 
     def create_criminal_cases_tab(self):
         """สร้างแท็บแสดงข้อมูลคดีอาญา"""

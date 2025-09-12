@@ -3,17 +3,18 @@
 ## Project Overview
 
 **Project Name:** ระบบจัดการคดีอาญา (Criminal Case Management System)  
-**Version:** 2.5.0  
+**Version:** 2.6.0  
 **Last Updated:** December 2025  
-**Status:** Production Ready with Enhanced UI/UX and Advanced Features  
+**Status:** Production Ready with Complete Document Management System  
 
 ## Description
 
 A comprehensive GUI application for managing criminal case data with professional modular architecture:
-1. **Bank Account Data Management** - For handling bank account information requests
-2. **Suspect Summons Data Management** - For managing suspect summons documentation
-3. **Criminal Cases Management** - For viewing and managing criminal case data with detailed case information
-4. **Arrest Management System** - For complete arrest process documentation from warrant to prosecution
+1. **Complete Document Management Hub** - Centralized access to all Word documents and database files
+2. **Bank Account Data Management** - For handling bank account information requests
+3. **Suspect Summons Data Management** - For managing suspect summons documentation
+4. **Criminal Cases Management** - For viewing and managing criminal case data with detailed case information
+5. **Arrest Management System** - For complete arrest process documentation from warrant to prosecution
 
 ## Architecture
 
@@ -124,11 +125,12 @@ src/
 ### ✅ User Interface
 
 #### Tab Structure
+- **📁 เอกสารหลัก** - Complete document management hub (PRIMARY TAB)
+- **⚖️ คดีอาญาในความรับผิดชอบ** - Criminal cases viewing and detailed case management
 - **🏦 ข้อมูลบัญชีธนาคาร** - Bank account data entry form
 - **📊 ดูข้อมูลบัญชีธนาคาร** - Bank account data viewing and management
 - **👤 ข้อมูล ผตห.** - Suspect summons data entry form
 - **👁️ ดูข้อมูล ผตห.** - Suspect summons data viewing and management
-- **⚖️ คดีอาญาในความรับผิดชอบ** - Criminal cases viewing and detailed case management
 - **🚔 การจับกุม** - Arrest documentation data entry form
 - **👁️ ดูการจับกุม** - Arrest data viewing and management
 
@@ -221,6 +223,59 @@ src/
 ```
 
 ## Recent Improvements
+
+### Version 2.6.0 Updates (December 2025) - Complete Document Management System
+
+#### 📁 Main Documents Hub (New Primary Tab)
+- ✅ **Document Management Center** - New primary tab serving as main entry point
+- ✅ **Two-column layout** - Professional dual-panel interface for optimal organization
+- ✅ **Word Documents Panel** - Left column with 3 categorized document sections
+- ✅ **Database Files Panel** - Right column with dynamic Excel/CSV file listing
+- ✅ **Scrollable interface** - Full scrollbar support with mouse wheel navigation
+- ✅ **Professional aesthetics** - Clean UI with proper spacing and visual hierarchy
+
+#### 📄 Word Documents Section (Left Panel)
+- ✅ **Bank Account Documents** - Templates for bank information requests
+  - หนังสือขอข้อมูลบัญชีม้า (สอท.4).doc
+  - (กลับด้านหลัง) ซองจดหมาย(ธนาคาร).doc
+- ✅ **Suspect Summons Documents** - Templates for suspect notifications
+  - ปะหน้าส่งหมายเรียก ผู้ต้องหา.docx
+  - (กลับด้านหลัง) ซองจดหมาย (ผตห.).doc
+- ✅ **Post-Arrest Documents** - Complete arrest process documentation (5 templates)
+  - ปะหน้าฝากขัง สภ.ช้างเผือก.docx
+  - ประจำวัน รับตัว (id18).doc
+  - หนังสือแจ้งจับหมาย ถึงศาลจังหวัดเชียงใหม.doc
+  - คำร้องขอหมายขังครั้งที่ 1.docx
+  - ส่งเอกสารเพิ่ม สำนวนอัยการ.doc
+
+#### 📊 Database Files Section (Right Panel)
+- ✅ **Dynamic file detection** - Automatically scans Xlsx folder for database files
+- ✅ **File type recognition** - Smart icons for Excel (.xlsx) and CSV (.csv) files
+- ✅ **Real-time status** - Shows file availability with green/red indicators
+- ✅ **Direct file access** - One-click opening of any database file
+- ✅ **Comprehensive coverage** - Displays all 6 main database files:
+  - bank_master_data.csv
+  - export_คดีอาญาในความรับผิดชอบ.xlsx
+  - ขอข้อมูลเครือข่ายโทรศัพท์.xlsx
+  - ข้อมูลสำหรับออกหมายเรียกผู้ต้องหา.xlsx
+  - หนังสือส่งธนาคารขอข้อมูลบัญชีม้า.xlsx
+  - เอกสารหลังการจับกุม.xlsx
+
+#### 🎨 UI/UX Enhancements
+- ✅ **Professional icon system** - Microsoft Word and Excel icons (16x16px)
+- ✅ **Intelligent fallback** - Text-based icons when image files unavailable
+- ✅ **Cross-platform file opening** - Supports Windows, macOS, and Linux
+- ✅ **Descriptive labels** - Clear section descriptions for each document category
+- ✅ **Optimized spacing** - Perfect padding and margins for professional appearance
+- ✅ **Theme consistency** - Canvas background matches system theme colors
+
+#### 🔧 Technical Implementation
+- ✅ **PIL/Pillow integration** - Advanced image processing for icons
+- ✅ **Canvas-based scrolling** - Professional scrollbar positioned at window edge
+- ✅ **Mouse wheel support** - Full cross-platform scrolling with Linux compatibility
+- ✅ **Responsive design** - Proper frame expansion and content fitting
+- ✅ **Error handling** - Graceful degradation when files or dependencies missing
+- ✅ **Performance optimized** - Efficient file scanning and widget creation
 
 ### Version 2.4.0 Updates (September 2025) - Major Refactoring
 
