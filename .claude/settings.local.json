@@ -3,18 +3,13 @@
     "allow": [
       "Bash(python3:*)",
       "Bash(pip install:*)",
-      "Bash(apt:*)",
-      "Bash(apt install:*)",
-      "Bash(grep:*)",
-      "Bash(rg:*)",
       "Bash(sudo apt:*)",
       "Bash(sudo apt install:*)",
       "Bash(pip3 install:*)",
       "Bash(python:*)",
-      "Bash(rm:*)",
-      "Bash(ls:*)",
-      "Bash(git restore:*)"
+      "Bash(git add:*)"
     ],
-    "deny": []
+    "deny": [],
+    "ask": []
   }
 }
