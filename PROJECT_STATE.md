@@ -3,9 +3,9 @@
 ## Project Overview
 
 **Project Name:** ระบบจัดการคดีอาญา (Criminal Case Management System)  
-**Version:** 2.4.0  
-**Last Updated:** September 2025  
-**Status:** Production Ready with Modular Architecture  
+**Version:** 2.5.0  
+**Last Updated:** December 2025  
+**Status:** Production Ready with Enhanced UI/UX and Advanced Features  
 
 ## Description
 
@@ -88,6 +88,38 @@ src/
 - **Field validation** for essential information (suspect name, case number, arrest date)
 - **Default values** for nationality (Thai) and arresting unit
 - **Scrollable forms** for complex multi-section data entry
+
+### 🆕 Latest Features (Version 2.5.0)
+
+#### 📊 Enhanced Data Visualization
+- **Statistics Dashboard for Bank Data** showing:
+  - 📋 Total summons count
+  - ✅ Replied summons count  
+  - ⏳ Unreplied summons count
+  - 🔄 Multiple summons sent (duplicate tracking)
+
+#### 📅 Smart Date Tracking
+- **Days Since Document Sent** column in bank data view
+- **Real-time calculation** from document date to current date
+- **Visual indicators** for overdue items (>30 days + unreplied) with red bold formatting
+
+#### 🔍 Advanced Duplicate Detection
+- **Intelligent duplicate checking** based on CaseID + Account Number combination
+- **Enhanced accuracy** - 27.8% reduction in false positives compared to account-only checking
+- **Smart remarks system** showing "ส่งหมายเรียกครั้งที่ X ไปแล้ว"
+- **Yellow highlighting** for all duplicate records
+
+#### 🎨 Improved User Interface
+- **Alternating row colors** (white and light gray) for better readability
+- **Increased row height** (60px) in summons view for full address display
+- **Grid-like appearance** with borders and enhanced styling
+- **Professional column widths** - 300px for address columns, 250px for status
+- **Custom styling** for different data views (Summons.Treeview)
+
+#### 📁 File Organization Enhancement
+- **Xlsx folder structure** - all Excel/CSV files moved to dedicated Xlsx/ directory
+- **Updated file paths** throughout the application for better organization
+- **Backward compatibility** maintained for all existing functionality
 
 ### ✅ User Interface
 

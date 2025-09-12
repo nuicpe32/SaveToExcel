@@ -13,10 +13,11 @@ APP_NAME_EN = "Criminal Case Management System"
 VERSION = "2.3.2"
 
 # File paths
-BANK_DATA_FILE = "ข้อมูลเอกสารขอสำเนาบัญชีธนาคาร.xlsx"
-SUMMONS_DATA_FILE = "ข้อมูลสำหรับออกหมายเรียกผู้ต้องหา.xlsx"
-CRIMINAL_CASES_FILE = "คดีอาญาในความรับผิดชอบ.xlsx"
-ARREST_DATA_FILE = "เอกสารหลังการจับกุม.xlsx"
+XLSX_DIR = "Xlsx"
+BANK_DATA_FILE = os.path.join(XLSX_DIR, "หนังสือส่งธนาคารขอข้อมูลบัญชีม้า.xlsx")
+SUMMONS_DATA_FILE = os.path.join(XLSX_DIR, "ข้อมูลสำหรับออกหมายเรียกผู้ต้องหา.xlsx")
+CRIMINAL_CASES_FILE = os.path.join(XLSX_DIR, "export_คดีอาญาในความรับผิดชอบ.xlsx")
+ARREST_DATA_FILE = os.path.join(XLSX_DIR, "เอกสารหลังการจับกุม.xlsx")
 
 # GUI settings
 MAIN_WINDOW_TITLE = f"{APP_NAME} - {APP_NAME_EN}"
