@@ -48,3 +48,6 @@ dist/
 # Generated HTML documents
 *.html
 หมายเรียก*.html
+
+# Git credentials (security)
+.git-credentials
