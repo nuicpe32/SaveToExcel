@@ -7,7 +7,9 @@
       "Bash(sudo apt install:*)",
       "Bash(pip3 install:*)",
       "Bash(python:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "WebFetch(domain:www.itmx.co.th)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

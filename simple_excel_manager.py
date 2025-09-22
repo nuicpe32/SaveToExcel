@@ -38,8 +38,8 @@ def format_thai_date(date_obj):
     return f"{day} {month} {year:02d}"
 
 def get_default_appointment_date():
-    """ได้วันที่กำหนดพบเริ่มต้น (วันปัจจุบัน + 7 วัน)"""
-    return datetime.now() + timedelta(days=7)
+    """ได้วันที่กำหนดพบเริ่มต้น (วันปัจจุบัน + 14 วัน)"""
+    return datetime.now() + timedelta(days=14)
 
 def clean_document_number(doc_number):
     """ทำความสะอาดเลขที่หนังสือ - ลบ .0 ออกจากท้าย"""
@@ -326,10 +326,24 @@ class SimpleExcelManager:
             }
     
     def extract_bank_data(self):
-        """สร้างข้อมูลธนาคารจากไฟล์ Excel"""
+        """สร้างข้อมูลธนาคารจากไฟล์ CSV"""
         try:
-            headers, rows = self.read_excel_direct()
+            # อ่านข้อมูลจากไฟล์ CSV bank_master_data.csv
+            csv_file = os.path.join('Xlsx', 'bank_master_data.csv')
+            if not os.path.exists(csv_file):
+                print(f"ไม่พบไฟล์ {csv_file}")
+                return
+
+            headers = []
+            rows = []
+
+            with open(csv_file, 'r', encoding='utf-8') as f:
+                csv_reader = csv.reader(f)
+                headers = next(csv_reader, [])
+                rows = list(csv_reader)
+
             if not headers or not rows:
+                print("ไม่มีข้อมูลในไฟล์ CSV")
                 return
             
             # หาตำแหน่งคอลัมน์
@@ -402,8 +416,15 @@ class SimpleExcelManager:
         self.root.configure(bg='#f0f0f0')
         
         # ขยายหน้าต่างหลักเต็มจอ
-        self.root.state('zoomed')  # Windows
-        # สำหรับ Linux/macOS ใช้ self.root.attributes('-zoomed', True)
+        try:
+            if platform.system() == "Windows":
+                self.root.state('zoomed')
+            else:
+                # Linux/macOS
+                self.root.attributes('-zoomed', True)
+        except:
+            # Fallback: ตั้งขนาดหน้าต่างแบบธรรมดา
+            self.root.geometry("1200x800")
         
         # ธีมสีสวย
         style = ttk.Style()
@@ -1285,11 +1306,11 @@ class SimpleExcelManager:
                 if field_type == "dropdown":
                     entry = ttk.Combobox(field_frame, width=47, font=('Arial', 10), state="readonly")
                     if key == "bank_branch":
-                        entry['values'] = self.bank_data.get('bank_branches', [])
-                        entry.bind('<<ComboboxSelected>>', self.on_bank_selection)
+                        entry['values'] = []
+                        entry.bind('<<ComboboxSelected>>', self.on_branch_selection)
                     elif key == "bank_name":
                         entry['values'] = self.bank_data.get('bank_names', [])
-                        entry.bind('<<ComboboxSelected>>', self.on_bank_selection)
+                        entry.bind('<<ComboboxSelected>>', self.on_bank_name_selection)
                 elif field_type == "month_dropdown":
                     entry = ttk.Combobox(field_frame, width=47, font=('Arial', 10), state="readonly")
                     thai_months = [
@@ -1317,8 +1338,8 @@ class SimpleExcelManager:
                         # ใส่ค่าเริ่มต้นสำหรับเลขที่หนังสือ
                         entry.insert(0, "ตช. 0039.52/")
                     elif key == "delivery_day":
-                        # ใส่วันนัดส่งเป็นวันปัจจุบัน + 7 วัน
-                        delivery_date = datetime.now() + timedelta(days=7)
+                        # ใส่วันนัดส่งเป็นวันปัจจุบัน + 14 วัน
+                        delivery_date = datetime.now() + timedelta(days=14)
                         entry.insert(0, str(delivery_date.day))
                     elif key == "delivery_time":
                         # ใส่เวลาส่งเป็น 09.00 น.
@@ -1430,38 +1451,88 @@ class SimpleExcelManager:
         # ค้นหาลำดับถัดไป
         return next_order
     
-    def on_bank_selection(self, event=None):
-        """จัดการเมื่อเลือกธนาคาร"""
+    def on_bank_name_selection(self, event=None):
+        """จัดการเมื่อเลือกชื่อธนาคาร"""
+        try:
+            bank_name = self.entries['bank_name'].get()
+            if bank_name:
+                # หาสาขาที่เกี่ยวข้องกับธนาคารที่เลือก
+                bank_to_branches = self.bank_data.get('bank_to_branches', {})
+                related_branches = bank_to_branches.get(bank_name, [])
+
+                # อัพเดท dropdown ธนาคารสาขา
+                if 'bank_branch' in self.entries:
+                    branch_combo = self.entries['bank_branch']
+                    branch_combo['values'] = related_branches
+
+                    # เลือกสำนักงานใหญ่อัตโนมัติ (หาสาขาที่มีคำว่า "สำนักงานใหญ่")
+                    headquarters_branch = None
+                    for branch in related_branches:
+                        if "สำนักงานใหญ่" in branch:
+                            headquarters_branch = branch
+                            break
+
+                    if headquarters_branch:
+                        branch_combo.set(headquarters_branch)
+                        # เรียกฟังก์ชันเพื่อกรอกข้อมูลที่อยู่อัตโนมัติ
+                        self.on_branch_selection()
+                    else:
+                        branch_combo.set('')  # ล้างค่าเก่า
+                        # ล้างข้อมูลที่อยู่
+                        self.clear_address_fields()
+
+        except Exception as e:
+            print(f"เกิดข้อผิดพลาดในการเลือกธนาคาร: {e}")
+
+    def on_branch_selection(self, event=None):
+        """จัดการเมื่อเลือกสาขาธนาคาร"""
         try:
             bank_branch = self.entries['bank_branch'].get()
-            bank_name = self.entries['bank_name'].get()
-            
-            if bank_branch and bank_name:
-                key = f"{bank_branch}|{bank_name}"
-                address_data = self.bank_data.get('address_mapping', {}).get(key, {})
-                
+
+            if bank_branch:
+                # ดึงข้อมูลที่อยู่จาก address_mapping
+                address_data = self.bank_data.get('address_mapping', {}).get(bank_branch, {})
+
                 # อัพเดทฟิลด์ที่อยู่
                 address_fields = {
-                    'bank_address': 'ที่อยู่ธนาคาร',
-                    'soi': 'ซอย',
-                    'moo': 'หมู่',
-                    'tambon_khwaeng': 'ตำบล/แขวง',
-                    'amphoe_khet': 'อำเภอ/เขต',
-                    'road': 'ถนน',
-                    'province': 'จังหวัด',
-                    'postal_code': 'รหัสไปรษณี'
+                    'bank_address': 'bank_address',
+                    'soi': 'soi',
+                    'moo': 'moo',
+                    'tambon_khwaeng': 'tambon_khwaeng',
+                    'amphoe_khet': 'amphoe_khet',
+                    'road': 'road',
+                    'province': 'province',
+                    'postal_code': 'postal_code'
                 }
-                
+
                 for field_key, address_key in address_fields.items():
                     if field_key in self.entries:
                         widget = self.entries[field_key]
+                        if hasattr(widget, 'config'):
+                            widget.config(state='normal')
+                            widget.delete(0, tk.END)
+                            value = address_data.get(address_key, '')
+                            widget.insert(0, value)
+                            widget.config(state='readonly')
+
+        except Exception as e:
+            print(f"เกิดข้อผิดพลาดในการเลือกสาขา: {e}")
+
+    def clear_address_fields(self):
+        """ล้างข้อมูลในฟิลด์ที่อยู่"""
+        try:
+            address_fields = ['bank_address', 'soi', 'moo', 'tambon_khwaeng', 'amphoe_khet', 'road', 'province', 'postal_code']
+
+            for field_key in address_fields:
+                if field_key in self.entries:
+                    widget = self.entries[field_key]
+                    if hasattr(widget, 'config'):
                         widget.config(state='normal')
                         widget.delete(0, tk.END)
-                        value = address_data.get(address_key, '')
-                        widget.insert(0, value)
                         widget.config(state='readonly')
+
         except Exception as e:
-            print(f"เกิดข้อผิดพลาดในการเลือกธนาคาร: {e}")
+            print(f"เกิดข้อผิดพลาดในการล้างฟิลด์: {e}")
     
     def sync_account_names(self):
         """ซิงค์ชื่อบัญชีกับเจ้าของบัญชีม้า"""
@@ -1497,8 +1568,10 @@ class SimpleExcelManager:
                   command=self.delete_selected).pack(side='left', padx=2)
         ttk.Button(btn_frame, text="📋 คัดลอก", 
                   command=self.copy_selected).pack(side='left', padx=2)
-        ttk.Button(btn_frame, text="💾 บันทึก Excel", 
+        ttk.Button(btn_frame, text="💾 บันทึก Excel",
                   command=self.save_excel).pack(side='left', padx=2)
+        ttk.Button(btn_frame, text="🖨️ Print หมายเรียก",
+                  command=self.print_bank_letter_html).pack(side='left', padx=2)
         
         # แถบสถิติ
         stats_frame = ttk.Frame(view_frame)
@@ -2039,6 +2112,24 @@ class SimpleExcelManager:
                     if count > 1:
                         remarks = f"ส่งหมายเรียกครั้งที่ {count} ไปแล้ว"
             
+            # ฟังก์ชันสำหรับจัดรูปแบบข้อมูลแสดงผล (ลบทศนิยม)
+            def format_display_value(value, column_name):
+                # คอลัมน์ที่เป็นตัวเลขที่ต้องลบทศนิยม
+                numeric_columns = ['เลขหนังสือ', 'เคสไอดี', 'เลขบัญชี', 'วัน', 'ปี']
+
+                if column_name in numeric_columns:
+                    if value is None or value == '' or str(value).lower() == 'nan':
+                        return ''
+                    try:
+                        # แปลงเป็น float แล้วเป็น int เพื่อลบทศนิยม
+                        return str(int(float(value)))
+                    except (ValueError, TypeError):
+                        # ถ้าแปลงไม่ได้ ให้คืนค่าเป็น string ปกติ
+                        return str(value)
+                else:
+                    # คอลัมน์อื่นๆ แสดงปกติ
+                    return value
+
             # เตรียมข้อมูลสำหรับแสดง
             filtered_values = []
             for col in display_columns:
@@ -2049,7 +2140,9 @@ class SimpleExcelManager:
                 elif col in columns:
                     col_idx = columns.index(col)
                     if col_idx < len(full_values):
-                        filtered_values.append(full_values[col_idx])
+                        value = full_values[col_idx]
+                        formatted_value = format_display_value(value, col)
+                        filtered_values.append(formatted_value)
                     else:
                         filtered_values.append("")
                 else:
@@ -2437,12 +2530,19 @@ class SimpleExcelManager:
     
     def clear_entries(self):
         """ล้างข้อมูลในฟิลด์"""
+        # ฟิลด์ที่ไม่ต้องล้าง
+        keep_fields = ['victim', 'case_id', 'time_period', 'delivery_day']
+
         for key, widget in self.entries.items():
+            # ข้ามฟิลด์ที่ไม่ต้องล้าง
+            if key in keep_fields:
+                continue
+
             try:
                 # ปลดล็อกฟิลด์ที่เป็น readonly ชั่วคราว
                 if hasattr(widget, 'config'):
                     widget.config(state='normal')
-                
+
                 if isinstance(widget, tk.Text):
                     widget.delete("1.0", tk.END)
                 elif isinstance(widget, ttk.Combobox):
@@ -2451,7 +2551,7 @@ class SimpleExcelManager:
                     widget.delete(0, tk.END)
             except:
                 pass
-        
+
         # ตั้งค่าข้อมูลอัตโนมัติใหม่
         self.set_automatic_values()
     
@@ -2719,23 +2819,59 @@ class SimpleExcelManager:
         if not selection:
             messagebox.showwarning("คำเตือน", "กรุณาเลือกข้อมูลที่ต้องการคัดลอก")
             return
-        
+
         try:
             row_index = self.tree.index(selection[0])
             row_data = self.data.iloc[row_index].copy()
-            
+
+            # 1. ลำดับ - รันต่อไปจากลำดับล่าสุด
+            next_order = self.get_next_order_number()
+            row_data.iloc[0] = next_order  # คอลัมน์แรกคือลำดับ
+
+            # 2. เลขที่หนังสือ - ปล่อยว่างไว้
+            if 'เลขหนังสือ' in row_data.index:
+                row_data['เลขหนังสือ'] = ""
+
+            # 3. วัน เดือน ปี - ให้เป็นวันปัจจุบัน
+            current_date = datetime.now()
+            thai_months = {
+                1: "มกราคม", 2: "กุมภาพันธ์", 3: "มีนาคม", 4: "เมษายน",
+                5: "พฤษภาคม", 6: "มิถุนายน", 7: "กรกฎาคม", 8: "สิงหาคม",
+                9: "กันยายน", 10: "ตุลาคม", 11: "พฤศจิกายน", 12: "ธันวาคม"
+            }
+
+            if 'วัน' in row_data.index:
+                row_data['วัน'] = current_date.day
+            if 'เดือน ' in row_data.index:
+                row_data['เดือน '] = thai_months[current_date.month]
+            elif 'เดือน' in row_data.index:
+                row_data['เดือน'] = thai_months[current_date.month]
+            if 'ปี ' in row_data.index:
+                row_data['ปี '] = current_date.year + 543  # แปลงเป็น พ.ศ.
+            elif 'ปี' in row_data.index:
+                row_data['ปี'] = current_date.year + 543
+
+            # 4. วันนัดส่ง - วันปัจจุบัน + 14 วัน
+            delivery_date = current_date + timedelta(days=14)
+            if 'วันนัดส่ง' in row_data.index:
+                row_data['วันนัดส่ง'] = delivery_date.day
+            if 'เดือนส่ง ' in row_data.index:
+                row_data['เดือนส่ง '] = thai_months[delivery_date.month]
+            elif 'เดือนส่ง' in row_data.index:
+                row_data['เดือนส่ง'] = thai_months[delivery_date.month]
+
             # เพิ่มข้อมูลที่คัดลอก
             new_row = pd.DataFrame([row_data])
             self.data = pd.concat([self.data, new_row], ignore_index=True)
-            
+
             # บันทึกลงไฟล์
             self.data.to_excel(self.excel_file, index=False)
-            
+
             # อัพเดทตาราง
             self.update_treeview()
-            
+
             messagebox.showinfo("สำเร็จ", "คัดลอกข้อมูลเรียบร้อย")
-            
+
         except Exception as e:
             messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถคัดลอกข้อมูล: {str(e)}")
     
@@ -2751,7 +2887,734 @@ class SimpleExcelManager:
                 
         except Exception as e:
             messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถบันทึกไฟล์: {str(e)}")
-    
+
+    def print_bank_letter_html(self):
+        """พิมพ์หมายเรียกขอข้อมูลบัญชีธนาคาร (HTML)"""
+        try:
+            # ตรวจสอบว่าเลือกข้อมูลหรือไม่
+            selected_items = self.tree.selection()
+            if not selected_items:
+                messagebox.showwarning("คำเตือน", "กรุณาเลือกข้อมูลที่ต้องการพิมพ์หมายเรียก")
+                return
+
+            # ใช้ข้อมูลตัวแรกที่เลือก
+            item = selected_items[0]
+            selected_data = self.tree.item(item)['values']
+
+            if not selected_data:
+                messagebox.showwarning("คำเตือน", "ไม่พบข้อมูลในแถวที่เลือก")
+                return
+
+            # ดึงข้อมูลจาก DataFrame โดยใช้ index
+            try:
+                row_index = int(self.tree.index(item))
+                if row_index >= len(self.data):
+                    messagebox.showerror("ข้อผิดพลาด", "ไม่พบข้อมูลในแถวที่เลือก")
+                    return
+
+                row_data = self.data.iloc[row_index]
+                self.generate_bank_letter_html(row_data)
+
+            except (ValueError, IndexError) as e:
+                messagebox.showerror("ข้อผิดพลาด", f"เกิดข้อผิดพลาดในการเข้าถึงข้อมูล: {str(e)}")
+
+        except Exception as e:
+            messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถพิมพ์หมายเรียก: {str(e)}")
+
+    def generate_bank_letter_html(self, row_data):
+        """สร้างไฟล์ HTML หมายเรียกขอข้อมูลบัญชีธนาคาร ตามแบบฟอร์มจริง"""
+        try:
+            import os
+            from datetime import datetime
+            import base64
+
+            # ฟังก์ชันสำหรับจัดรูปแบบตัวเลข (ลบทศนิยม)
+            def format_number(value):
+                if value is None or value == '' or str(value).lower() == 'nan':
+                    return ''
+                try:
+                    # แปลงเป็น float แล้วเป็น int เพื่อลบทศนิยม
+                    return str(int(float(value)))
+                except (ValueError, TypeError):
+                    # ถ้าแปลงไม่ได้ ให้คืนค่าเป็น string ปกติ
+                    return str(value)
+
+            # สร้างชื่อไฟล์ HTML
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            document_no = format_number(row_data.get('เลขหนังสือ', ''))
+            bank_name = str(row_data.get('ชื่อธนาคาร', ''))
+            filename = f"หมายเรียกธนาคาร_{document_no}_{bank_name}_{timestamp}.html"
+
+            # เตรียมข้อมูล
+            victim_name = str(row_data.get('ผู้เสียหาย', ''))
+            case_id = format_number(row_data.get('เคสไอดี', ''))
+            account_owner = str(row_data.get('เจ้าของบัญชีม้า', ''))
+            bank_branch = str(row_data.get('ธนาคารสาขา', ''))
+            bank_name_full = str(row_data.get('ชื่อธนาคาร', ''))
+            account_no = format_number(row_data.get('เลขบัญชี', ''))
+            account_name = str(row_data.get('ชื่อบัญชี', ''))
+            time_period = str(row_data.get('ช่วงเวลา', ''))
+            day = format_number(row_data.get('วัน', ''))
+            month = str(row_data.get('เดือน ', ''))
+            year = format_number(row_data.get('ปี ', ''))
+
+            # แปลง Logo เป็น base64 (ถ้ามี)
+            logo_base64 = ""
+            logo_path = "Crut.jpg"
+            if os.path.exists(logo_path):
+                try:
+                    with open(logo_path, "rb") as img_file:
+                        logo_base64 = base64.b64encode(img_file.read()).decode()
+                except Exception as e:
+                    print(f"ไม่สามารถโหลด logo: {e}")
+
+            # สร้าง HTML
+            html_content = f"""
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>หนังสือขอข้อมูลบัญชีม้า (สอท.4)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
+
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+
+        body {{
+            font-family: 'Sarabun', 'THSarabunNew', sans-serif;
+            font-size: 16px;
+            line-height: 1.4;
+            color: #000;
+            background: white;
+        }}
+
+        .page {{
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            padding: 10mm 20mm;
+            background: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }}
+
+        .header {{
+            position: relative;
+            margin-bottom: 30px;
+        }}
+
+        .urgent {{
+            position: absolute;
+            top: 0;
+            left: 0;
+            color: red;
+            font-weight: bold;
+            font-size: 18px;
+        }}
+
+        .document-number {{
+            position: absolute;
+            top: 25px;
+            left: 0;
+            font-size: 16px;
+        }}
+
+        .logo {{
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 108px;
+            height: 108px;
+        }}
+
+        .agency {{
+            position: absolute;
+            top: 25px;
+            right: 0;
+            text-align: right;
+            font-size: 14px;
+            line-height: 1.2;
+        }}
+
+        .date {{
+            text-align: center;
+            margin-top: 160px;
+            font-size: 16px;
+        }}
+
+        .content {{
+            margin-top: 20px;
+        }}
+
+        .subject {{
+            margin-bottom: 12px;
+        }}
+
+        .subject-label {{
+            font-weight: bold;
+            display: inline;
+        }}
+
+        .to {{
+            margin-bottom: 12px;
+        }}
+
+        .to-label {{
+            font-weight: bold;
+            display: inline;
+        }}
+
+        .attachment {{
+            margin-bottom: 18px;
+        }}
+
+        .attachment-label {{
+            font-weight: bold;
+            display: inline;
+        }}
+
+        .paragraph {{
+            margin-bottom: 15px;
+            text-align: justify;
+            text-indent: 2em;
+        }}
+
+        .bank-table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }}
+
+        .bank-table th,
+        .bank-table td {{
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: center;
+            font-size: 14px;
+        }}
+
+        .bank-table th {{
+            font-weight: bold;
+            background-color: #f5f5f5;
+        }}
+
+        .authority {{
+            margin-top: 15px;
+            text-align: justify;
+            text-indent: 2em;
+        }}
+
+        .document-list {{
+            margin-top: 15px;
+        }}
+
+        .document-list ol {{
+            padding-left: 2em;
+        }}
+
+        .document-list li {{
+            margin-bottom: 10px;
+            text-align: justify;
+        }}
+
+        .signature {{
+            margin-top: 30px;
+            text-align: center;
+        }}
+
+        .signature-line {{
+            margin-bottom: 10px;
+        }}
+
+        .signature-title {{
+            margin-bottom: 10px;
+            text-align: left;
+            padding-left: 200px;
+        }}
+
+        .page-break {{
+            page-break-before: always;
+        }}
+
+        .page-number {{
+            text-align: center;
+            margin-top: 20px;
+            font-size: 16px;
+        }}
+
+
+        @media print {{
+            body {{
+                font-size: 14px;
+            }}
+            .page {{
+                width: 210mm;
+                height: 297mm;
+                margin: 0;
+                padding: 20mm;
+                box-shadow: none;
+                page-break-after: always;
+            }}
+            .page:last-child {{
+                page-break-after: avoid;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <!-- หน้าที่ 1 -->
+    <div class="page">
+        <div class="header">
+            <div class="urgent">ด่วนที่สุด</div>
+            <div class="document-number">
+                ที่ ตช.0039.52/{document_no}<br>
+                หมายเรียกพยานเอกสาร
+            </div>
+            {"<img src='data:image/jpeg;base64," + logo_base64 + "' class='logo' alt='Logo'>" if logo_base64 else ""}
+            <div class="agency">
+                กองกำกับการ 1 กองบังคับการตำรวจสืบสวน<br>
+                สอบสวนอาชญากรรมทางเทคโนโลยี 4
+            </div>
+        </div>
+
+        <div class="date">{day} {month} {year}</div>
+
+        <div class="content">
+            <div class="subject">
+                <span class="subject-label">เรื่อง</span>
+                &nbsp;&nbsp;ขอให้จัดส่งสำเนาคำร้องเปิดบัญชีธนาคาร รายการเดินบัญชีและข้อมูลอื่น ๆ
+            </div>
+
+            <div class="to">
+                <span class="to-label">เรียน</span>
+                &nbsp;&nbsp;กรรมการผู้จัดการ{bank_branch}
+            </div>
+
+
+            <div class="paragraph">
+                ด้วยเหตุ {victim_name} (case id : {case_id}) ได้แจ้งความร้องทุกข์ต่อพนักงานสอบสวน ให้
+                ดำเนินคดีกับ {account_owner} ที่มีส่วนเกี่ยวข้องในกระทำความผิดอาญา และมีการใช้บัญชีธนาคารที่อยู่ในความ
+                ดูแลของธนาคารท่านเกี่ยวข้องกับการกระทำความผิดตามกฎหมาย จึงขอให้ท่านดำเนินการจัดส่งสำเนาคำร้องเปิดบัญชี
+                ธนาคาร รายการเดินบัญชีและข้อมูลอื่น ๆ ดังนี้
+            </div>
+
+            <table class="bank-table">
+                <thead>
+                    <tr>
+                        <th>ธนาคาร</th>
+                        <th>เลขบัญชี</th>
+                        <th>ชื่อบัญชี</th>
+                        <th>ช่วงเวลาขอข้อมูลรายการเดินบัญชี</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>{bank_name_full}</td>
+                        <td>{account_no}</td>
+                        <td>{account_name}</td>
+                        <td>{time_period}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="authority">
+                อาศัยอำนาจตามประมวลกฎหมายวิธีพิจารณาความอาญา พุทธศักราช 2477 มาตรา 52,131,132(3),(4) และ
+                133 ฉะนั้นให้ท่านมาพบพนักงานสอบสวนหรือนำส่งเอกสารตามรายละเอียดดังต่อไปนี้
+            </div>
+
+            <div class="document-list">
+                <ol>
+                    <li>สำเนาเอกสารคำขอเปิดบัญชีเงินฝาก พร้อมภาพการยืนยันตัวตน (KYC) ขณะขอเปิดบัญชี, ยอดเงิน
+                        คงเหลือ ณ ปัจจุบัน และเอกสารที่เกี่ยวข้องพร้อมรับรองสำเนา (หากเป็นการเปิดบัญชีแบบออนไลน์
+                        ขอให้แนบ วิธีขั้นตอนการเปิดบัญชีมาด้วย)</li>
+
+                    <li>รายการเคลื่อนไหวทางบัญชี (statement) ของบัญชีดังกล่าว ตามห้วงเวลาที่แจ้งข้างต้น โดยแสดง
+                        รายละเอียดการโอน แสดงบัญชีต้นทางปลายทาง วันเวลา และจำนวนเงินที่โอนให้ครบถ้วน และข้อมูล
+                        รายการธุรกรรมทางการเงินผ่านช่องทางอิเล็กทรอนิกส์ (ATM/Internet) โดยละเอียด กรณีโอนเงินผ่าน
+                        แอปพลิเคชั่น ขอทราบหมายเลขโทรศัพท์ ไอพีเเอดเดรส และ พิกัด latitude, longitude ในการทำ
+                        ธุรกรรม (กรณีข้อมูลจำนวนมากไม่สามารถปริ้นเป็นเอกสารได้ ให้บันทึกข้อมูลเป็นลงแผ่นซีดี หรือ ส่งไปที่
+                        อีเมล์ ampon.th@police.go.th)</li>
+
+                    <li>ข้อมูลและภาพถ่ายการยืนยันตัวตน (KYC) การทำธุรกรรมในการโอน/ชำระเงิน ที่มีมูลค่ามากกว่า 50,000
+                        บาท ตามห้วงเวลาที่แจ้งข้างต้น</li>
+
+                    <li>ภาพการธุรกรรมผ่านตู้ ATM/CDM ตามห้วงเวลาที่แจ้งข้างต้น และภาพการธุรกรรมผ่านตู้ ATM/CDM
+                        การทำธุรกรรมจำนวน 5 ครั้งที่มีการทำรายการล่าสุด</li>
+                </ol>
+            </div>
+
+            <div class="paragraph">
+                ทั้งนี้ขอให้สำเนาข้อมูลดังกล่าวเป็นเอกสาร / แผ่นบันทึกข้อมูล (DVD Rom) ส่งมาที่ "พ.ต.ต.อำพล ทอง
+                อร่าม ที่อยู่ กองกำกับการ 1 กองบังคับการตำรวจสืบสวนสอบสวนอาชญากรรมทางเทคโนโลยี 4 เลขที่ 370 หมู่ 3
+                ตำบลดอนแก้ว อำเภอเเม่ริม จังหวัดเชียงใหม่ 50180" และ อีเมล์ ampon.th@police.go.th ภายใน 7 วัน นับ
+                แต่ได้รับหมายเรียกนี้
+            </div>
+
+            <div class="signature">
+                <div class="signature-line">ขอแสดงความนับถือ</div>
+                <br>
+                <div class="signature-title">พันตำรวจตรี</div>
+                <div class="signature-line">( อำพล ทองอร่าม )</div>
+                <div class="signature-line">สารวัตร (สอบสวน)ฯ ปฏิบัติราชการแทน</div>
+                <div class="signature-line">ผู้กำกับการกองกำกับการ 1 กองบังคับการตำรวจสืบสวนสอบสวนอาชญากรรมทางเทคโนโลยี 4</div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
+"""
+
+            # บันทึกไฟล์ HTML
+            with open(filename, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+
+            messagebox.showinfo("สำเร็จ", f"สร้างไฟล์ HTML เรียบร้อย: {filename}\n\nสามารถเปิดไฟล์ด้วย browser แล้วใช้ Ctrl+P เพื่อพิมพ์")
+
+            # เปิดไฟล์ HTML
+            try:
+                import subprocess
+                import platform
+                import os
+
+                abs_path = os.path.abspath(filename)
+
+                if platform.system() == 'Darwin':  # macOS
+                    subprocess.call(['open', abs_path])
+                elif platform.system() == 'Windows':  # Windows
+                    os.startfile(abs_path)
+                else:  # Linux
+                    subprocess.call(['xdg-open', abs_path])
+            except Exception as e:
+                print(f"ไม่สามารถเปิดไฟล์ HTML: {e}")
+
+        except Exception as e:
+            messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถสร้าง HTML: {str(e)}")
+
+    def generate_bank_letter_pdf(self, row_data):
+        """สร้างไฟล์ PDF หมายเรียกขอข้อมูลบัญชีธนาคาร ตามแบบฟอร์มจริง"""
+        try:
+            # ลองติดตั้ง reportlab หากยังไม่มี
+            try:
+                from reportlab.lib.pagesizes import A4
+                from reportlab.pdfgen import canvas
+                from reportlab.lib.utils import ImageReader
+                from reportlab.pdfbase import pdfutils
+                from reportlab.pdfbase.ttfonts import TTFont
+                from reportlab.pdfbase import pdfmetrics
+                from reportlab.lib.units import inch
+                import os
+                from datetime import datetime
+            except ImportError:
+                import sys
+                python_info = f"Python: {sys.executable}\nVersion: {sys.version}\nPath: {sys.path[:3]}..."
+
+                result = messagebox.askyesno("ติดตั้ง reportlab",
+                    f"ไม่พบ reportlab ในสภาพแวดล้อม Python นี้:\n\n{python_info}\n\nต้องการให้ระบบพยายามติดตั้งให้อัตโนมัติหรือไม่?")
+
+                if result:
+                    try:
+                        import subprocess
+
+                        # พยายามติดตั้งด้วย Python executable ปัจจุบัน
+                        install_commands = [
+                            [sys.executable, "-m", "pip", "install", "reportlab", "--break-system-packages"],
+                            [sys.executable, "-m", "pip", "install", "reportlab", "--user"],
+                            [sys.executable, "-m", "pip", "install", "reportlab", "--force-reinstall", "--user"]
+                        ]
+
+                        installed = False
+                        error_messages = []
+
+                        for i, cmd in enumerate(install_commands):
+                            try:
+                                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                                if result.returncode == 0:
+                                    installed = True
+                                    messagebox.showinfo("สำเร็จ",
+                                        f"ติดตั้ง reportlab เรียบร้อยด้วยคำสั่งที่ {i+1}\n\n" +
+                                        "กรุณาปิดโปรแกรมแล้วเปิดใหม่ เพื่อให้ระบบโหลด library ใหม่\n\n" +
+                                        "แล้วลองใช้งานฟีเจอร์ Print หมายเรียกอีกครั้ง")
+                                    return
+                                else:
+                                    error_messages.append(f"คำสั่ง {i+1}: {result.stderr[:100]}")
+                            except subprocess.TimeoutExpired:
+                                error_messages.append(f"คำสั่ง {i+1}: Timeout")
+                            except Exception as e:
+                                error_messages.append(f"คำสั่ง {i+1}: {str(e)[:100]}")
+
+                        if not installed:
+                            messagebox.showerror("ข้อผิดพลาด",
+                                "ไม่สามารถติดตั้ง reportlab ได้อัตโนมัติ\n\n" +
+                                "วิธีแก้ไข:\n" +
+                                f"1. เปิด Command Prompt/PowerShell\n" +
+                                f"2. รันคำสั่ง: {sys.executable} -m pip install reportlab --user\n" +
+                                f"3. หรือ: {sys.executable} -m pip install reportlab --break-system-packages\n" +
+                                f"4. ปิดโปรแกรมแล้วเปิดใหม่\n\n" +
+                                f"Python ที่ใช้: {sys.executable}")
+                    except Exception as e:
+                        messagebox.showerror("ข้อผิดพลาด", f"เกิดข้อผิดพลาดในการติดตั้ง: {str(e)}")
+                else:
+                    messagebox.showinfo("คำแนะนำ",
+                        f"กรุณาติดตั้ง reportlab สำหรับ Python นี้:\n\n" +
+                        f"เปิด Command Prompt/PowerShell แล้วรัน:\n" +
+                        f"{sys.executable} -m pip install reportlab --user\n\n" +
+                        f"หรือ:\n" +
+                        f"{sys.executable} -m pip install reportlab --break-system-packages\n\n" +
+                        f"แล้วปิดโปรแกรมและเปิดใหม่")
+                return
+            except Exception as e:
+                messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถโหลด reportlab: {str(e)}")
+                return
+
+            # ลงทะเบียน font ไทย
+            font_path = "THSarabunNew/THSarabunNew.ttf"
+            if os.path.exists(font_path):
+                pdfmetrics.registerFont(TTFont('THSarabunNew', font_path))
+
+            bold_font_path = "THSarabunNew/THSarabunNew Bold.ttf"
+            if os.path.exists(bold_font_path):
+                pdfmetrics.registerFont(TTFont('THSarabunNew-Bold', bold_font_path))
+
+            # สร้างชื่อไฟล์ PDF
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            document_no = str(row_data.get('เลขหนังสือ', ''))
+            bank_name = str(row_data.get('ชื่อธนาคาร', ''))
+            filename = f"หมายเรียกธนาคาร_{document_no}_{bank_name}_{timestamp}.pdf"
+
+            # สร้าง PDF
+            c = canvas.Canvas(filename, pagesize=A4)
+            width, height = A4
+
+            # ====================== หน้าที่ 1 ======================
+
+            # ส่วนหัว - ด่วนที่สุด (มุมซ้ายบน)
+            c.setFont('THSarabunNew-Bold', 16)
+            c.setFillColorRGB(1, 0, 0)  # สีแดง
+            c.drawString(50, height-60, "ด่วนที่สุด")
+
+            # เลขที่เอกสาร (มุมซ้าย)
+            c.setFillColorRGB(0, 0, 0)  # สีดำ
+            c.setFont('THSarabunNew', 14)
+            c.drawString(50, height-85, f"ที่ ตช.0039.52/{document_no}")
+            c.drawString(50, height-100, "หมายเรียกพยานเอกสาร")
+
+            # Logo ตราครุฑ์ (กลาง)
+            logo_path = "Crut.jpg"
+            if os.path.exists(logo_path):
+                try:
+                    c.drawImage(logo_path, width/2-30, height-140, width=60, height=60)
+                except Exception as e:
+                    print(f"ไม่สามารถโหลด logo: {e}")
+
+            # หน่วยงาน (มุมขวา)
+            c.setFont('THSarabunNew', 12)
+            agency_text1 = "กองกำกับการ 1 กองบังคับการตำรวจสืบสวน"
+            agency_text2 = "สอบสวนอาชญากรรมทางเทคโนโลยี 4"
+            c.drawRightString(width-50, height-85, agency_text1)
+            c.drawRightString(width-50, height-100, agency_text2)
+
+            # วันที่ (ตรงกลาง)
+            day = str(row_data.get('วัน', ''))
+            month = str(row_data.get('เดือน ', ''))
+            year = str(row_data.get('ปี ', ''))
+            date_text = f"{day} {month} {year}"
+            date_width = c.stringWidth(date_text, 'THSarabunNew', 14)
+            c.setFont('THSarabunNew', 14)
+            c.drawString((width - date_width) / 2, height-160, date_text)
+
+            # เรื่อง
+            y_pos = height - 190
+            c.setFont('THSarabunNew-Bold', 14)
+            c.drawString(50, y_pos, "เรื่อง")
+            c.setFont('THSarabunNew', 14)
+            c.drawString(100, y_pos, "ขอให้จัดส่งสำเนาคำร้องเปิดบัญชีธนาคาร รายการเดินบัญชีและข้อมูลอื่น ๆ")
+
+            # เรียน
+            y_pos -= 25
+            bank_branch = str(row_data.get('ธนาคารสาขา', ''))
+            c.setFont('THSarabunNew-Bold', 14)
+            c.drawString(50, y_pos, "เรียน")
+            c.setFont('THSarabunNew', 14)
+            c.drawString(100, y_pos, f"กรรมการผู้จัดการ{bank_branch}")
+
+            # สิ่งที่ส่งมาด้วย
+            y_pos -= 25
+            c.setFont('THSarabunNew-Bold', 14)
+            c.drawString(50, y_pos, "สิ่งที่ส่งมาด้วย")
+            c.setFont('THSarabunNew', 14)
+            c.drawString(150, y_pos, "หมายเรียกพยานเอกสารจำนวน 1 ฉบับ")
+
+            # ย่อหน้าแรก
+            y_pos -= 35
+            victim_name = str(row_data.get('ผู้เสียหาย', ''))
+            case_id = str(row_data.get('เคสไอดี', ''))
+            account_owner = str(row_data.get('เจ้าของบัญชีม้า', ''))
+
+            c.setFont('THSarabunNew', 14)
+            para1_lines = [
+                f"        ด้วยเหตุ {victim_name} (case id : {case_id}) ได้แจ้งความร้องทุกข์ต่อพนักงานสอบสวน ให้",
+                f"ดำเนินคดีกับ {account_owner} ที่มีส่วนเกี่ยวข้องในกระทำความผิดอาญา และมีการใช้บัญชีธนาคารที่อยู่ในความ",
+                "ดูแลของธนาคารท่านเกี่ยวข้องกับการกระทำความผิดตามกฎหมาย จึงขอให้ท่านดำเนินการจัดส่งสำเนาคำร้องเปิดบัญชี",
+                "ธนาคาร รายการเดินบัญชีและข้อมูลอื่น ๆ ดังนี้"
+            ]
+
+            for line in para1_lines:
+                c.drawString(50, y_pos, line)
+                y_pos -= 16
+
+            # ตารางข้อมูลธนาคาร
+            y_pos -= 25
+
+            # หัวตาราง
+            table_y = y_pos
+            c.setFont('THSarabunNew-Bold', 12)
+
+            # วาดกรอบตาราง
+            col_widths = [80, 90, 100, 200]  # ความกว้างคอลัมน์
+            col_x = [70, 150, 240, 340]  # ตำแหน่ง x ของแต่ละคอลัมน์
+
+            # หัวตาราง
+            for i, width in enumerate(col_widths):
+                c.rect(col_x[i], table_y-20, width, 20)
+
+            c.drawString(75, table_y-15, "ธนาคาร")
+            c.drawString(155, table_y-15, "เลขบัญชี")
+            c.drawString(245, table_y-15, "ชื่อบัญชี")
+            c.drawString(345, table_y-15, "ช่วงเวลาขอข้อมูลรายการเดินบัญชี")
+
+            # ข้อมูลในตาราง
+            table_y -= 20
+            bank_name = str(row_data.get('ชื่อธนาคาร', ''))
+            account_no = str(row_data.get('เลขบัญชี', ''))
+            account_name = str(row_data.get('ชื่อบัญชี', ''))
+            time_period = str(row_data.get('ช่วงเวลา', ''))
+
+            c.setFont('THSarabunNew', 11)
+            for i, width in enumerate(col_widths):
+                c.rect(col_x[i], table_y-20, width, 20)
+
+            c.drawString(75, table_y-15, bank_name)
+            c.drawString(155, table_y-15, account_no)
+            c.drawString(245, table_y-15, account_name)
+            c.drawString(345, table_y-15, time_period)
+
+            # อาศัยอำนาจตาม...
+            y_pos = table_y - 40
+            c.setFont('THSarabunNew', 14)
+            authority_lines = [
+                "        อาศัยอำนาจตามประมวลกฎหมายวิธีพิจารณาความอาญา พุทธศักราช 2477 มาตรา 52,131,132(3),(4) และ",
+                "133 ฉะนั้นให้ท่านมาพบพนักงานสอบสวนหรือนำส่งเอกสารตามรายละเอียดดังต่อไปนี้"
+            ]
+
+            for line in authority_lines:
+                c.drawString(50, y_pos, line)
+                y_pos -= 16
+
+            # รายการเอกสาร 4 ข้อ
+            y_pos -= 15
+            c.setFont('THSarabunNew', 13)
+            doc_lines = [
+                "        1. สำเนาเอกสารคำขอเปิดบัญชีเงินฝาก พร้อมภาพการยืนยันตัวตน (KYC) ขณะขอเปิดบัญชี, ยอดเงิน",
+                "            คงเหลือ ณ ปัจจุบัน และเอกสารที่เกี่ยวข้องพร้อมรับรองสำเนา (หากเป็นการเปิดบัญชีแบบออนไลน์",
+                "            ขอให้แนบ วิธีขั้นตอนการเปิดบัญชีมาด้วย)",
+                "",
+                "        2. รายการเคลื่อนไหวทางบัญชี (statement) ของบัญชีดังกล่าว ตามห้วงเวลาที่แจ้งข้างต้น โดยแสดง",
+                "            รายละเอียดการโอน แสดงบัญชีต้นทางปลายทาง วันเวลา และจำนวนเงินที่โอนให้ครบถ้วน และข้อมูล",
+                "            รายการธุรกรรมทางการเงินผ่านช่องทางอิเล็กทรอนิกส์ (ATM/Internet) โดยละเอียด กรณีโอนเงินผ่าน",
+                "            แอปพลิเคชั่น ขอทราบหมายเลขโทรศัพท์ ไอพีเเอดเดรส และ พิกัด latitude, longitude ในการทำ",
+                "            ธุรกรรม (กรณีข้อมูลจำนวนมากไม่สามารถปริ้นเป็นเอกสารได้ ให้บันทึกข้อมูลเป็นลงแผ่นซีดี หรือ ส่งไปที่",
+                "            อีเมล์ ampon.th@police.go.th)",
+                "",
+                "        3. ข้อมูลและภาพถ่ายการยืนยันตัวตน (KYC) การทำธุรกรรมในการโอน/ชำระเงิน ที่มีมูลค่ามากกว่า 50,000",
+                "            บาท ตามห้วงเวลาที่แจ้งข้างต้น",
+                "",
+                "        4. ภาพการธุรกรรมผ่านตู้ ATM/CDM ตามห้วงเวลาที่แจ้งข้างต้น และภาพการธุรกรรมผ่านตู้ ATM/CDM",
+                "            การทำธุรกรรมจำนวน 5 ครั้งที่มีการทำรายการล่าสุด"
+            ]
+
+            for line in doc_lines:
+                if y_pos < 150:  # ถ้าใกล้หมดหน้า
+                    c.showPage()  # ขึ้นหน้าใหม่
+                    y_pos = height - 50
+                    # เลขหน้า -2-
+                    c.setFont('THSarabunNew', 14)
+                    c.drawString(width/2-10, height-40, "-2-")
+                    c.setFont('THSarabunNew', 13)
+
+                c.drawString(50, y_pos, line)
+                y_pos -= 14
+
+            # ต่อข้อความ "ทั้งนี้ขอให้สำเนา..."
+            if y_pos > 150:
+                y_pos -= 10
+                c.drawRightString(width-50, y_pos, "/ทั้งนี้ขอให้สำเนา...")
+
+            # ====================== หน้าที่ 2 (ถ้าไม่ได้ขึ้นหน้าใหม่แล้ว) ======================
+            if y_pos > 150:  # ถ้ายังไม่ได้ขึ้นหน้าใหม่
+                c.showPage()
+                # เลขหน้า -2-
+                c.setFont('THSarabunNew', 14)
+                c.drawString(width/2-10, height-40, "-2-")
+
+            y_pos = height - 80
+
+            # ต่อจากหน้าแรก
+            delivery_day = str(row_data.get('วันนัดส่ง', ''))
+            delivery_month = str(row_data.get('เดือนส่ง ', ''))
+            delivery_time = str(row_data.get('เวลาส่ง', ''))
+
+            c.setFont('THSarabunNew', 14)
+            page2_lines = [
+                'ทั้งนี้ขอให้สำเนาข้อมูลดังกล่าวเป็นเอกสาร / แผ่นบันทึกข้อมูล (DVD Rom) ส่งมาที่ "พ.ต.ต.อำพล ทอง',
+                'อร่าม ที่อยู่ กองกำกับการ 1 กองบังคับการตำรวจสืบสวนสอบสวนอาชญากรรมทางเทคโนโลยี 4 เลขที่ 370 หมู่ 3',
+                'ตำบลดอนแก้ว อำเภอเเม่ริม จังหวัดเชียงใหม่ 50180" และ อีเมล์ ampon.th@police.go.th ภายใน 7 วัน นับ',
+                'แต่ได้รับหมายเรียกนี้'
+            ]
+
+            for line in page2_lines:
+                c.drawString(50, y_pos, line)
+                y_pos -= 16
+
+            # ลายเซ็น
+            y_pos -= 50
+            c.drawRightString(width-80, y_pos, "ขอแสดงความนับถือ")
+            y_pos -= 60
+            c.drawRightString(width-100, y_pos, "พันตำรวจตรี")
+            y_pos -= 25
+            c.drawRightString(width-80, y_pos, "( อำพล ทองอร่าม )")
+            y_pos -= 20
+            c.drawRightString(width-60, y_pos, "สารวัตร (สอบสวน)ฯ ปฏิบัติราชการแทน")
+            y_pos -= 15
+            c.drawRightString(width-40, y_pos, "ผู้กำกับการกองกำกับการ 1 กองบังคับการตำรวจสืบสวนสอบสวนอาชญากรรมทางเทคโนโลยี 4")
+
+            # บันทึก PDF
+            c.save()
+
+            messagebox.showinfo("สำเร็จ", f"สร้างไฟล์ PDF เรียบร้อย: {filename}")
+
+            # เปิดไฟล์ PDF
+            try:
+                import subprocess
+                import platform
+
+                if platform.system() == 'Darwin':  # macOS
+                    subprocess.call(['open', filename])
+                elif platform.system() == 'Windows':  # Windows
+                    os.startfile(filename)
+                else:  # Linux
+                    subprocess.call(['xdg-open', filename])
+            except Exception as e:
+                print(f"ไม่สามารถเปิดไฟล์ PDF: {e}")
+
+        except Exception as e:
+            messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถสร้าง PDF: {str(e)}")
+
     def run(self):
         """เริ่มต้นโปรแกรม"""
         if GUI_AVAILABLE:
