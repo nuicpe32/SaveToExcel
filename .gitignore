@@ -44,3 +44,7 @@ dist/
 
 # Hidden backup from editors
 *~
+
+# Generated HTML documents
+*.html
+หมายเรียก*.html
