@@ -2889,7 +2889,7 @@ class SimpleExcelManager:
             messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถบันทึกไฟล์: {str(e)}")
 
     def print_bank_letter_html(self):
-        """พิมพ์หมายเรียกขอข้อมูลบัญชีธนาคาร (HTML)"""
+        """พิมพ์หมายเรียกขอข้อมูลบัญชีธนาคาร (HTML) - รองรับหลายรายการ"""
         try:
             # ตรวจสอบว่าเลือกข้อมูลหรือไม่
             selected_items = self.tree.selection()
@@ -2897,31 +2897,34 @@ class SimpleExcelManager:
                 messagebox.showwarning("คำเตือน", "กรุณาเลือกข้อมูลที่ต้องการพิมพ์หมายเรียก")
                 return
 
-            # ใช้ข้อมูลตัวแรกที่เลือก
-            item = selected_items[0]
-            selected_data = self.tree.item(item)['values']
+            # เก็บข้อมูลทั้งหมดที่เลือก
+            selected_rows_data = []
 
-            if not selected_data:
+            for item in selected_items:
+                try:
+                    row_index = int(self.tree.index(item))
+                    if row_index < len(self.data):
+                        row_data = self.data.iloc[row_index]
+                        selected_rows_data.append(row_data)
+                except (ValueError, IndexError):
+                    continue
+
+            if not selected_rows_data:
                 messagebox.showwarning("คำเตือน", "ไม่พบข้อมูลในแถวที่เลือก")
                 return
 
-            # ดึงข้อมูลจาก DataFrame โดยใช้ index
-            try:
-                row_index = int(self.tree.index(item))
-                if row_index >= len(self.data):
-                    messagebox.showerror("ข้อผิดพลาด", "ไม่พบข้อมูลในแถวที่เลือก")
-                    return
-
-                row_data = self.data.iloc[row_index]
-                self.generate_bank_letter_html(row_data)
-
-            except (ValueError, IndexError) as e:
-                messagebox.showerror("ข้อผิดพลาด", f"เกิดข้อผิดพลาดในการเข้าถึงข้อมูล: {str(e)}")
+            # สร้างหมายเรียกรวม
+            if len(selected_rows_data) == 1:
+                # กรณีเลือกเพียง 1 รายการ
+                self.generate_bank_letter_html(selected_rows_data[0])
+            else:
+                # กรณีเลือกหลายรายการ
+                self.generate_multiple_bank_letters_html(selected_rows_data)
 
         except Exception as e:
             messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถพิมพ์หมายเรียก: {str(e)}")
 
-    def generate_bank_letter_html(self, row_data):
+    def generate_bank_letter_html(self, row_data, save_file=True, return_content=False):
         """สร้างไฟล์ HTML หมายเรียกขอข้อมูลบัญชีธนาคาร ตามแบบฟอร์มจริง"""
         try:
             import os
@@ -3270,31 +3273,152 @@ class SimpleExcelManager:
 </html>
 """
 
-            # บันทึกไฟล์ HTML
+            # คืนค่า HTML หากต้องการ
+            if return_content:
+                return html_content
+
+            # บันทึกไฟล์ HTML หากต้องการ
+            if save_file:
+                with open(filename, 'w', encoding='utf-8') as f:
+                    f.write(html_content)
+
+                messagebox.showinfo("สำเร็จ", f"สร้างไฟล์ HTML เรียบร้อย: {filename}\n\nสามารถเปิดไฟล์ด้วย browser แล้วใช้ Ctrl+P เพื่อพิมพ์")
+
+                # เปิดไฟล์ HTML
+                try:
+                    import subprocess
+                    import platform
+                    import os
+
+                    abs_path = os.path.abspath(filename)
+
+                    if platform.system() == 'Darwin':  # macOS
+                        subprocess.call(['open', abs_path])
+                    elif platform.system() == 'Windows':  # Windows
+                        os.startfile(abs_path)
+                    else:  # Linux
+                        subprocess.call(['xdg-open', abs_path])
+                except Exception as e:
+                    print(f"ไม่สามารถเปิดไฟล์ HTML: {e}")
+
+        except Exception as e:
+            messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถสร้าง HTML: {str(e)}")
+
+    def generate_multiple_bank_letters_html(self, rows_data):
+        """สร้างไฟล์ HTML หมายเรียกขอข้อมูลบัญชีธนาคารหลายรายการ โดยใช้ฟังก์ชันเดิม"""
+        try:
+            from datetime import datetime
+
+            # เก็บเนื้อหา HTML ของแต่ละหมายเรียก
+            html_contents = []
+
+            for i, row_data in enumerate(rows_data):
+                # แปลง pandas Series เป็น dictionary สำหรับฟังก์ชันเดิม
+                if hasattr(row_data, 'index') and hasattr(row_data, 'values'):
+                    # pandas Series - แปลงเป็น dict ตามโครงสร้างคอลัมน์จริง
+                    # ["ลำดับ", "เลขหนังสือ", "วัน", "เดือน ", "ปี ", "ธนาคารสาขา",
+                    #  "ผู้เสียหาย", "เคสไอดี", "เจ้าของบัญชีม้า", "ชื่อธนาคาร", "เลขบัญชี",
+                    #  "ชื่อบัญชี", "ช่วงเวลา", "ที่อยู่ธนาคาร", "ซอย", "หมู่", "ตำบล/แขวง",
+                    #  "อำเภอ/เขต", "ถนน", "จังหวัด", "รหัสไปรษณี", "วันนัดส่ง", "เดือนส่ง ", "เวลาส่ง"]
+                    row_dict = {}
+                    if len(row_data) > 0: row_dict['ลำดับ'] = row_data.iloc[0]
+                    if len(row_data) > 1: row_dict['เลขหนังสือ'] = row_data.iloc[1]
+                    if len(row_data) > 2: row_dict['วัน'] = row_data.iloc[2]
+                    if len(row_data) > 3: row_dict['เดือน '] = row_data.iloc[3]
+                    if len(row_data) > 4: row_dict['ปี '] = row_data.iloc[4]
+                    if len(row_data) > 5: row_dict['ธนาคารสาขา'] = row_data.iloc[5]
+                    if len(row_data) > 6: row_dict['ผู้เสียหาย'] = row_data.iloc[6]
+                    if len(row_data) > 7: row_dict['เคสไอดี'] = row_data.iloc[7]
+                    if len(row_data) > 8: row_dict['เจ้าของบัญชีม้า'] = row_data.iloc[8]
+                    if len(row_data) > 9: row_dict['ชื่อธนาคาร'] = row_data.iloc[9]
+                    if len(row_data) > 10: row_dict['เลขบัญชี'] = row_data.iloc[10]
+                    if len(row_data) > 11: row_dict['ชื่อบัญชี'] = row_data.iloc[11]
+                    if len(row_data) > 12: row_dict['ช่วงเวลา'] = row_data.iloc[12]
+                    if len(row_data) > 13: row_dict['ที่อยู่ธนาคาร'] = row_data.iloc[13]
+                    if len(row_data) > 14: row_dict['ซอย'] = row_data.iloc[14]
+                    if len(row_data) > 15: row_dict['หมู่'] = row_data.iloc[15]
+                    if len(row_data) > 16: row_dict['ตำบล/แขวง'] = row_data.iloc[16]
+                    if len(row_data) > 17: row_dict['อำเภอ/เขต'] = row_data.iloc[17]
+                    if len(row_data) > 18: row_dict['ถนน'] = row_data.iloc[18]
+                    if len(row_data) > 19: row_dict['จังหวัด'] = row_data.iloc[19]
+                    if len(row_data) > 20: row_dict['รหัสไปรษณี'] = row_data.iloc[20]
+                    if len(row_data) > 21: row_dict['วันนัดส่ง'] = row_data.iloc[21]
+                    if len(row_data) > 22: row_dict['เดือนส่ง '] = row_data.iloc[22]
+                    if len(row_data) > 23: row_dict['เวลาส่ง'] = row_data.iloc[23]
+                else:
+                    # ถ้าเป็น dict อยู่แล้ว
+                    row_dict = row_data
+
+                # เรียกใช้ฟังก์ชันเดิมให้คืนค่า HTML
+                html_content = self.generate_bank_letter_html(row_dict, save_file=False, return_content=True)
+                html_contents.append(html_content)
+
+            # รวมเนื้อหา HTML ทั้งหมด
+            combined_html = self.combine_html_contents_simple(html_contents)
+
+            # บันทึกไฟล์รวม
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"หมายเรียกธนาคาร_รวม{len(rows_data)}ฉบับ_{timestamp}.html"
+
             with open(filename, 'w', encoding='utf-8') as f:
-                f.write(html_content)
+                f.write(combined_html)
 
-            messagebox.showinfo("สำเร็จ", f"สร้างไฟล์ HTML เรียบร้อย: {filename}\n\nสามารถเปิดไฟล์ด้วย browser แล้วใช้ Ctrl+P เพื่อพิมพ์")
+            messagebox.showinfo("สำเร็จ", f"สร้างหมายเรียกรวม {len(rows_data)} ฉบับ เรียบร้อย\nไฟล์: {filename}")
 
-            # เปิดไฟล์ HTML
+            # เปิดไฟล์
+            import subprocess
+            import platform
+            import os
             try:
-                import subprocess
-                import platform
-                import os
-
                 abs_path = os.path.abspath(filename)
-
-                if platform.system() == 'Darwin':  # macOS
+                if platform.system() == 'Darwin':
                     subprocess.call(['open', abs_path])
-                elif platform.system() == 'Windows':  # Windows
+                elif platform.system() == 'Windows':
                     os.startfile(abs_path)
-                else:  # Linux
+                else:
                     subprocess.call(['xdg-open', abs_path])
             except Exception as e:
                 print(f"ไม่สามารถเปิดไฟล์ HTML: {e}")
 
         except Exception as e:
-            messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถสร้าง HTML: {str(e)}")
+            messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถสร้าง HTML รวม: {str(e)}")
+
+    def combine_html_contents_simple(self, html_contents):
+        """รวมเนื้อหา HTML หลายไฟล์เป็นไฟล์เดียว โดยเพิ่ม page-break"""
+        if not html_contents:
+            return ""
+
+        # ดึง head จากไฟล์แรก
+        first_html = html_contents[0]
+        head_start = first_html.find('<head>')
+        head_end = first_html.find('</head>')
+        head_content = first_html[head_start:head_end + 7] if head_start != -1 and head_end != -1 else '<head></head>'
+
+        # รวมเนื้อหา body ทั้งหมด
+        combined_body = ""
+        for i, html_content in enumerate(html_contents):
+            # ดึงเนื้อหาใน body
+            body_start = html_content.find('<body>')
+            body_end = html_content.find('</body>')
+
+            if body_start != -1 and body_end != -1:
+                body_content = html_content[body_start + 6:body_end]
+                combined_body += body_content
+
+                # เพิ่ม page-break หากไม่ใช่หน้าสุดท้าย
+                if i < len(html_contents) - 1:
+                    combined_body += '<div style="page-break-after: always;"></div>'
+
+        # สร้าง HTML รวม
+        combined_html = f"""<!DOCTYPE html>
+<html lang='th'>
+{head_content}
+<body>
+{combined_body}
+</body>
+</html>"""
+
+        return combined_html
 
     def generate_bank_letter_pdf(self, row_data):
         """สร้างไฟล์ PDF หมายเรียกขอข้อมูลบัญชีธนาคาร ตามแบบฟอร์มจริง"""

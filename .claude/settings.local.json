@@ -9,7 +9,11 @@
       "Bash(python:*)",
       "Bash(git add:*)",
       "WebFetch(domain:www.itmx.co.th)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git rm:*)",
+      "Bash(git config:*)"
     ],
     "deny": [],
     "ask": []
