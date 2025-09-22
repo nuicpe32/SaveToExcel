@@ -2913,13 +2913,21 @@ class SimpleExcelManager:
                 messagebox.showwarning("คำเตือน", "ไม่พบข้อมูลในแถวที่เลือก")
                 return
 
+            # ถามผู้ใช้ว่าต้องการปริ้นซองหมายเรียกหรือไม่
+            response = messagebox.askyesno("ซองหมายเรียกธนาคาร",
+                                         "คุณต้องการปริ้นซองหมายเรียกธนาคารด้วยหรือไม่?")
+
             # สร้างหมายเรียกรวม
             if len(selected_rows_data) == 1:
                 # กรณีเลือกเพียง 1 รายการ
                 self.generate_bank_letter_html(selected_rows_data[0])
+                if response:  # ถ้าต้องการปริ้นซองหมายเรียก
+                    self.generate_envelope_html(selected_rows_data[0])
             else:
                 # กรณีเลือกหลายรายการ
                 self.generate_multiple_bank_letters_html(selected_rows_data)
+                if response:  # ถ้าต้องการปริ้นซองหมายเรียก
+                    self.generate_multiple_envelopes_html(selected_rows_data)
 
         except Exception as e:
             messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถพิมพ์หมายเรียก: {str(e)}")
@@ -3419,6 +3427,565 @@ class SimpleExcelManager:
 </html>"""
 
         return combined_html
+
+    def generate_envelope_html(self, row_data):
+        """สร้างไฟล์ HTML ซองหมายเรียกธนาคาร ตามแบบ PDF"""
+        try:
+            import os
+            from datetime import datetime
+
+            # ฟังก์ชันสำหรับจัดรูปแบบตัวเลข
+            def format_value(value):
+                if value is None or value == '' or str(value).lower() == 'nan':
+                    return ''
+                return str(value).strip()
+
+            # ฟังก์ชันสำหรับสร้างที่อยู่เต็ม
+            def build_full_address(row_data):
+                address_parts = []
+
+                # บรรทัดที่ 1: เลขที่ + ถนน
+                address_line1_parts = []
+                bank_address = format_value(row_data.get('ที่อยู่ธนาคาร', ''))
+                if bank_address:
+                    address_line1_parts.append(f"เลขที่ {bank_address}")
+
+                road = format_value(row_data.get('ถนน', ''))
+                if road:
+                    address_line1_parts.append(f"ถนน {road}")
+
+                if address_line1_parts:
+                    address_parts.append(' '.join(address_line1_parts))
+
+                # บรรทัดที่ 2: แขวง
+                district = format_value(row_data.get('ตำบล/แขวง', ''))
+                if district:
+                    address_parts.append(f"แขวง {district}")
+
+                # บรรทัดที่ 3: เขต
+                area = format_value(row_data.get('อำเภอ/เขต', ''))
+                if area:
+                    address_parts.append(f"เขต {area}")
+
+                # บรรทัดที่ 4: จังหวัด
+                province = format_value(row_data.get('จังหวัด', ''))
+                if province:
+                    address_parts.append(province)
+
+                # บรรทัดที่ 5: รหัสไปรษณีย์
+                postal_code = format_value(row_data.get('รหัสไปรษณี', ''))
+                if postal_code:
+                    address_parts.append(f"รหัสไปรษณีย์ {postal_code}")
+
+                return address_parts
+
+            # แปลง pandas Series เป็น dictionary ถ้าจำเป็น
+            if hasattr(row_data, 'index') and hasattr(row_data, 'values'):
+                # pandas Series - แปลงเป็น dict ตามโครงสร้างคอลัมน์จริง
+                row_dict = {}
+                if len(row_data) > 0: row_dict['ลำดับ'] = row_data.iloc[0]
+                if len(row_data) > 1: row_dict['เลขหนังสือ'] = row_data.iloc[1]
+                if len(row_data) > 2: row_dict['วัน'] = row_data.iloc[2]
+                if len(row_data) > 3: row_dict['เดือน '] = row_data.iloc[3]
+                if len(row_data) > 4: row_dict['ปี '] = row_data.iloc[4]
+                if len(row_data) > 5: row_dict['ธนาคารสาขา'] = row_data.iloc[5]
+                if len(row_data) > 9: row_dict['ชื่อธนาคาร'] = row_data.iloc[9]
+                if len(row_data) > 13: row_dict['ที่อยู่ธนาคาร'] = row_data.iloc[13]
+                if len(row_data) > 14: row_dict['ซอย'] = row_data.iloc[14]
+                if len(row_data) > 15: row_dict['หมู่'] = row_data.iloc[15]
+                if len(row_data) > 16: row_dict['ตำบล/แขวง'] = row_data.iloc[16]
+                if len(row_data) > 17: row_dict['อำเภอ/เขต'] = row_data.iloc[17]
+                if len(row_data) > 18: row_dict['ถนน'] = row_data.iloc[18]
+                if len(row_data) > 19: row_dict['จังหวัด'] = row_data.iloc[19]
+                if len(row_data) > 20: row_dict['รหัสไปรษณี'] = row_data.iloc[20]
+                row_data = row_dict
+
+            # ดึงข้อมูลสำหรับซองหมายเรียก
+            bank_name_raw = format_value(row_data.get('ชื่อธนาคาร', ''))
+            # ปรับรูปแบบชื่อธนาคารให้เป็น ธนาคาร{ชื่อธนาคาร}สำนักงานใหญ่
+            if bank_name_raw:
+                # ลบคำว่า "ธนาคาร" ออกจากหน้าถ้ามี เพื่อไม่ให้ซ้ำ
+                bank_name_clean = bank_name_raw.replace('ธนาคาร', '').strip()
+                bank_name = f"ธนาคาร{bank_name_clean}สำนักงานใหญ่"
+            else:
+                bank_name = ''
+
+            # สร้างที่อยู่เต็ม
+            address_parts = build_full_address(row_data)
+
+            # สร้างชื่อไฟล์
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            document_no = format_value(row_data.get('เลขหนังสือ', ''))
+            filename = f"ซองหมายเรียกธนาคาร_{document_no}_{bank_name}_{timestamp}.html"
+
+            # สร้าง HTML content ตามรูปแบบที่กำหนด
+            html_content = f"""<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ซองหมายเรียก</title>
+    <style>
+        /* กำหนดฟอนต์เริ่มต้น */
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
+
+        /* ตั้งค่าหน้ากระดาษ A4 และขอบกระดาษ */
+        @page {{
+            size: A4;
+            margin: 0.5cm 0.2cm 1.5cm 0.5cm; /* บน, ขวา, ล่าง, ซ้าย */
+        }}
+
+        body {{
+            font-family: 'Sarabun', sans-serif;
+            font-size: 16px; /* ขนาดตัวอักษรมาตรฐาน (เทียบเท่า 12pt) */
+            line-height: 1.5;
+            margin: 0;
+            padding: 0;
+            width: 210mm;
+            height: 297mm;
+            box-sizing: border-box;
+            position: relative; /* สำหรับการจัดวางองค์ประกอบภายใน */
+        }}
+
+        /* ใช้สำหรับจัดวางตำแหน่งที่แน่นอน */
+        .absolute {{
+            position: absolute;
+        }}
+
+        /* ส่วนหัวด้านซ้ายบน - ชิดซ้ายของกระดาษ */
+        #header-left {{
+            top: 0.5cm;
+            left: 0.5cm;
+            font-weight: bold;
+            max-width: 8cm;
+        }}
+
+        /* กล่องสี่เหลี่ยมด้านขวาบน - ชิดขวาของกระดาษ */
+        #postage-box {{
+            top: 0.5cm;
+            right: 0.2cm;
+            border: 1px solid black;
+            padding: 5px 10px;
+            text-align: center;
+            width: 5cm;
+        }}
+
+        /* ที่อยู่ผู้รับ */
+        #recipient-address {{
+            top: 2.5cm;
+            left: 9cm;
+        }}
+
+        #recipient-address .label {{
+            font-weight: bold;
+        }}
+
+        #recipient-address table {{
+            border-collapse: collapse;
+            margin-top: 5px;
+        }}
+
+        #recipient-address td {{
+            padding: 2px 0;
+            vertical-align: top;
+        }}
+
+        #recipient-address .data {{
+            padding-left: 10px;
+        }}
+
+        /* เส้นแบ่งส่วนสำหรับพับซอง */
+        .fold-line {{
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            border-top: 2px dashed #333;
+            opacity: 0.8;
+        }}
+
+        .fold-line-1 {{
+            top: 9.9cm; /* 297mm / 3 = 99mm */
+        }}
+
+        /* ซ่อนเส้นที่ 2 เพื่อแสดงเฉพาะเส้นที่ 1 */
+        .fold-line-2 {{
+            display: none;
+        }}
+    </style>
+</head>
+<body>
+
+    <div id="header-left" class="absolute">
+        <div style="display: flex; align-items: flex-start;">
+            <div style="margin-right: 8px;">"""
+
+            # เพิ่มตราครุฑ (ใช้ไฟล์ Crut.jpg)
+            logo_path = "Crut.jpg"
+            if os.path.exists(logo_path):
+                try:
+                    import base64
+                    with open(logo_path, "rb") as image_file:
+                        logo_base64 = base64.b64encode(image_file.read()).decode()
+                    html_content += f'                <img src="data:image/jpeg;base64,{logo_base64}" alt="ตราครุฑ" style="width: 67px; height: 67px;">'
+                except Exception:
+                    html_content += '                <div style="width: 67px; height: 67px; background: #ccc; border-radius: 50%; text-align: center; line-height: 67px; font-size: 14px;">ตรา</div>'
+            else:
+                html_content += '                <div style="width: 67px; height: 67px; background: #ccc; border-radius: 50%; text-align: center; line-height: 67px; font-size: 14px;">ตรา</div>'
+
+            html_content += """
+            </div>
+            <div style="font-size: 12px; line-height: 1.2; font-weight: bold;">
+                ใช้ในราชการสำนักงานตำรวจแห่งชาติ<br>
+                กองกำกับการ 1 กองบังคับการตำรวจสืบสวน<br>
+                สอบสวนอาชญากรรมทางเทคโนโลยี 4<br>
+                เลขที่ 370 หมู่ 3 ตำบลดอนแก้ว อำเภอแม่ริม<br>
+                จังหวัดเชียงใหม่ 50180
+            </div>
+        </div>
+    </div>
+
+    <div id="postage-box" class="absolute">
+        <p style="margin: 0; padding: 0;">ชำระฝากส่งเป็นรายเดือน<br>ใบอนุญาตที่ ๑๙๙/๒๕๖๔<br>ไปรษณีย์ ศาลากลาง ชม.</p>
+    </div>
+
+
+    <div id="recipient-address" class="absolute">
+        <p class="label">กรุณาส่ง</p>
+        <table>
+            <tr>
+                <td>""" + bank_name + """</td>
+            </tr>"""
+
+            # เพิ่มที่อยู่ทีละบรรทัดในตาราง
+            for address_part in address_parts:
+                html_content += f"""
+            <tr>
+                <td>{address_part}</td>
+            </tr>"""
+
+            html_content += """
+        </table>
+    </div>
+
+    <!-- เส้นแบ่งส่วนสำหรับพับซอง -->
+    <div class="fold-line fold-line-1"></div>
+    <div class="fold-line fold-line-2"></div>
+
+</body>
+</html>"""
+
+            # บันทึกไฟล์
+            try:
+                with open(filename, 'w', encoding='utf-8') as f:
+                    f.write(html_content)
+
+                # เปิดไฟล์ในเบราว์เซอร์
+                import webbrowser
+                file_path = os.path.abspath(filename)
+                webbrowser.open(f'file://{file_path}')
+
+                messagebox.showinfo("สำเร็จ", f"สร้างซองหมายเรียกธนาคาร {filename} เรียบร้อย")
+
+            except Exception as e:
+                messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถบันทึกไฟล์ซองหมายเรียก: {str(e)}")
+
+        except Exception as e:
+            messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถสร้างซองหมายเรียกธนาคาร: {str(e)}")
+
+    def generate_multiple_envelopes_html(self, rows_data):
+        """สร้างไฟล์ HTML ซองหมายเรียกธนาคารหลายรายการ โดยรวมในไฟล์เดียว"""
+        try:
+            from datetime import datetime
+            import os
+
+            # เก็บเนื้อหา HTML ของแต่ละซองหมายเรียก
+            envelope_contents = []
+
+            for i, row_data in enumerate(rows_data):
+                # แปลง pandas Series เป็น dictionary สำหรับฟังก์ชันเดิม
+                if hasattr(row_data, 'index') and hasattr(row_data, 'values'):
+                    # pandas Series - แปลงเป็น dict ตามโครงสร้างคอลัมน์จริง
+                    row_dict = {}
+                    if len(row_data) > 0: row_dict['ลำดับ'] = row_data.iloc[0]
+                    if len(row_data) > 1: row_dict['เลขหนังสือ'] = row_data.iloc[1]
+                    if len(row_data) > 2: row_dict['วัน'] = row_data.iloc[2]
+                    if len(row_data) > 3: row_dict['เดือน '] = row_data.iloc[3]
+                    if len(row_data) > 4: row_dict['ปี '] = row_data.iloc[4]
+                    if len(row_data) > 5: row_dict['ธนาคารสาขา'] = row_data.iloc[5]
+                    if len(row_data) > 9: row_dict['ชื่อธนาคาร'] = row_data.iloc[9]
+                    if len(row_data) > 13: row_dict['ที่อยู่ธนาคาร'] = row_data.iloc[13]
+                    if len(row_data) > 14: row_dict['ซอย'] = row_data.iloc[14]
+                    if len(row_data) > 15: row_dict['หมู่'] = row_data.iloc[15]
+                    if len(row_data) > 16: row_dict['ตำบล/แขวง'] = row_data.iloc[16]
+                    if len(row_data) > 17: row_dict['อำเภอ/เขต'] = row_data.iloc[17]
+                    if len(row_data) > 18: row_dict['ถนน'] = row_data.iloc[18]
+                    if len(row_data) > 19: row_dict['จังหวัด'] = row_data.iloc[19]
+                    if len(row_data) > 20: row_dict['รหัสไปรษณี'] = row_data.iloc[20]
+                else:
+                    # ถ้าเป็น dict อยู่แล้ว
+                    row_dict = row_data
+
+                # เรียกใช้ฟังก์ชันเดิมให้คืนค่า HTML สำหรับซองหมายเรียก
+                envelope_content = self.generate_single_envelope_content(row_dict)
+                envelope_contents.append(envelope_content)
+
+            # รวมเนื้อหา HTML ทั้งหมด
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            combined_filename = f"ซองหมายเรียกธนาคารรวม_{len(rows_data)}รายการ_{timestamp}.html"
+
+            # สร้าง HTML header
+            combined_html = f"""<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ซองหมายเรียกธนาคารรวม - {len(rows_data)} รายการ</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
+
+        @page {{
+            size: A4;
+            margin: 0.5cm 0.2cm 1.5cm 0.5cm;
+        }}
+
+        body {{
+            font-family: 'Sarabun', sans-serif;
+            font-size: 16px;
+            line-height: 1.5;
+            margin: 0;
+            padding: 0;
+        }}
+
+        .envelope-page {{
+            width: 210mm;
+            height: 297mm;
+            box-sizing: border-box;
+            position: relative;
+            page-break-after: always;
+        }}
+
+        .envelope-page:last-child {{
+            page-break-after: avoid;
+        }}
+
+        .absolute {{
+            position: absolute;
+        }}
+
+        #header-left {{
+            top: 0.5cm;
+            left: 0.5cm;
+            font-weight: bold;
+            max-width: 8cm;
+        }}
+
+        #postage-box {{
+            top: 0.5cm;
+            right: 0.2cm;
+            border: 1px solid black;
+            padding: 5px 10px;
+            text-align: center;
+            width: 5cm;
+        }}
+
+        #recipient-address {{
+            top: 2.5cm;
+            left: 9cm;
+        }}
+
+        #recipient-address .label {{
+            font-weight: bold;
+        }}
+
+        #recipient-address table {{
+            border-collapse: collapse;
+            margin-top: 5px;
+        }}
+
+        #recipient-address td {{
+            padding: 2px 0;
+            vertical-align: top;
+        }}
+
+        .fold-line {{
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            border-top: 2px dashed #333;
+            opacity: 0.8;
+        }}
+
+        .fold-line-1 {{
+            top: 9.9cm;
+        }}
+
+        @media print {{
+            body {{
+                background-color: white;
+            }}
+            .envelope-page {{
+                margin: 0;
+                box-shadow: none;
+                border: none;
+            }}
+        }}
+    </style>
+</head>
+<body>"""
+
+            # เพิ่มเนื้อหาของแต่ละซอง
+            for i, content in enumerate(envelope_contents):
+                combined_html += f"""
+    <div class="envelope-page">
+        {content}
+    </div>"""
+
+            combined_html += """
+</body>
+</html>"""
+
+            # บันทึกไฟล์
+            try:
+                with open(combined_filename, 'w', encoding='utf-8') as f:
+                    f.write(combined_html)
+
+                # เปิดไฟล์ในเบราว์เซอร์
+                import webbrowser
+                file_path = os.path.abspath(combined_filename)
+                webbrowser.open(f'file://{file_path}')
+
+                messagebox.showinfo("สำเร็จ", f"สร้างซองหมายเรียกธนาคารรวม {len(rows_data)} รายการ\\nไฟล์: {combined_filename}")
+
+            except Exception as e:
+                messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถบันทึกไฟล์ซองหมายเรียกรวม: {str(e)}")
+
+        except Exception as e:
+            messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถสร้างซองหมายเรียกธนาคารรวม: {str(e)}")
+
+    def generate_single_envelope_content(self, row_data):
+        """สร้างเนื้อหา HTML สำหรับซองหมายเรียกรายการเดียว (ไม่รวม HTML wrapper)"""
+        try:
+            import os
+
+            # ฟังก์ชันสำหรับจัดรูปแบบตัวเลข
+            def format_value(value):
+                if value is None or value == '' or str(value).lower() == 'nan':
+                    return ''
+                return str(value).strip()
+
+            # ฟังก์ชันสำหรับสร้างที่อยู่เต็ม
+            def build_full_address(row_data):
+                address_parts = []
+
+                # บรรทัดที่ 1: เลขที่ + ถนน
+                address_line1_parts = []
+                bank_address = format_value(row_data.get('ที่อยู่ธนาคาร', ''))
+                if bank_address:
+                    address_line1_parts.append(f"เลขที่ {bank_address}")
+
+                road = format_value(row_data.get('ถนน', ''))
+                if road:
+                    address_line1_parts.append(f"ถนน {road}")
+
+                if address_line1_parts:
+                    address_parts.append(' '.join(address_line1_parts))
+
+                # บรรทัดที่ 2: แขวง
+                district = format_value(row_data.get('ตำบล/แขวง', ''))
+                if district:
+                    address_parts.append(f"แขวง {district}")
+
+                # บรรทัดที่ 3: เขต
+                area = format_value(row_data.get('อำเภอ/เขต', ''))
+                if area:
+                    address_parts.append(f"เขต {area}")
+
+                # บรรทัดที่ 4: จังหวัด
+                province = format_value(row_data.get('จังหวัด', ''))
+                if province:
+                    address_parts.append(province)
+
+                # บรรทัดที่ 5: รหัสไปรษณีย์
+                postal_code = format_value(row_data.get('รหัสไปรษณี', ''))
+                if postal_code:
+                    address_parts.append(f"รหัสไปรษณีย์ {postal_code}")
+
+                return address_parts
+
+            # ดึงข้อมูลสำหรับซองหมายเรียก
+            bank_name_raw = format_value(row_data.get('ชื่อธนาคาร', ''))
+            if bank_name_raw:
+                bank_name_clean = bank_name_raw.replace('ธนาคาร', '').strip()
+                bank_name = f"ธนาคาร{bank_name_clean}สำนักงานใหญ่"
+            else:
+                bank_name = ''
+
+            # สร้างที่อยู่เต็ม
+            address_parts = build_full_address(row_data)
+
+            # สร้างเนื้อหา HTML ของซอง
+            content = """
+        <div id="header-left" class="absolute">
+            <div style="display: flex; align-items: flex-start;">
+                <div style="margin-right: 8px;">"""
+
+            # เพิ่มตราครุฑ
+            logo_path = "Crut.jpg"
+            if os.path.exists(logo_path):
+                try:
+                    import base64
+                    with open(logo_path, "rb") as image_file:
+                        logo_base64 = base64.b64encode(image_file.read()).decode()
+                    content += f'                <img src="data:image/jpeg;base64,{logo_base64}" alt="ตราครุฑ" style="width: 67px; height: 67px;">'
+                except Exception:
+                    content += '                <div style="width: 67px; height: 67px; background: #ccc; border-radius: 50%; text-align: center; line-height: 67px; font-size: 14px;">ตรา</div>'
+            else:
+                content += '                <div style="width: 67px; height: 67px; background: #ccc; border-radius: 50%; text-align: center; line-height: 67px; font-size: 14px;">ตรา</div>'
+
+            content += """
+            </div>
+            <div style="font-size: 12px; line-height: 1.2; font-weight: bold;">
+                ใช้ในราชการสำนักงานตำรวจแห่งชาติ<br>
+                กองกำกับการ 1 กองบังคับการตำรวจสืบสวน<br>
+                สอบสวนอาชญากรรมทางเทคโนโลยี 4<br>
+                เลขที่ 370 หมู่ 3 ตำบลดอนแก้ว อำเภอแม่ริม<br>
+                จังหวัดเชียงใหม่ 50180
+            </div>
+        </div>
+    </div>
+
+        <div id="postage-box" class="absolute">
+            <p style="margin: 0; padding: 0;">ชำระฝากส่งเป็นรายเดือน<br>ใบอนุญาตที่ ๑๙๙/๒๕๖๔<br>ไปรษณีย์ ศาลากลาง ชม.</p>
+        </div>
+
+
+        <div id="recipient-address" class="absolute">
+            <p class="label">กรุณาส่ง</p>
+            <table>
+                <tr>
+                    <td>""" + bank_name + """</td>
+                </tr>"""
+
+            # เพิ่มที่อยู่ทีละบรรทัดในตาราง
+            for address_part in address_parts:
+                content += f"""
+            <tr>
+                <td>{address_part}</td>
+            </tr>"""
+
+            content += """
+            </table>
+        </div>
+
+        <!-- เส้นแบ่งส่วนสำหรับพับซอง -->
+        <div class="fold-line fold-line-1"></div>"""
+
+            return content
+
+        except Exception as e:
+            return f"<div>เกิดข้อผิดพลาดในการสร้างซองหมายเรียก: {str(e)}</div>"
 
     def generate_bank_letter_pdf(self, row_data):
         """สร้างไฟล์ PDF หมายเรียกขอข้อมูลบัญชีธนาคาร ตามแบบฟอร์มจริง"""
