@@ -3,7 +3,7 @@
 ## Project Overview
 
 **Project Name:** ระบบจัดการคดีอาญา (Criminal Case Management System)  
-**Version:** 2.6.0  
+**Version:** 2.9.0
 **Last Updated:** December 2025  
 **Status:** Production Ready with Complete Document Management System  
 
@@ -223,6 +223,29 @@ src/
 ```
 
 ## Recent Improvements
+
+### Version 2.9.0 Updates (December 2025) - Enhanced Suspect Summons Document Formatting
+
+#### 📄 Professional Document Formatting
+- ✅ **Font standardization** - Converted all text to THSarabunNew font for professional appearance
+- ✅ **Optimized page margins** - Reduced top margin to 0.3in for single-page printing efficiency
+- ✅ **Arabic numeral conversion** - Changed all numbers from Thai to Arabic numerals for consistency
+- ✅ **Improved text spacing** - Fine-tuned spacing between "เรื่อง" and "ส่งหมายเรียกผู้ต้องหา" (3 spaces)
+- ✅ **Enhanced header alignment** - Moved "บันทึกข้อความ" to align with logo image on same line
+- ✅ **Signature section refinement** - Removed "ลงชื่อ" line and repositioned officer details for cleaner layout
+
+#### 🎯 Typography and Layout Improvements
+- ✅ **Table-to-paragraph conversion** - Restructured document layout from table format to paragraph format for better text control
+- ✅ **Precise alignment** - Aligned "เนื่องจากผู้ถูกเรียกมีภูมิลำเนาอยู่ในพื้นที่ของท่าน" paragraph with other content
+- ✅ **Officer signature positioning** - Moved "พ.ต.ต." to align with "เนิน" from "ดำเนินการ" line for visual consistency
+- ✅ **Enhanced paragraph alignment** - Ensured all content paragraphs maintain consistent indentation
+- ✅ **Optimized spacing control** - Used precise HTML entity spacing (&nbsp;) for exact positioning
+
+#### 🔧 Technical Implementation
+- ✅ **Dual function synchronization** - Updated both generate_suspect_summons_html() and generate_single_suspect_summons_content()
+- ✅ **CSS margin optimization** - Applied @page margin settings for professional printing layout
+- ✅ **HTML structure enhancement** - Converted complex table structures to streamlined paragraph layout
+- ✅ **Cross-function consistency** - Maintained identical formatting across all suspect summons generation functions
 
 ### Version 2.6.0 Updates (December 2025) - Complete Document Management System
 

@@ -2,7 +2,7 @@
 
 ## Project Overview
 **Project Name:** ระบบจัดการคดีอาญา (Criminal Case Management System)  
-**Current Version:** 2.6.0  
+**Current Version:** 2.9.0  
 **Language:** Python with tkinter GUI  
 **Status:** Production-ready with complete document management system  
 
@@ -39,7 +39,7 @@ A comprehensive GUI application for managing criminal case data in Thailand, fea
 - **`PROJECT_STATE.md`** - Detailed project state and architecture
 - **`ARCHITECTURE.md`** - Technical architecture documentation
 
-## Current Features (v2.6.0)
+## Current Features (v2.9.0)
 
 ### 📁 Primary Tab: Document Management Hub
 - **Two-column layout:** Word documents (left) + Database files (right)
@@ -55,10 +55,14 @@ A comprehensive GUI application for managing criminal case data in Thailand, fea
 - Statistics dashboard with intelligent duplicate detection
 
 ### 👤 Suspect Summons Management
-- Complete summons documentation workflow
-- Thai date formatting
-- Enhanced UI with 60px row height for full address display
-- Grid styling with alternating row colors
+- Complete summons documentation workflow with enhanced formatting
+- **Professional document layout:** THSarabunNew font integration
+- **Optimized spacing:** Precise alignment between document sections
+- **Centered header:** "บันทึกข้อความ" aligned with logo image
+- **Improved typography:** Arabic numerals, consistent indentation
+- **Single-page format:** Optimized margins for printing within one page
+- **Enhanced signature section:** Professionally aligned with document structure
+- Thai date formatting and enhanced UI with 60px row height
 
 ### ⚖️ Criminal Case Management
 - Case viewing with 6+ month aging alerts (red highlighting)
@@ -181,7 +185,21 @@ ls -la *.py
 
 ## Development History
 
-### Version 2.6.0 (Current)
+### Version 2.9.0 (Current)
+- **Enhanced Suspect Summons Document Formatting:**
+  - Implemented THSarabunNew font throughout all suspect summons documents
+  - Optimized document margins for single-page printing (reduced top margin to 0.3in)
+  - Converted all numbers to Arabic numerals (56 instead of ๕๖, 09.00 instead of 09.๐๐)
+  - Removed "ลงชื่อ" line from signature section for cleaner appearance
+  - Moved signature elements to right alignment with precise 15-space indentation
+  - Reduced spacing between signature lines for professional layout
+  - Enhanced paragraph alignment consistency throughout document
+  - Repositioned "บันทึกข้อความ" header to align with logo image on same line
+  - Removed table structure from "เรื่อง" and "เรียน" sections for easier text formatting
+  - Implemented precise spacing control (3 spaces) between labels and content
+  - Aligned "พ.ต.ต." signature with "เนิน" from "ดำเนินการ" line for visual consistency
+
+### Version 2.6.0
 - Added complete document management system as primary tab
 - Professional two-column layout with Word docs and database files
 - Microsoft Office icons with PIL integration

@@ -42,15 +42,50 @@ def get_default_appointment_date():
     return datetime.now() + timedelta(days=14)
 
 def clean_document_number(doc_number):
-    """ทำความสะอาดเลขที่หนังสือ - ลบ .0 ออกจากท้าย"""
+    """ทำความสะอาดเลขที่หนังสือ - แปลงจากทศนิยมเป็นจำนวนเต็ม"""
     if not doc_number:
         return doc_number
-    
+
+    # ถ้าเป็นตัวเลข float หรือ int ให้แปลงเป็น int แล้วเป็น string
+    if isinstance(doc_number, (int, float)):
+        return str(int(doc_number))
+
     doc_str = str(doc_number).strip()
+
+    # ถ้าเป็น string ที่มีจุดทศนิยม ให้พยายามแปลงเป็นตัวเลข
+    try:
+        if '.' in doc_str:
+            float_val = float(doc_str)
+            return str(int(float_val))
+    except (ValueError, TypeError):
+        pass
+
+    # ถ้าไม่สามารถแปลงได้ ให้ลบ .0 ออกจากท้าย (วิธีเดิม)
     if doc_str.endswith('.0'):
         doc_str = doc_str[:-2]  # ลบ .0 ออก
-    
+
     return doc_str
+
+def clean_number_value(value):
+    """ทำความสะอาดค่าตัวเลข - แปลงจากทศนิยมเป็นจำนวนเต็ม"""
+    if not value:
+        return str(value)
+
+    # ถ้าเป็นตัวเลข float หรือ int ให้แปลงเป็น int แล้วเป็น string
+    if isinstance(value, (int, float)):
+        return str(int(value))
+
+    value_str = str(value).strip()
+
+    # ถ้าเป็น string ที่มีจุดทศนิยม ให้พยายามแปลงเป็นตัวเลข
+    try:
+        if '.' in value_str:
+            float_val = float(value_str)
+            return str(int(float_val))
+    except (ValueError, TypeError):
+        pass
+
+    return value_str
 
 def is_case_over_6_months(date_str):
     """ตรวจสอบว่าคดีเก่ากว่า 6 เดือนหรือไม่"""
@@ -193,8 +228,17 @@ def parse_thai_date_components(day, month, year):
         return None
     
     try:
-        day = int(str(day).strip())
-        year = int(str(year).strip())
+        # แปลงค่าให้เป็นจำนวนเต็ม (handle float values from Excel)
+        if isinstance(day, (int, float)):
+            day = int(day)
+        else:
+            day = int(float(str(day).strip()))
+
+        if isinstance(year, (int, float)):
+            year = int(year)
+        else:
+            year = int(float(str(year).strip()))
+
         month_str = str(month).strip()
         
         # แปลงปี พ.ศ. เป็น ค.ศ.
@@ -1602,6 +1646,9 @@ class SimpleExcelManager:
         v_scrollbar.pack(side="right", fill="y")
         h_scrollbar.pack(side="bottom", fill="x")
         self.tree.pack(fill="both", expand=True)
+
+        # โหลดข้อมูลทันทีเมื่อสร้างแท็บ
+        self.refresh_data()
     
     def load_data(self):
         """โหลดข้อมูลจากไฟล์ Excel"""
@@ -2115,7 +2162,7 @@ class SimpleExcelManager:
             # ฟังก์ชันสำหรับจัดรูปแบบข้อมูลแสดงผล (ลบทศนิยม)
             def format_display_value(value, column_name):
                 # คอลัมน์ที่เป็นตัวเลขที่ต้องลบทศนิยม
-                numeric_columns = ['เลขหนังสือ', 'เคสไอดี', 'เลขบัญชี', 'วัน', 'ปี']
+                numeric_columns = ['เลขหนังสือ', 'เคสไอดี', 'เลขบัญชี', 'วัน', 'ปี', 'ปี ']
 
                 if column_name in numeric_columns:
                     if value is None or value == '' or str(value).lower() == 'nan':
@@ -2932,6 +2979,42 @@ class SimpleExcelManager:
         except Exception as e:
             messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถพิมพ์หมายเรียก: {str(e)}")
 
+    def print_suspect_summons_html(self):
+        """พิมพ์หมายเรียกผู้ต้องหา (HTML) - รองรับหลายรายการ"""
+        try:
+            # ตรวจสอบว่าเลือกข้อมูลหรือไม่ (ใช้ tree ของ summons tab)
+            selected_items = self.summons_tree.selection()
+            if not selected_items:
+                messagebox.showwarning("คำเตือน", "กรุณาเลือกข้อมูลที่ต้องการพิมพ์หมายเรียกผู้ต้องหา")
+                return
+
+            # เก็บข้อมูลทั้งหมดที่เลือก
+            selected_rows_data = []
+
+            for item in selected_items:
+                try:
+                    row_index = int(self.summons_tree.index(item))
+                    if hasattr(self, 'summons_data') and row_index < len(self.summons_data):
+                        row_data = self.summons_data.iloc[row_index]
+                        selected_rows_data.append(row_data)
+                except (ValueError, IndexError):
+                    continue
+
+            if not selected_rows_data:
+                messagebox.showwarning("คำเตือน", "ไม่พบข้อมูลในแถวที่เลือก")
+                return
+
+            # สร้างหมายเรียกผู้ต้องหา
+            if len(selected_rows_data) == 1:
+                # กรณีเลือกเพียง 1 รายการ
+                self.generate_suspect_summons_html(selected_rows_data[0])
+            else:
+                # กรณีเลือกหลายรายการ
+                self.generate_multiple_suspect_summons_html(selected_rows_data)
+
+        except Exception as e:
+            messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถพิมพ์หมายเรียกผู้ต้องหา: {str(e)}")
+
     def generate_bank_letter_html(self, row_data, save_file=True, return_content=False):
         """สร้างไฟล์ HTML หมายเรียกขอข้อมูลบัญชีธนาคาร ตามแบบฟอร์มจริง"""
         try:
@@ -2950,11 +3033,14 @@ class SimpleExcelManager:
                     # ถ้าแปลงไม่ได้ ให้คืนค่าเป็น string ปกติ
                     return str(value)
 
+            # สร้างโฟลเดอร์ File_Summon หากยังไม่มี
+            os.makedirs("File_Summon", exist_ok=True)
+
             # สร้างชื่อไฟล์ HTML
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             document_no = format_number(row_data.get('เลขหนังสือ', ''))
             bank_name = str(row_data.get('ชื่อธนาคาร', ''))
-            filename = f"หมายเรียกธนาคาร_{document_no}_{bank_name}_{timestamp}.html"
+            filename = os.path.join("File_Summon", f"หมายเรียกธนาคาร_{document_no}_{bank_name}_{timestamp}.html")
 
             # เตรียมข้อมูล
             victim_name = str(row_data.get('ผู้เสียหาย', ''))
@@ -3364,9 +3450,12 @@ class SimpleExcelManager:
             # รวมเนื้อหา HTML ทั้งหมด
             combined_html = self.combine_html_contents_simple(html_contents)
 
+            # สร้างโฟลเดอร์ File_Summon หากยังไม่มี
+            os.makedirs("File_Summon", exist_ok=True)
+
             # บันทึกไฟล์รวม
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"หมายเรียกธนาคาร_รวม{len(rows_data)}ฉบับ_{timestamp}.html"
+            filename = os.path.join("File_Summon", f"หมายเรียกธนาคาร_รวม{len(rows_data)}ฉบับ_{timestamp}.html")
 
             with open(filename, 'w', encoding='utf-8') as f:
                 f.write(combined_html)
@@ -3417,11 +3506,36 @@ class SimpleExcelManager:
                 if i < len(html_contents) - 1:
                     combined_body += '<div style="page-break-after: always;"></div>'
 
-        # สร้าง HTML รวม
+        # สร้าง HTML รวม พร้อม CSS สำหรับ LibreOffice
         combined_html = f"""<!DOCTYPE html>
-<html lang='th'>
-{head_content}
-<body>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+	<title>หมายเรียกผู้ต้องหารวม</title>
+	<meta name="generator" content="LibreOffice 24.2.6.2 (Linux)"/>
+	<style type="text/css">
+		@font-face {{
+			font-family: 'THSarabunNew';
+			src: url('THSarabunNew/THSarabunNew.ttf') format('truetype');
+			font-weight: normal;
+			font-style: normal;
+		}}
+		@font-face {{
+			font-family: 'THSarabunNew';
+			src: url('THSarabunNew/THSarabunNew Bold.ttf') format('truetype');
+			font-weight: bold;
+			font-style: normal;
+		}}
+		@page {{ margin: 0.3in 0.79in 0.79in 0.79in }}
+		p {{ line-height: 115%; margin-bottom: 0.1in; background: transparent; font-family: 'THSarabunNew', sans-serif; }}
+		td p {{ margin-bottom: 0in; background: transparent; font-family: 'THSarabunNew', sans-serif; }}
+		body {{ font-family: 'THSarabunNew', sans-serif; }}
+		a:link {{ color: #000080; so-language: zxx; text-decoration: underline }}
+		a:visited {{ color: #800080; so-language: zxx; text-decoration: underline }}
+		.memo-title {{ font-size: 1.5em; font-weight: bold; margin-left: -5%; }}
+	</style>
+</head>
+<body lang="th-TH" link="#000080" vlink="#800080" dir="ltr">
 {combined_body}
 </body>
 </html>"""
@@ -3513,10 +3627,13 @@ class SimpleExcelManager:
             # สร้างที่อยู่เต็ม
             address_parts = build_full_address(row_data)
 
+            # สร้างโฟลเดอร์ File_Summon หากยังไม่มี
+            os.makedirs("File_Summon", exist_ok=True)
+
             # สร้างชื่อไฟล์
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             document_no = format_value(row_data.get('เลขหนังสือ', ''))
-            filename = f"ซองหมายเรียกธนาคาร_{document_no}_{bank_name}_{timestamp}.html"
+            filename = os.path.join("File_Summon", f"ซองหมายเรียกธนาคาร_{document_no}_{bank_name}_{timestamp}.html")
 
             # สร้าง HTML content ตามรูปแบบที่กำหนด
             html_content = f"""<!DOCTYPE html>
@@ -3730,9 +3847,12 @@ class SimpleExcelManager:
                 envelope_content = self.generate_single_envelope_content(row_dict)
                 envelope_contents.append(envelope_content)
 
+            # สร้างโฟลเดอร์ File_Summon หากยังไม่มี
+            os.makedirs("File_Summon", exist_ok=True)
+
             # รวมเนื้อหา HTML ทั้งหมด
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            combined_filename = f"ซองหมายเรียกธนาคารรวม_{len(rows_data)}รายการ_{timestamp}.html"
+            combined_filename = os.path.join("File_Summon", f"ซองหมายเรียกธนาคารรวม_{len(rows_data)}รายการ_{timestamp}.html")
 
             # สร้าง HTML header
             combined_html = f"""<!DOCTYPE html>
@@ -3863,6 +3983,382 @@ class SimpleExcelManager:
 
         except Exception as e:
             messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถสร้างซองหมายเรียกธนาคารรวม: {str(e)}")
+
+    def generate_suspect_summons_html(self, row_data):
+        """สร้างไฟล์ HTML หมายเรียกผู้ต้องหา ตามแบบฟอร์มจริง"""
+        try:
+            import os
+            from datetime import datetime
+            import base64
+
+            # ฟังก์ชันสำหรับจัดรูปแบบตัวเลข (ลบทศนิยม)
+            def format_number(value):
+                if value is None or value == '' or str(value).lower() == 'nan':
+                    return ''
+                try:
+                    return str(int(float(value)))
+                except (ValueError, TypeError):
+                    return str(value)
+
+            # สร้างโฟลเดอร์ File_Summon หากยังไม่มี
+            os.makedirs("File_Summon", exist_ok=True)
+
+            # สร้างชื่อไฟล์ HTML
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            suspect_name = str(row_data.get('ชื่อ ผตห.', ''))
+            suspect_id = format_number(row_data.get('เลขประจำตัว ปชช. ผตห.', ''))
+            filename = os.path.join("File_Summon", f"หมายเรียกผู้ต้องหา_{suspect_name}_{suspect_id}_{timestamp}.html")
+
+            # เตรียมข้อมูลสำหรับแบบฟอร์ม
+            document_no = format_number(row_data.get('เลขที่หนังสือ', ''))
+            document_date = str(row_data.get('ลงวันที่', ''))
+            suspect_name = str(row_data.get('ชื่อ ผตห.', ''))
+            suspect_id_card = format_number(row_data.get('เลขประจำตัว ปชช. ผตห.', ''))
+            police_station = str(row_data.get('สภ.พื้นที่รับผิดชอบ', ''))
+            police_province = str(row_data.get('จังหวัด สภ.พื้นที่รับผิดชอบ', ''))
+            victim_name = str(row_data.get('ชื่อผู้เสียหาย', ''))
+            case_type = str(row_data.get('ประเภทคดี', ''))
+            damage_amount = format_number(row_data.get('ความเสียหาย', ''))
+            case_id = format_number(row_data.get('เลขเคสไอดี', ''))
+            suspect_address = str(row_data.get('ที่อยู่ ผตห.', ''))
+            appointment_date = str(row_data.get('กำหนดให้มาพบ', ''))
+
+            # แปลง Logo เป็น base64
+            logo_base64 = ""
+            logo_path = "Crut.jpg"
+            if os.path.exists(logo_path):
+                try:
+                    with open(logo_path, "rb") as img_file:
+                        logo_base64 = base64.b64encode(img_file.read()).decode()
+                except Exception as e:
+                    print(f"ไม่สามารถโหลด logo: {e}")
+
+            # สร้าง HTML content ตามแบบฟอร์ม LibreOffice
+            html_content = f"""<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+	<title>หมายเรียกผู้ต้องหา - {suspect_name}</title>
+	<meta name="generator" content="LibreOffice 24.2.6.2 (Linux)"/>
+	<meta name="created" content="2024-12-27T21:28:40.027796400"/>
+	<meta name="changed" content="2024-12-27T21:29:19.524058300"/>
+	<style type="text/css">
+		@font-face {{
+			font-family: 'THSarabunNew';
+			src: url('THSarabunNew/THSarabunNew.ttf') format('truetype');
+			font-weight: normal;
+			font-style: normal;
+		}}
+		@font-face {{
+			font-family: 'THSarabunNew';
+			src: url('THSarabunNew/THSarabunNew Bold.ttf') format('truetype');
+			font-weight: bold;
+			font-style: normal;
+		}}
+		@page {{ margin: 0.3in 0.79in 0.79in 0.79in }}
+		p {{ line-height: 115%; margin-bottom: 0.1in; background: transparent; font-family: 'THSarabunNew', sans-serif; }}
+		td p {{ margin-bottom: 0in; background: transparent; font-family: 'THSarabunNew', sans-serif; }}
+		body {{ font-family: 'THSarabunNew', sans-serif; }}
+		a:link {{ color: #000080; so-language: zxx; text-decoration: underline }}
+		a:visited {{ color: #800080; so-language: zxx; text-decoration: underline }}
+		.memo-title {{ font-size: 1.5em; font-weight: bold; margin-left: -5%; }}
+	</style>
+</head>
+<body lang="th-TH" link="#000080" vlink="#800080" dir="ltr">
+<table width="639" cellpadding="7" cellspacing="0">
+	<col width="13"/>
+	<col width="100"/>
+	<col width="100"/>
+	<col width="100"/>
+	<col width="100"/>
+	<col width="100"/>
+	<col width="100"/>
+	<tr>
+		<td colspan="4" width="333" valign="top" style="border: none; padding: 0in">
+			<p><span style="font-family: Liberation Serif, serif">
+			"""
+
+            # เพิ่ม logo ถ้ามี
+            if logo_base64:
+                html_content += f'<img src="data:image/png;base64,{logo_base64}" width="50" height="50" alt="Logo">'
+
+            html_content += f"""</span></p>
+		</td>
+		<td colspan="3" width="300" valign="top" style="border: none; padding: 0in">
+			<p><span class="memo-title">บันทึกข้อความ</span></p>
+		</td>
+	</tr>
+	<tr>
+		<td colspan="7" width="625" valign="top" style="border: none; padding: 0in">
+			<p><font face="Liberation Serif, serif"><b>ส่วนราชการ</b>
+			กก.1 บก.สอท.4 เลขที่ 370 หมู่ 3 ตำบลดอนแก้ว อำเภอเเม่ริม
+			จังหวัดเชียงใหม่ 50180</font></p>
+		</td>
+	</tr>
+	<tr>
+		<td width="13" valign="top" style="border: none; padding: 0in">
+			<p><font face="Liberation Serif, serif"><b>ที่</b></font></p>
+		</td>
+		<td colspan="3" width="313" valign="top" style="border: none; padding: 0in">
+			<p><font face="Liberation Serif, serif">ตช.0039.52/{document_no}</font></p>
+		</td>
+		<td width="100" valign="top" style="border: none; padding: 0in">
+			<p><font face="Liberation Serif, serif"><b>วันที่</b></font></p>
+		</td>
+		<td colspan="2" width="200" valign="top" style="border: none; padding: 0in">
+			<p><font face="Liberation Serif, serif">{document_date}</font></p>
+		</td>
+	</tr>
+</table>
+<p><font face="THSarabunNew, serif"><b>เรื่อง</b>&nbsp;&nbsp;&nbsp;ส่งหมายเรียกผู้ต้องหา <b>({suspect_name} เลขประจำตัวประชาชน {suspect_id_card})</b></font></p>
+<p><font face="THSarabunNew, serif"><b>เรียน</b>&nbsp;&nbsp;&nbsp;ผกก.{police_station} จว.{police_province}</font></p>
+<table width="639" cellpadding="7" cellspacing="0">
+	<col width="625"/>
+	<tr>
+		<td colspan="7" width="625" valign="top" style="border: none; padding: 0in">
+			<p align="justify" style="margin-bottom: 0in">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ด้วยพนักงานสอบสวน
+			กก.1 บก.สอท.4 ได้รับคำร้องทุกข์ จาก {victim_name} เรื่อง {case_type}
+			ได้รับความเสียหาย จำนวน {damage_amount} บาท เลขรับแจ้งความออนไลน์ :
+			{case_id}</p>
+			<p align="justify" style="margin-bottom: 0in">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;เจ้าพนักงานตำรวจ
+			กก.1 บก.สอท.4 จึงได้ทำการสืบสวนสอบสวนเรื่อยมา พบว่า {suspect_name}
+			เลขประจำตัวประชาชน {suspect_id_card} ที่อยู่ {suspect_address}
+			เป็นเจ้าของบัญชีธนาคารที่รับโอนเงินจากผู้เสียหาย</p>
+			<p align="justify" style="margin-bottom: 0in">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;เนื่องจากผู้ถูกเรียกมีภูมิลำเนาอยู่ในพื้นที่ของท่าน
+			เพื่อให้เป็นไปตามความในประมวลกฎหมายวิธีพิจารณาความอาญา
+			มาตรา 56 จึงขอส่ง <u>หมายเรียกผู้ต้องหา ฉบับลงวันที่
+			{document_date} กำหนดให้มาตามหมายเรียกในวันที่ {appointment_date}
+			เวลา 09.00 น.</u> ที่แนบมาพร้อมหนังสือฉบับนี้ จำนวน 1 ฉบับ
+			มายังท่าน เพื่อให้ตำรวจในปกครองทำการส่งหมายแก่ผู้ต้องหา
+			และเมื่อจัดส่งหมายแล้วขอให้ส่ง ใบรับหมายตำรวจ กลับมายัง
+			"พนักงานสอบสวน พ.ต.ต.อำพล ทองอร่าม สว.(สอบสวน) กก.1
+			บก.สอท.4 ที่อยู่ เลขที่ 370 ม.3 ต.ดอนแก้ว อ.เเม่ริม
+			จ.เชียงใหม่ 50180" เพื่อพนักงานสอบสวนจะได้ใช้เป็นหลักฐานในการสอบสวนต่อไป</p>
+			<p><br/>
+
+			</p>
+			<p style="margin-bottom: 0in">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;จึงเรียนมาเพื่อโปรดพิจารณาดำเนินการ</p>
+			<p style="margin-bottom: 0in"><br/>
+
+			</p>
+			<p style="margin-bottom: 0in"><font face="THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;พ.ต.ต.</font></p>
+			<p align="center" style="margin-bottom: 0in"><font face="THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(
+			อำพล ทองอร่าม )</font></p>
+			<p align="center" style="margin-bottom: 0in"><font face="THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตำแหน่ง สว.(สอบสวน)ฯ
+			ปรท. ผกก.1 บก.สอท.4</font></p>
+		</td>
+	</tr>
+</table>
+<p><br/>
+<br/>
+
+</p>
+<p><font face="Liberation Serif, serif">พนักงานสอบสวน ว่าที่
+พ.ต.ต.อำพล ทองอร่าม</font></p>
+<p><font face="Liberation Serif, serif">โทร 062-2416478</font></p>
+</body>
+</html>"""
+
+            # บันทึกไฟล์
+            with open(filename, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+
+            # เปิดไฟล์ในเบราว์เซอร์
+            try:
+                if os.name == 'nt':  # Windows
+                    os.startfile(filename)
+                elif os.name == 'posix':  # macOS, Linux
+                    os.system(f'open "{filename}"')
+                else:
+                    os.system(f'xdg-open "{filename}"')
+            except Exception as e:
+                print(f"ไม่สามารถเปิดไฟล์: {e}")
+
+            messagebox.showinfo("สำเร็จ", f"สร้างหมายเรียกผู้ต้องหา เรียบร้อย\\nไฟล์: {filename}")
+
+        except Exception as e:
+            messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถสร้างหมายเรียกผู้ต้องหา: {str(e)}")
+
+    def generate_multiple_suspect_summons_html(self, rows_data):
+        """สร้างหมายเรียกผู้ต้องหารวมหลายรายการ"""
+        try:
+            import os
+            from datetime import datetime
+
+            # สร้างโฟลเดอร์ File_Summon หากยังไม่มี
+            os.makedirs("File_Summon", exist_ok=True)
+
+            # สร้าง HTML content สำหรับแต่ละรายการ
+            html_contents = []
+            for row_data in rows_data:
+                # สร้าง content ของหมายเรียกแต่ละฉบับ (ไม่รวม HTML wrapper)
+                html_content = self.generate_single_suspect_summons_content(row_data)
+                if html_content:
+                    html_contents.append(html_content)
+
+            if not html_contents:
+                messagebox.showwarning("คำเตือน", "ไม่สามารถสร้างเนื้อหาหมายเรียกได้")
+                return
+
+            # รวมเนื้อหา HTML ทั้งหมด
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = os.path.join("File_Summon", f"หมายเรียกผู้ต้องหา_รวม{len(rows_data)}ฉบับ_{timestamp}.html")
+
+            combined_html = self.combine_html_contents_simple(html_contents)
+
+            with open(filename, 'w', encoding='utf-8') as f:
+                f.write(combined_html)
+
+            # เปิดไฟล์ในเบราว์เซอร์
+            try:
+                if os.name == 'nt':  # Windows
+                    os.startfile(filename)
+                elif os.name == 'posix':  # macOS, Linux
+                    os.system(f'open "{filename}"')
+                else:
+                    os.system(f'xdg-open "{filename}"')
+            except Exception as e:
+                print(f"ไม่สามารถเปิดไฟล์: {e}")
+
+            messagebox.showinfo("สำเร็จ", f"สร้างหมายเรียกผู้ต้องหารวม {len(rows_data)} ฉบับ เรียบร้อย\\nไฟล์: {filename}")
+
+        except Exception as e:
+            messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถสร้างหมายเรียกผู้ต้องหารวม: {str(e)}")
+
+    def generate_single_suspect_summons_content(self, row_data):
+        """สร้างเนื้อหา HTML สำหรับหมายเรียกผู้ต้องหารายการเดียว (ไม่รวม HTML wrapper)"""
+        try:
+            import base64
+
+            # ฟังก์ชันสำหรับจัดรูปแบบตัวเลข
+            def format_number(value):
+                if value is None or value == '' or str(value).lower() == 'nan':
+                    return ''
+                try:
+                    return str(int(float(value)))
+                except (ValueError, TypeError):
+                    return str(value)
+
+            # เตรียมข้อมูลสำหรับแบบฟอร์ม
+            document_no = format_number(row_data.get('เลขที่หนังสือ', ''))
+            document_date = str(row_data.get('ลงวันที่', ''))
+            suspect_name = str(row_data.get('ชื่อ ผตห.', ''))
+            suspect_id_card = format_number(row_data.get('เลขประจำตัว ปชช. ผตห.', ''))
+            police_station = str(row_data.get('สภ.พื้นที่รับผิดชอบ', ''))
+            police_province = str(row_data.get('จังหวัด สภ.พื้นที่รับผิดชอบ', ''))
+            victim_name = str(row_data.get('ชื่อผู้เสียหาย', ''))
+            case_type = str(row_data.get('ประเภทคดี', ''))
+            damage_amount = format_number(row_data.get('ความเสียหาย', ''))
+            case_id = format_number(row_data.get('เลขเคสไอดี', ''))
+            suspect_address = str(row_data.get('ที่อยู่ ผตห.', ''))
+            appointment_date = str(row_data.get('กำหนดให้มาพบ', ''))
+
+            # แปลง Logo เป็น base64
+            logo_base64 = ""
+            logo_path = "Crut.jpg"
+            if os.path.exists(logo_path):
+                try:
+                    with open(logo_path, "rb") as img_file:
+                        logo_base64 = base64.b64encode(img_file.read()).decode()
+                except Exception as e:
+                    print(f"ไม่สามารถโหลด logo: {e}")
+
+            # สร้างเนื้อหา HTML ตามแบบฟอร์ม LibreOffice (เฉพาะ body content)
+            content = f"""
+    <div style="margin-bottom: 30px; page-break-inside: avoid;">
+        <table width="639" cellpadding="7" cellspacing="0">
+            <col width="13"/>
+            <col width="100"/>
+            <col width="100"/>
+            <col width="100"/>
+            <col width="100"/>
+            <col width="100"/>
+            <col width="100"/>
+            <tr>
+                <td colspan="4" width="333" valign="top" style="border: none; padding: 0in">
+                    <p><span style="font-family: Liberation Serif, serif">"""
+
+            # เพิ่ม logo ถ้ามี
+            if logo_base64:
+                content += f'<img src="data:image/png;base64,{logo_base64}" width="50" height="50" alt="Logo">'
+
+            content += f"""</span></p>
+                </td>
+                <td colspan="3" width="300" valign="top" style="border: none; padding: 0in">
+                    <p><span class="memo-title">บันทึกข้อความ</span></p>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="7" width="625" valign="top" style="border: none; padding: 0in">
+                    <p><font face="Liberation Serif, serif"><b>ส่วนราชการ</b>
+                    กก.1 บก.สอท.4 เลขที่ 370 หมู่ 3 ตำบลดอนแก้ว อำเภอเเม่ริม
+                    จังหวัดเชียงใหม่ 50180</font></p>
+                </td>
+            </tr>
+            <tr>
+                <td width="13" valign="top" style="border: none; padding: 0in">
+                    <p><font face="Liberation Serif, serif"><b>ที่</b></font></p>
+                </td>
+                <td colspan="3" width="313" valign="top" style="border: none; padding: 0in">
+                    <p><font face="Liberation Serif, serif">&nbsp;&nbsp;ตช.0039.52/{document_no}</font></p>
+                </td>
+                <td width="100" valign="top" style="border: none; padding: 0in">
+                    <p><font face="Liberation Serif, serif"><b>วันที่</b></font></p>
+                </td>
+                <td colspan="2" width="200" valign="top" style="border: none; padding: 0in">
+                    <p><font face="Liberation Serif, serif">{document_date}</font></p>
+                </td>
+            </tr>
+        </table>
+        <p><font face="THSarabunNew, serif"><b>เรื่อง</b>&nbsp;&nbsp;&nbsp;ส่งหมายเรียกผู้ต้องหา <b>({suspect_name} เลขประจำตัวประชาชน {suspect_id_card})</b></font></p>
+        <p><font face="THSarabunNew, serif"><b>เรียน</b>&nbsp;&nbsp;&nbsp;ผกก.{police_station} จว.{police_province}</font></p>
+        <table width="639" cellpadding="7" cellspacing="0">
+            <col width="625"/>
+            <tr>
+                <td width="625" valign="top" style="border: none; padding: 0in">
+                    <p><br/></p>
+                    <p align="justify" style="margin-bottom: 0in">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ด้วยพนักงานสอบสวน
+                    กก.1 บก.สอท.4 ได้รับคำร้องทุกข์ จาก {victim_name} เรื่อง {case_type}
+                    ได้รับความเสียหาย จำนวน {damage_amount} บาท เลขรับแจ้งความออนไลน์ :
+                    {case_id}</p>
+                    <p align="justify" style="margin-bottom: 0in">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;เจ้าพนักงานตำรวจ
+                    กก.1 บก.สอท.4 จึงได้ทำการสืบสวนสอบสวนเรื่อยมา พบว่า {suspect_name}
+                    เลขประจำตัวประชาชน {suspect_id_card} ที่อยู่ {suspect_address}
+                    เป็นเจ้าของบัญชีธนาคารที่รับโอนเงินจากผู้เสียหาย</p>
+                    <p align="justify" style="margin-bottom: 0in">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;เนื่องจากผู้ถูกเรียกมีภูมิลำเนาอยู่ในพื้นที่ของท่าน
+                    เพื่อให้เป็นไปตามความในประมวลกฎหมายวิธีพิจารณาความอาญา
+                    มาตรา 56 จึงขอส่ง <u>หมายเรียกผู้ต้องหา ฉบับลงวันที่
+                    {document_date} กำหนดให้มาตามหมายเรียกในวันที่ {appointment_date}
+                    เวลา 09.00 น.</u> ที่แนบมาพร้อมหนังสือฉบับนี้ จำนวน 1 ฉบับ
+                    มายังท่าน เพื่อให้ตำรวจในปกครองทำการส่งหมายแก่ผู้ต้องหา
+                    และเมื่อจัดส่งหมายแล้วขอให้ส่ง ใบรับหมายตำรวจ กลับมายัง
+                    "พนักงานสอบสวน พ.ต.ต.อำพล ทองอร่าม สว.(สอบสวน) กก.1
+                    บก.สอท.4 ที่อยู่ เลขที่ 370 ม.3 ต.ดอนแก้ว อ.เเม่ริม
+                    จ.เชียงใหม่ 50180" เพื่อพนักงานสอบสวนจะได้ใช้เป็นหลักฐานในการสอบสวนต่อไป</p>
+                    <p><br/></p>
+                    <p style="margin-bottom: 0in">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;จึงเรียนมาเพื่อโปรดพิจารณาดำเนินการ</p>
+                    <p style="margin-bottom: 0in"><br/></p>
+                    <p style="margin-bottom: 0in"><font face="THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;พ.ต.ต.</font></p>
+                    <p style="margin-bottom: 0in"><br/></p>
+                    <p align="right" style="margin-bottom: 0in"><font face="THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(
+                    อำพล ทองอร่าม )</font></p>
+                    <p align="right" style="margin-bottom: 0in"><font face="THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตำแหน่ง สว.(สอบสวน)ฯ
+                    ปรท. ผกก.1 บก.สอท.4</font></p>
+                </td>
+            </tr>
+        </table>
+        <p><br/><br/></p>
+        <p><font face="Liberation Serif, serif">พนักงานสอบสวน พ.ต.ต.อำพล ทองอร่าม</font></p>
+        <p><font face="Liberation Serif, serif">โทร 062-2416478</font></p>
+    </div>
+    <div style="page-break-after: always;"></div>
+"""
+
+            return content
+
+        except Exception as e:
+            print(f"Error generating suspect summons content: {e}")
+            return None
 
     def generate_single_envelope_content(self, row_data):
         """สร้างเนื้อหา HTML สำหรับซองหมายเรียกรายการเดียว (ไม่รวม HTML wrapper)"""
@@ -4473,8 +4969,10 @@ class SimpleExcelManager:
                   command=self.delete_summons_selected).pack(side='left', padx=2)
         ttk.Button(btn_frame, text="📋 คัดลอก", 
                   command=self.copy_summons_selected).pack(side='left', padx=2)
-        ttk.Button(btn_frame, text="💾 บันทึก Excel", 
+        ttk.Button(btn_frame, text="💾 บันทึก Excel",
                   command=self.save_summons_excel).pack(side='left', padx=2)
+        ttk.Button(btn_frame, text="🖨️ ปริ้นหมายเรียก",
+                  command=self.print_suspect_summons_html).pack(side='left', padx=2)
         
         # ตารางข้อมูล
         tree_frame = ttk.Frame(view_frame)
@@ -6542,11 +7040,11 @@ class SimpleExcelManager:
                     doc_number = bank.get('เลขหนังสือ', '') or bank.get('เลขที่หนังสือ', '')
                     doc_date_parts = []
                     if bank.get('วัน'):
-                        doc_date_parts.append(str(bank.get('วัน', '')))
+                        doc_date_parts.append(clean_number_value(bank.get('วัน', '')))
                     if bank.get('เดือน'):
-                        doc_date_parts.append(str(bank.get('เดือน', '')).strip())
+                        doc_date_parts.append(clean_number_value(bank.get('เดือน', '')))
                     if bank.get('ปี'):
-                        doc_date_parts.append(str(bank.get('ปี', '')))
+                        doc_date_parts.append(clean_number_value(bank.get('ปี', '')))
                     doc_date = ' '.join(doc_date_parts) if doc_date_parts else bank.get('ลงวันที่', '')
                     
                     if doc_number and str(doc_number).strip() and str(doc_number).strip() != 'nan':
@@ -6560,23 +7058,35 @@ class SimpleExcelManager:
                         doc_label.pack(anchor='w')
                     
                     status_text = bank.get('status_text', 'ไม่ระบุสถานะ')
-                    
-                    # คำนวณจำนวนวันถ้าสถานะเป็น "รอตอบกลับ"
-                    if "รอตอบกลับ" in status_text:
+
+                    # คำนวณจำนวนวันสำหรับทุกสถานะ (ยกเว้นที่ตอบแล้ว)
+                    if "✓" not in status_text and "ได้รับตอบกลับแล้ว" not in status_text:
                         days_since = None
                         # ลองคำนวณจากข้อมูลวันที่แยกส่วน
-                        day = bank.get('วัน', '')
+                        day = clean_number_value(bank.get('วัน', ''))
                         month = bank.get('เดือน', '')
-                        year = bank.get('ปี', '')
-                        
-                        if day and month and year:
-                            days_since = parse_thai_date_components(day, month, year)
-                        else:
+                        year = clean_number_value(bank.get('ปี', ''))
+
+                        # Debug: แสดงข้อมูลที่ได้
+                        # print(f"Debug - Day: '{day}', Month: '{month}', Year: '{year}', Status: '{status_text}'")
+
+                        if day and month and year and str(day).strip() and str(month).strip() and str(year).strip():
+                            try:
+                                days_since = parse_thai_date_components(day, month, year)
+                            except Exception as e:
+                                # print(f"Error parsing date components: {e}")
+                                days_since = None
+
+                        if days_since is None:
                             # ลองคำนวณจากข้อมูลวันที่รวม
                             doc_date = bank.get('ลงวันที่', '')
-                            if doc_date:
-                                days_since = calculate_days_since_document(doc_date)
-                        
+                            if doc_date and str(doc_date).strip():
+                                try:
+                                    days_since = calculate_days_since_document(doc_date)
+                                except Exception as e:
+                                    # print(f"Error calculating days from doc_date: {e}")
+                                    days_since = None
+
                         if days_since is not None and days_since >= 0:
                             status_text += f" [ส่งไปแล้ว {days_since} วัน]"
                     
@@ -6653,8 +7163,24 @@ class SimpleExcelManager:
             
             # เพิ่มการสนับสนุน mouse wheel scrolling
             def _on_mousewheel(event):
-                canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-            canvas.bind_all("<MouseWheel>", _on_mousewheel)
+                try:
+                    if canvas.winfo_exists():
+                        canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+                except tk.TclError:
+                    pass  # Canvas has been destroyed, ignore the event
+
+            # Bind to the detail_window instead of all windows
+            detail_window.bind("<MouseWheel>", _on_mousewheel)
+
+            # Cleanup when window is closed
+            def on_window_close():
+                try:
+                    detail_window.unbind("<MouseWheel>")
+                except:
+                    pass
+                detail_window.destroy()
+
+            detail_window.protocol("WM_DELETE_WINDOW", on_window_close)
             
         except Exception as e:
             messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถแสดงรายละเอียดได้: {str(e)}")
@@ -7009,11 +7535,11 @@ class SimpleExcelManager:
                     doc_number = bank.get('เลขหนังสือ', '') or bank.get('เลขที่หนังสือ', '')
                     doc_date_parts = []
                     if bank.get('วัน'):
-                        doc_date_parts.append(str(bank.get('วัน', '')))
+                        doc_date_parts.append(clean_number_value(bank.get('วัน', '')))
                     if bank.get('เดือน'):
-                        doc_date_parts.append(str(bank.get('เดือน', '')).strip())
+                        doc_date_parts.append(clean_number_value(bank.get('เดือน', '')))
                     if bank.get('ปี'):
-                        doc_date_parts.append(str(bank.get('ปี', '')))
+                        doc_date_parts.append(clean_number_value(bank.get('ปี', '')))
                     doc_date = ' '.join(doc_date_parts) if doc_date_parts else bank.get('ลงวันที่', '')
                     
                     if doc_number and str(doc_number).strip() and str(doc_number).strip() != 'nan':
@@ -7022,21 +7548,30 @@ class SimpleExcelManager:
                             doc_number = f"ตช.0039.52/{doc_number}"
                     
                     status_text = bank.get('status_text', 'ไม่ระบุสถานะ')
-                    
-                    # คำนวณจำนวนวันถ้าสถานะเป็น "รอตอบกลับ"
-                    if "รอตอบกลับ" in status_text:
+
+                    # คำนวณจำนวนวันสำหรับทุกสถานะ (ยกเว้นที่ตอบแล้ว)
+                    if "✓" not in status_text and "ได้รับตอบกลับแล้ว" not in status_text:
                         days_since = None
-                        day = bank.get('วัน', '')
+                        # ลองคำนวณจากข้อมูลวันที่แยกส่วน
+                        day = clean_number_value(bank.get('วัน', ''))
                         month = bank.get('เดือน', '')
-                        year = bank.get('ปี', '')
-                        
-                        if day and month and year:
-                            days_since = parse_thai_date_components(day, month, year)
-                        else:
+                        year = clean_number_value(bank.get('ปี', ''))
+
+                        if day and month and year and str(day).strip() and str(month).strip() and str(year).strip():
+                            try:
+                                days_since = parse_thai_date_components(day, month, year)
+                            except Exception as e:
+                                days_since = None
+
+                        if days_since is None:
+                            # ลองคำนวณจากข้อมูลวันที่รวม
                             doc_date_check = bank.get('ลงวันที่', '')
-                            if doc_date_check:
-                                days_since = calculate_days_since_document(doc_date_check)
-                        
+                            if doc_date_check and str(doc_date_check).strip():
+                                try:
+                                    days_since = calculate_days_since_document(doc_date_check)
+                                except Exception as e:
+                                    days_since = None
+
                         if days_since is not None and days_since >= 0:
                             status_text += f" [ส่งไปแล้ว {days_since} วัน]"
                     
