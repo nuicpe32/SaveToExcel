@@ -4183,28 +4183,66 @@ class SimpleExcelManager:
         """สร้างหมายเรียกผู้ต้องหารวมหลายรายการ"""
         try:
             import os
+            import base64
             from datetime import datetime
 
             # สร้างโฟลเดอร์ File_Summon หากยังไม่มี
             os.makedirs("File_Summon", exist_ok=True)
 
             # สร้าง HTML content สำหรับแต่ละรายการ
-            html_contents = []
-            for row_data in rows_data:
-                # สร้าง content ของหมายเรียกแต่ละฉบับ (ไม่รวม HTML wrapper)
-                html_content = self.generate_single_suspect_summons_content(row_data)
-                if html_content:
-                    html_contents.append(html_content)
+            combined_body = ""
+            for i, row_data in enumerate(rows_data):
+                # สร้าง content ของหมายเรียกแต่ละฉบับ
+                content = self.generate_single_suspect_summons_content(row_data)
+                if content:
+                    # ลบ page-break ที่มีอยู่แล้วออกจาก content เสมอ
+                    content = content.replace('<div style="page-break-after: always;"></div>', '')
+                    combined_body += content
 
-            if not html_contents:
+                    # เพิ่ม page-break หากไม่ใช่หน้าสุดท้าย
+                    if i < len(rows_data) - 1:
+                        combined_body += '<div style="page-break-after: always;"></div>'
+
+            if not combined_body:
                 messagebox.showwarning("คำเตือน", "ไม่สามารถสร้างเนื้อหาหมายเรียกได้")
                 return
 
-            # รวมเนื้อหา HTML ทั้งหมด
+            # สร้าง HTML รวม พร้อม CSS สำหรับ LibreOffice
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = os.path.join("File_Summon", f"หมายเรียกผู้ต้องหา_รวม{len(rows_data)}ฉบับ_{timestamp}.html")
 
-            combined_html = self.combine_html_contents_simple(html_contents)
+            combined_html = f"""<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+	<title>หมายเรียกผู้ต้องหา รวม {len(rows_data)} ฉบับ</title>
+	<meta name="generator" content="LibreOffice 24.2.6.2 (Linux)"/>
+	<style type="text/css">
+		@font-face {{
+			font-family: 'THSarabunNew';
+			src: url('THSarabunNew/THSarabunNew.ttf') format('truetype');
+			font-weight: normal;
+			font-style: normal;
+		}}
+		@font-face {{
+			font-family: 'THSarabunNew';
+			src: url('THSarabunNew/THSarabunNew Bold.ttf') format('truetype');
+			font-weight: bold;
+			font-style: normal;
+		}}
+		@page {{ margin: 0.3in 0.79in 0.79in 0.79in }}
+		p {{ line-height: 115%; margin-bottom: 0.1in; background: transparent; font-family: 'THSarabunNew', sans-serif; }}
+		td p {{ margin-bottom: 0in; background: transparent; font-family: 'THSarabunNew', sans-serif; }}
+		body {{ font-family: 'THSarabunNew', sans-serif; }}
+		a:link {{ color: #000080; so-language: zxx; text-decoration: underline }}
+		a:visited {{ color: #800080; so-language: zxx; text-decoration: underline }}
+		.memo-title {{ font-size: 1.5em; font-weight: bold; margin-left: -5%; }}
+	</style>
+</head>
+<body lang="th-TH" link="#000080" vlink="#800080" dir="ltr">
+{combined_body}
+</body>
+</html>"""
 
             with open(filename, 'w', encoding='utf-8') as f:
                 f.write(combined_html)
