@@ -4542,217 +4542,222 @@ class SimpleExcelManager:
         try:
             import os
             from datetime import datetime
-            import webbrowser
 
-            # สร้างโฟลเดอร์ File_Summon หากยังไม่มี
-            os.makedirs("File_Summon", exist_ok=True)
-
-            # ฟังก์ชันจัดรูปแบบ
+            # ฟังก์ชันสำหรับจัดรูปแบบตัวเลข
             def format_value(value):
                 if value is None or value == '' or str(value).lower() == 'nan':
                     return ''
                 return str(value).strip()
 
-            # แปลง pandas Series เป็น dict หากจำเป็น
-            if hasattr(row_data, 'iloc'):
-                row_dict = {}
-                if len(row_data) > 0: row_dict['ชื่อ ผตห.'] = row_data.iloc[0]
-                if len(row_data) > 1: row_dict['เลขประจำตัว ปชช. ผตห.'] = row_data.iloc[1]
-                if len(row_data) > 2: row_dict['สภ.พื้นที่รับผิดชอบ'] = row_data.iloc[2]
-                if len(row_data) > 3: row_dict['จังหวัด สภ.พื้นที่รับผิดชอบ'] = row_data.iloc[3]
-                if len(row_data) > 4: row_dict['ที่อยู่ สภ. พื้นที่รับผิดชอบ'] = row_data.iloc[4]
-                if len(row_data) > 5: row_dict['เลขหนังสือ'] = row_data.iloc[5]
-                row_data = row_dict
+            # ฟังก์ชันสำหรับสร้างที่อยู่สถานีตำรวจ
+            def build_police_address(row_data):
+                address_parts = []
 
-            # ดึงข้อมูลสำหรับซองหมายเรียก
-            suspect_name = format_value(row_data.get('ชื่อ ผตห.', ''))
-            police_station = format_value(row_data.get('สภ.พื้นที่รับผิดชอบ', ''))
-            police_province = format_value(row_data.get('จังหวัด สภ.พื้นที่รับผิดชอบ', ''))
-            police_address = format_value(row_data.get('ที่อยู่ สภ. พื้นที่รับผิดชอบ', ''))
+                # ดึงที่อยู่สถานีตำรวจจากคอลัมน์
+                police_address_raw = format_value(row_data.get('ที่อยู่ สภ. พื้นที่รับผิดชอบ', ''))
 
-            # สร้างชื่อผู้รับ
-            if police_station and police_province:
-                recipient_name = f"ผกก.{police_station} จว.{police_province}"
-            else:
-                recipient_name = f"ผกก.{police_station}" if police_station else "ผู้รับ"
+                if police_address_raw:
+                    # แยกที่อยู่เป็นบรรทัดตาม \n หรือ , หรือ ;
+                    lines = police_address_raw.replace(',', '\n').replace(';', '\n').split('\n')
+                    for line in lines:
+                        line = line.strip()
+                        if line:
+                            address_parts.append(line)
+
+                return address_parts
+
+            # แปลง pandas Series เป็น dictionary โดยใช้ชื่อคอลัมน์จริง
+            if hasattr(row_data, 'to_dict'):
+                # ถ้าเป็น pandas Series ให้แปลงเป็น dict โดยตรง (ใช้ชื่อคอลัมน์จริง)
+                row_data = row_data.to_dict()
+
+                # Debug: พิมพ์คีย์ที่มีอยู่เพื่อตรวจสอบ
+                print("Available keys in row_data:", list(row_data.keys()))
+                print("ที่อยู่ สภ. พื้นที่รับผิดชอบ value:", row_data.get('ที่อยู่ สภ. พื้นที่รับผิดชอบ', 'NOT_FOUND'))
+            elif hasattr(row_data, 'index') and hasattr(row_data, 'values'):
+                # สำรองสำหรับกรณีที่ไม่มี to_dict()
+                row_data = dict(zip(row_data.index, row_data.values))
+                print("Converted using index/values. Available keys:", list(row_data.keys()))
+
+            # ดึงข้อมูลสำหรับซองหมายเรียก (เอาเฉพาะที่อยู่)
+            # สร้างที่อยู่เต็ม (จะใช้เป็นทั้งผู้รับและที่อยู่)
+            address_parts = build_police_address(row_data)
+
+            # ไม่ใช้ผู้รับแยก เพราะจะใส่ที่อยู่สภ.ตรงๆ
+            recipient_name = ""
+
+            # สร้างโฟลเดอร์ File_Summon หากยังไม่มี
+            os.makedirs("File_Summon", exist_ok=True)
 
             # สร้างชื่อไฟล์
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             document_no = format_value(row_data.get('เลขหนังสือ', ''))
-            filename = os.path.join("File_Summon", f"ซองหมายเรียกผู้ต้องหา_{document_no}_{suspect_name}_{timestamp}.html")
+            filename = os.path.join("File_Summon", f"ซองหมายเรียกผู้ต้องหา_{document_no}_{recipient_name}_{timestamp}.html")
 
-            # สร้าง HTML content ตามรูปแบบที่กำหนด
+            # สร้าง HTML content ตามรูปแบบที่กำหนด (คัดลอกจากซองธนาคารทุกประการ)
             html_content = f"""<!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ซองหมายเรียกผู้ต้องหา</title>
+    <title>ซองหมายเรียก</title>
     <style>
         /* กำหนดฟอนต์เริ่มต้น */
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
 
-        * {{
-            box-sizing: border-box;
+        /* ตั้งค่าหน้ากระดาษ A4 และขอบกระดาษ */
+        @page {{
+            size: A4;
+            margin: 0.5cm 0.2cm 1.5cm 0.5cm; /* บน, ขวา, ล่าง, ซ้าย */
         }}
 
         body {{
             font-family: 'Sarabun', sans-serif;
+            font-size: 16px; /* ขนาดตัวอักษรมาตรฐาน (เทียบเท่า 12pt) */
+            line-height: 1.5;
             margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }}
-
-        .envelope-container {{
+            padding: 0;
             width: 210mm;
             height: 297mm;
-            background-color: white;
-            position: relative;
-            margin: 0 auto;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            border: 1px solid #ddd;
+            box-sizing: border-box;
+            position: relative; /* สำหรับการจัดวางองค์ประกอบภายใน */
         }}
 
+        /* ใช้สำหรับจัดวางตำแหน่งที่แน่นอน */
         .absolute {{
             position: absolute;
         }}
 
+        /* ส่วนหัวด้านซ้ายบน - ชิดซ้ายของกระดาษ */
         #header-left {{
-            top: 25mm;
-            left: 25mm;
-            width: 75mm;
-            font-size: 12px;
-            line-height: 1.3;
-        }}
-
-        #postage-box {{
-            top: 25mm;
-            right: 25mm;
-            width: 50mm;
-            height: 40mm;
-            border: 2px solid #000;
-            padding: 8px;
-            text-align: center;
-            font-size: 11px;
-            line-height: 1.3;
-        }}
-
-        #recipient-address {{
-            top: 100mm;
-            right: 25mm;
-            width: 90mm;
-            font-size: 14px;
-            line-height: 1.5;
-        }}
-
-        .label {{
+            top: 0.5cm;
+            left: 0.5cm;
             font-weight: bold;
-            margin-bottom: 10px;
+            max-width: 8cm;
+        }}
+
+        /* กล่องสี่เหลี่ยมด้านขวาบน - ชิดขวาของกระดาษ */
+        #postage-box {{
+            top: 0.5cm;
+            right: 0.2cm;
+            border: 1px solid black;
+            padding: 5px 10px;
             text-align: center;
+            width: 5cm;
         }}
 
-        table {{
-            width: 100%;
+        /* ที่อยู่ผู้รับ */
+        #recipient-address {{
+            top: 2.5cm;
+            left: 9cm;
+        }}
+
+        #recipient-address .label {{
+            font-weight: bold;
+        }}
+
+        #recipient-address table {{
             border-collapse: collapse;
+            margin-top: 5px;
         }}
 
-        td {{
-            padding: 3px 0;
+        #recipient-address td {{
+            padding: 2px 0;
             vertical-align: top;
         }}
 
+        #recipient-address .data {{
+            padding-left: 10px;
+        }}
+
+        /* เส้นแบ่งส่วนสำหรับพับซอง */
         .fold-line {{
             position: absolute;
-            width: 100%;
-            height: 1px;
-            border-top: 1px dashed #999;
+            left: 0;
+            right: 0;
+            height: 2px;
+            border-top: 2px dashed #333;
+            opacity: 0.8;
         }}
 
         .fold-line-1 {{
-            top: 99mm;
+            top: 9.9cm; /* 297mm / 3 = 99mm */
         }}
 
-        @media print {{
-            body {{
-                background-color: white;
-            }}
-            .envelope-container {{
-                margin: 0;
-                box-shadow: none;
-                border: none;
-            }}
+        /* ซ่อนเส้นที่ 2 เพื่อแสดงเฉพาะเส้นที่ 1 */
+        .fold-line-2 {{
+            display: none;
         }}
     </style>
 </head>
 <body>
-    <div class="envelope-container">
-        <div id="header-left" class="absolute">
-            <div style="display: flex; align-items: flex-start;">
-                <div style="margin-right: 8px;">"""
 
-            # เพิ่มตราครุฑ
+    <div id="header-left" class="absolute">
+        <div style="display: flex; align-items: flex-start;">
+            <div style="margin-right: 8px;">"""
+
+            # เพิ่มตราครุฑ (ใช้ไฟล์ Crut.jpg)
             logo_path = "Crut.jpg"
             if os.path.exists(logo_path):
                 try:
                     import base64
                     with open(logo_path, "rb") as image_file:
                         logo_base64 = base64.b64encode(image_file.read()).decode()
-                    html_content += f'                    <img src="data:image/jpeg;base64,{logo_base64}" alt="ตราครุฑ" style="width: 67px; height: 67px;">'
+                    html_content += f'                <img src="data:image/jpeg;base64,{logo_base64}" alt="ตราครุฑ" style="width: 67px; height: 67px;">'
                 except Exception:
-                    html_content += '                    <div style="width: 67px; height: 67px; background: #ccc; border-radius: 50%; text-align: center; line-height: 67px; font-size: 14px;">ตรา</div>'
+                    html_content += '                <div style="width: 67px; height: 67px; background: #ccc; border-radius: 50%; text-align: center; line-height: 67px; font-size: 14px;">ตรา</div>'
             else:
-                html_content += '                    <div style="width: 67px; height: 67px; background: #ccc; border-radius: 50%; text-align: center; line-height: 67px; font-size: 14px;">ตรา</div>'
-
-            html_content += f"""
-                </div>
-                <div style="font-size: 12px; line-height: 1.2; font-weight: bold;">
-                    ใช้ในราชการสำนักงานตำรวจแห่งชาติ<br>
-                    กองกำกับการ 1 กองบังคับการตำรวจสืบสวน<br>
-                    สอบสวนอาชญากรรมทางเทคโนโลยี 4<br>
-                    เลขที่ 370 หมู่ 3 ตำบลดอนแก้ว อำเภอแม่ริม<br>
-                    จังหวัดเชียงใหม่ 50180
-                </div>
-            </div>
-        </div>
-
-        <div id="postage-box" class="absolute">
-            <p style="margin: 0; padding: 0;">ชำระฝากส่งเป็นรายเดือน<br>ใบอนุญาตที่ ๑๙๙/๒๕๖๔<br>ไปรษณีย์ ศาลากลาง ชม.</p>
-        </div>
-
-        <div id="recipient-address" class="absolute">
-            <p class="label">กรุณาส่ง</p>
-            <table>
-                <tr>
-                    <td>{recipient_name}</td>
-                </tr>"""
-
-            # แยกที่อยู่สถานีตำรวจเป็นบรรทัด
-            if police_address:
-                address_lines = police_address.split('\n')
-                for line in address_lines:
-                    line = line.strip()
-                    if line:
-                        html_content += f"""
-                <tr>
-                    <td>{line}</td>
-                </tr>"""
+                html_content += '                <div style="width: 67px; height: 67px; background: #ccc; border-radius: 50%; text-align: center; line-height: 67px; font-size: 14px;">ตรา</div>'
 
             html_content += """
-            </table>
+            </div>
+            <div style="font-size: 12px; line-height: 1.2; font-weight: bold;">
+                ใช้ในราชการสำนักงานตำรวจแห่งชาติ<br>
+                กองกำกับการ 1 กองบังคับการตำรวจสืบสวน<br>
+                สอบสวนอาชญากรรมทางเทคโนโลยี 4<br>
+                เลขที่ 370 หมู่ 3 ตำบลดอนแก้ว อำเภอแม่ริม<br>
+                จังหวัดเชียงใหม่ 50180
+            </div>
         </div>
-
-        <!-- เส้นแบ่งส่วนสำหรับพับซอง -->
-        <div class="fold-line fold-line-1"></div>
     </div>
+
+    <div id="postage-box" class="absolute">
+        <p style="margin: 0; padding: 0;">ชำระฝากส่งเป็นรายเดือน<br>ใบอนุญาตที่ ๑๙๙/๒๕๖๔<br>ไปรษณีย์ ศาลากลาง ชม.</p>
+    </div>
+
+
+    <div id="recipient-address" class="absolute">
+        <p class="label">กรุณาส่ง</p>
+        <table>
+            <tr>
+                <td>""" + recipient_name + """</td>
+            </tr>"""
+
+            # เพิ่มที่อยู่ทีละบรรทัดในตาราง
+            for address_part in address_parts:
+                html_content += f"""
+            <tr>
+                <td>{address_part}</td>
+            </tr>"""
+
+            html_content += """
+        </table>
+    </div>
+
+    <!-- เส้นแบ่งส่วนสำหรับพับซอง -->
+    <div class="fold-line fold-line-1"></div>
+    <div class="fold-line fold-line-2"></div>
+
 </body>
 </html>"""
 
-            # บันทึกไฟล์ HTML
+            # บันทึกไฟล์
             try:
                 with open(filename, 'w', encoding='utf-8') as f:
                     f.write(html_content)
 
                 # เปิดไฟล์ในเบราว์เซอร์
+                import webbrowser
                 file_path = os.path.abspath(filename)
                 webbrowser.open(f'file://{file_path}')
 
@@ -4774,26 +4779,19 @@ class SimpleExcelManager:
             envelope_contents = []
 
             for i, row_data in enumerate(rows_data):
-                # แปลง pandas Series เป็น dictionary สำหรับฟังก์ชันเดิม
-                if hasattr(row_data, 'iloc'):
-                    row_dict = {}
-                    if len(row_data) > 0: row_dict['ชื่อ ผตห.'] = row_data.iloc[0]
-                    if len(row_data) > 1: row_dict['เลขประจำตัว ปชช. ผตห.'] = row_data.iloc[1]
-                    if len(row_data) > 2: row_dict['สภ.พื้นที่รับผิดชอบ'] = row_data.iloc[2]
-                    if len(row_data) > 3: row_dict['จังหวัด สภ.พื้นที่รับผิดชอบ'] = row_data.iloc[3]
-                    if len(row_data) > 4: row_dict['ที่อยู่ สภ. พื้นที่รับผิดชอบ'] = row_data.iloc[4]
-                    if len(row_data) > 5: row_dict['เลขหนังสือ'] = row_data.iloc[5]
-                    row_data = row_dict
-                elif hasattr(row_data, 'to_dict'):
-                    # ถ้าเป็น pandas Series
-                    row_dict = row_data.to_dict()
-                    row_data = row_dict
+                # แปลง pandas Series เป็น dictionary โดยใช้ชื่อคอลัมน์จริง (เหมือนกับ generate_suspect_envelope_html)
+                if hasattr(row_data, 'to_dict'):
+                    # ถ้าเป็น pandas Series ให้แปลงเป็น dict โดยตรง (ใช้ชื่อคอลัมน์จริง)
+                    row_data = row_data.to_dict()
+                elif hasattr(row_data, 'index') and hasattr(row_data, 'values'):
+                    # สำรองสำหรับกรณีที่ไม่มี to_dict()
+                    row_data = dict(zip(row_data.index, row_data.values))
                 else:
-                    # ถ้าเป็น dict อยู่แล้ว
-                    row_dict = row_data
+                    # ถ้าเป็น dict อยู่แล้ว ใช้ได้เลย
+                    pass
 
-                # เรียกใช้ฟังก์ชันเดิมให้คืนค่า HTML สำหรับซองหมายเรียก
-                envelope_content = self.generate_single_suspect_envelope_content(row_dict)
+                # สร้างเนื้อหาซองสำหรับผู้ต้องหา (ใช้ฟังก์ชันที่เหมือนกับธนาคารแต่ใช้ข้อมูลผู้ต้องหา)
+                envelope_content = self.generate_single_suspect_envelope_content_for_multiple(row_data)
                 envelope_contents.append(envelope_content)
 
             # สร้างโฟลเดอร์ File_Summon หากยังไม่มี
@@ -4803,22 +4801,27 @@ class SimpleExcelManager:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             combined_filename = os.path.join("File_Summon", f"ซองหมายเรียกผู้ต้องหารวม_{len(rows_data)}รายการ_{timestamp}.html")
 
-            # สร้าง HTML header
+            # สร้าง HTML header (คัดลอกจาก generate_suspect_envelope_html แล้วปรับให้รองรับหลายหน้า)
             combined_html = f"""<!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ซองหมายเรียกผู้ต้องหารวม - {len(rows_data)} รายการ</title>
+    <title>ซองหมายเรียกรวม - {len(rows_data)} รายการ</title>
     <style>
+        /* กำหนดฟอนต์เริ่มต้น */
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
 
-        * {{
-            box-sizing: border-box;
+        /* ตั้งค่าหน้ากระดาษ A4 และขอบกระดาษ */
+        @page {{
+            size: A4;
+            margin: 0.5cm 0.2cm 1.5cm 0.5cm; /* บน, ขวา, ล่าง, ซ้าย */
         }}
 
         body {{
             font-family: 'Sarabun', sans-serif;
+            font-size: 16px; /* ขนาดตัวอักษรมาตรฐาน (เทียบเท่า 12pt) */
+            line-height: 1.5;
             margin: 0;
             padding: 0;
         }}
@@ -4827,6 +4830,7 @@ class SimpleExcelManager:
             width: 210mm;
             height: 297mm;
             box-sizing: border-box;
+            position: relative; /* สำหรับการจัดวางองค์ประกอบภายใน */
             background-color: white;
             page-break-after: always;
         }}
@@ -4835,63 +4839,62 @@ class SimpleExcelManager:
             page-break-after: avoid;
         }}
 
+        /* ใช้สำหรับจัดวางตำแหน่งที่แน่นอน */
         .absolute {{
             position: absolute;
         }}
 
+        /* ส่วนหัวด้านซ้ายบน - ชิดซ้ายของกระดาษ */
         #header-left {{
-            top: 25mm;
-            left: 25mm;
-            width: 75mm;
-            font-size: 12px;
-            line-height: 1.3;
-        }}
-
-        #postage-box {{
-            top: 25mm;
-            right: 25mm;
-            width: 50mm;
-            height: 40mm;
-            border: 2px solid #000;
-            padding: 8px;
-            text-align: center;
-            font-size: 11px;
-            line-height: 1.3;
-        }}
-
-        #recipient-address {{
-            top: 100mm;
-            right: 25mm;
-            width: 90mm;
-            font-size: 14px;
-            line-height: 1.5;
-        }}
-
-        .label {{
+            top: 0.5cm;
+            left: 0.5cm;
             font-weight: bold;
-            margin-bottom: 10px;
+            max-width: 8cm;
+        }}
+
+        /* กล่องสี่เหลี่ยมด้านขวาบน - ชิดขวาของกระดาษ */
+        #postage-box {{
+            top: 0.5cm;
+            right: 0.2cm;
+            border: 1px solid black;
+            padding: 5px 10px;
             text-align: center;
+            width: 5cm;
         }}
 
-        table {{
-            width: 100%;
+        /* ที่อยู่ผู้รับ */
+        #recipient-address {{
+            top: 2.5cm;
+            left: 9cm;
+        }}
+
+        #recipient-address .label {{
+            font-weight: bold;
+        }}
+
+        #recipient-address table {{
             border-collapse: collapse;
+            margin-top: 5px;
         }}
 
-        td {{
-            padding: 3px 0;
+        #recipient-address td {{
+            padding: 2px 0;
             vertical-align: top;
         }}
 
-        .fold-line {{
-            position: absolute;
-            width: 100%;
-            height: 1px;
-            border-top: 1px dashed #999;
+        #recipient-address .data {{
+            padding-left: 10px;
         }}
 
-        .fold-line-1 {{
-            top: 99mm;
+        /* เส้นแบ่งส่วนสำหรับพับซอง */
+        .fold-line {{
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            border-top: 2px dashed #333;
+            opacity: 0.8;
+            top: 9.9cm;
         }}
 
         @media print {{
@@ -4937,8 +4940,8 @@ class SimpleExcelManager:
         except Exception as e:
             messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถสร้างซองหมายเรียกผู้ต้องหารวม: {str(e)}")
 
-    def generate_single_suspect_envelope_content(self, row_data):
-        """สร้างเนื้อหา HTML สำหรับซองหมายเรียกผู้ต้องหารายการเดียว (ไม่รวม HTML wrapper)"""
+    def generate_single_suspect_envelope_content_for_multiple(self, row_data):
+        """สร้างเนื้อหา HTML สำหรับซองหมายเรียกผู้ต้องหารายการเดียว (สำหรับหลายรายการ)"""
         try:
             import os
 
@@ -4948,23 +4951,34 @@ class SimpleExcelManager:
                     return ''
                 return str(value).strip()
 
-            # ดึงข้อมูลสำหรับซองหมายเรียก
-            suspect_name = format_value(row_data.get('ชื่อ ผตห.', ''))
-            police_station = format_value(row_data.get('สภ.พื้นที่รับผิดชอบ', ''))
-            police_province = format_value(row_data.get('จังหวัด สภ.พื้นที่รับผิดชอบ', ''))
-            police_address = format_value(row_data.get('ที่อยู่ สภ. พื้นที่รับผิดชอบ', ''))
+            # ฟังก์ชันสำหรับสร้างที่อยู่สถานีตำรวจ (คัดลอกมาจาก generate_suspect_envelope_html)
+            def build_police_address(row_data):
+                address_parts = []
 
-            # สร้างชื่อผู้รับ
-            if police_station and police_province:
-                recipient_name = f"ผกก.{police_station} จว.{police_province}"
-            else:
-                recipient_name = f"ผกก.{police_station}" if police_station else "ผู้รับ"
+                # ดึงที่อยู่สถานีตำรวจจากคอลัมน์
+                police_address_raw = format_value(row_data.get('ที่อยู่ สภ. พื้นที่รับผิดชอบ', ''))
 
-            # สร้างเนื้อหา HTML ของซอง
-            content = """
-        <div id="header-left" class="absolute">
-            <div style="display: flex; align-items: flex-start;">
-                <div style="margin-right: 8px;">"""
+                if police_address_raw:
+                    # แยกที่อยู่เป็นบรรทัดตาม \n หรือ , หรือ ;
+                    lines = police_address_raw.replace(',', '\n').replace(';', '\n').split('\n')
+                    for line in lines:
+                        line = line.strip()
+                        if line:
+                            address_parts.append(line)
+
+                return address_parts
+
+            # สร้างที่อยู่เต็ม (ใช้วิธีเดียวกับ generate_suspect_envelope_html)
+            address_parts = build_police_address(row_data)
+
+            # ไม่ใช้ผู้รับแยก เพราะจะใส่ที่อยู่สภ.ตรงๆ (เหมือนกับ generate_suspect_envelope_html)
+            recipient_name = ""
+
+            # สร้างเนื้อหา HTML ของซอง (คัดลอกจาก generate_suspect_envelope_html)
+            content = f"""
+    <div id="header-left" class="absolute" style="top: 0.5cm; left: 0.5cm; font-weight: bold; max-width: 8cm;">
+        <div style="display: flex; align-items: flex-start;">
+            <div style="margin-right: 8px;">"""
 
             # เพิ่มตราครุฑ
             logo_path = "Crut.jpg"
@@ -4979,7 +4993,7 @@ class SimpleExcelManager:
             else:
                 content += '                <div style="width: 67px; height: 67px; background: #ccc; border-radius: 50%; text-align: center; line-height: 67px; font-size: 14px;">ตรา</div>'
 
-            content += f"""
+            content += """
             </div>
             <div style="font-size: 12px; line-height: 1.2; font-weight: bold;">
                 ใช้ในราชการสำนักงานตำรวจแห่งชาติ<br>
@@ -4991,35 +5005,27 @@ class SimpleExcelManager:
         </div>
     </div>
 
-        <div id="postage-box" class="absolute">
-            <p style="margin: 0; padding: 0;">ชำระฝากส่งเป็นรายเดือน<br>ใบอนุญาตที่ ๑๙๙/๒๕๖๔<br>ไปรษณีย์ ศาลากลาง ชม.</p>
-        </div>
+    <div id="postage-box" class="absolute" style="top: 0.5cm; right: 0.2cm; border: 1px solid black; padding: 5px 10px; text-align: center; width: 5cm;">
+        <p style="margin: 0; padding: 0;">ชำระฝากส่งเป็นรายเดือน<br>ใบอนุญาตที่ ๑๙๙/๒๕๖๔<br>ไปรษณีย์ ศาลากลาง ชม.</p>
+    </div>
 
+    <div id="recipient-address" class="absolute" style="top: 2.5cm; left: 9cm;">
+        <p style="font-weight: bold;">กรุณาส่ง</p>
+        <table style="border-collapse: collapse; margin-top: 5px;">"""
 
-        <div id="recipient-address" class="absolute">
-            <p class="label">กรุณาส่ง</p>
-            <table>
-                <tr>
-                    <td>{recipient_name}</td>
-                </tr>"""
-
-            # แยกที่อยู่สถานีตำรวจเป็นบรรทัด
-            if police_address:
-                address_lines = police_address.split('\n')
-                for line in address_lines:
-                    line = line.strip()
-                    if line:
-                        content += f"""
+            # เพิ่มที่อยู่ทีละบรรทัดในตาราง (เหมือนกับ generate_suspect_envelope_html)
+            for address_part in address_parts:
+                content += f"""
             <tr>
-                <td>{line}</td>
+                <td style="padding: 2px 0; vertical-align: top;">{address_part}</td>
             </tr>"""
 
             content += """
-            </table>
-        </div>
+        </table>
+    </div>
 
-        <!-- เส้นแบ่งส่วนสำหรับพับซอง -->
-        <div class="fold-line fold-line-1"></div>"""
+    <!-- เส้นแบ่งส่วนสำหรับพับซอง -->
+    <div style="position: absolute; left: 0; right: 0; height: 2px; border-top: 2px dashed #333; opacity: 0.8; top: 9.9cm;"></div>"""
 
             return content
 
