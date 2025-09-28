@@ -3004,13 +3004,21 @@ class SimpleExcelManager:
                 messagebox.showwarning("คำเตือน", "ไม่พบข้อมูลในแถวที่เลือก")
                 return
 
+            # ถามผู้ใช้ว่าต้องการปริ้นซองหมายเรียกผู้ต้องหาหรือไม่
+            envelope_response = messagebox.askyesno("ซองหมายเรียกผู้ต้องหา",
+                                                  "คุณต้องการปริ้นซองหมายเรียกผู้ต้องหาด้วยหรือไม่?")
+
             # สร้างหมายเรียกผู้ต้องหา
             if len(selected_rows_data) == 1:
                 # กรณีเลือกเพียง 1 รายการ
                 self.generate_suspect_summons_html(selected_rows_data[0])
+                if envelope_response:  # ถ้าต้องการปริ้นซองหมายเรียกผู้ต้องหา
+                    self.generate_suspect_envelope_html(selected_rows_data[0])
             else:
                 # กรณีเลือกหลายรายการ
                 self.generate_multiple_suspect_summons_html(selected_rows_data)
+                if envelope_response:  # ถ้าต้องการปริ้นซองหมายเรียกผู้ต้องหา
+                    self.generate_multiple_suspect_envelopes_html(selected_rows_data)
 
         except Exception as e:
             messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถพิมพ์หมายเรียกผู้ต้องหา: {str(e)}")
@@ -4528,6 +4536,495 @@ class SimpleExcelManager:
 
         except Exception as e:
             return f"<div>เกิดข้อผิดพลาดในการสร้างซองหมายเรียก: {str(e)}</div>"
+
+    def generate_suspect_envelope_html(self, row_data):
+        """สร้างไฟล์ HTML ซองหมายเรียกผู้ต้องหา ตามแบบ PDF"""
+        try:
+            import os
+            from datetime import datetime
+            import webbrowser
+
+            # สร้างโฟลเดอร์ File_Summon หากยังไม่มี
+            os.makedirs("File_Summon", exist_ok=True)
+
+            # ฟังก์ชันจัดรูปแบบ
+            def format_value(value):
+                if value is None or value == '' or str(value).lower() == 'nan':
+                    return ''
+                return str(value).strip()
+
+            # แปลง pandas Series เป็น dict หากจำเป็น
+            if hasattr(row_data, 'iloc'):
+                row_dict = {}
+                if len(row_data) > 0: row_dict['ชื่อ ผตห.'] = row_data.iloc[0]
+                if len(row_data) > 1: row_dict['เลขประจำตัว ปชช. ผตห.'] = row_data.iloc[1]
+                if len(row_data) > 2: row_dict['สภ.พื้นที่รับผิดชอบ'] = row_data.iloc[2]
+                if len(row_data) > 3: row_dict['จังหวัด สภ.พื้นที่รับผิดชอบ'] = row_data.iloc[3]
+                if len(row_data) > 4: row_dict['ที่อยู่ สภ. พื้นที่รับผิดชอบ'] = row_data.iloc[4]
+                if len(row_data) > 5: row_dict['เลขหนังสือ'] = row_data.iloc[5]
+                row_data = row_dict
+
+            # ดึงข้อมูลสำหรับซองหมายเรียก
+            suspect_name = format_value(row_data.get('ชื่อ ผตห.', ''))
+            police_station = format_value(row_data.get('สภ.พื้นที่รับผิดชอบ', ''))
+            police_province = format_value(row_data.get('จังหวัด สภ.พื้นที่รับผิดชอบ', ''))
+            police_address = format_value(row_data.get('ที่อยู่ สภ. พื้นที่รับผิดชอบ', ''))
+
+            # สร้างชื่อผู้รับ
+            if police_station and police_province:
+                recipient_name = f"ผกก.{police_station} จว.{police_province}"
+            else:
+                recipient_name = f"ผกก.{police_station}" if police_station else "ผู้รับ"
+
+            # สร้างชื่อไฟล์
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            document_no = format_value(row_data.get('เลขหนังสือ', ''))
+            filename = os.path.join("File_Summon", f"ซองหมายเรียกผู้ต้องหา_{document_no}_{suspect_name}_{timestamp}.html")
+
+            # สร้าง HTML content ตามรูปแบบที่กำหนด
+            html_content = f"""<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ซองหมายเรียกผู้ต้องหา</title>
+    <style>
+        /* กำหนดฟอนต์เริ่มต้น */
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
+
+        * {{
+            box-sizing: border-box;
+        }}
+
+        body {{
+            font-family: 'Sarabun', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }}
+
+        .envelope-container {{
+            width: 210mm;
+            height: 297mm;
+            background-color: white;
+            position: relative;
+            margin: 0 auto;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border: 1px solid #ddd;
+        }}
+
+        .absolute {{
+            position: absolute;
+        }}
+
+        #header-left {{
+            top: 25mm;
+            left: 25mm;
+            width: 75mm;
+            font-size: 12px;
+            line-height: 1.3;
+        }}
+
+        #postage-box {{
+            top: 25mm;
+            right: 25mm;
+            width: 50mm;
+            height: 40mm;
+            border: 2px solid #000;
+            padding: 8px;
+            text-align: center;
+            font-size: 11px;
+            line-height: 1.3;
+        }}
+
+        #recipient-address {{
+            top: 100mm;
+            right: 25mm;
+            width: 90mm;
+            font-size: 14px;
+            line-height: 1.5;
+        }}
+
+        .label {{
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: center;
+        }}
+
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+        }}
+
+        td {{
+            padding: 3px 0;
+            vertical-align: top;
+        }}
+
+        .fold-line {{
+            position: absolute;
+            width: 100%;
+            height: 1px;
+            border-top: 1px dashed #999;
+        }}
+
+        .fold-line-1 {{
+            top: 99mm;
+        }}
+
+        @media print {{
+            body {{
+                background-color: white;
+            }}
+            .envelope-container {{
+                margin: 0;
+                box-shadow: none;
+                border: none;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="envelope-container">
+        <div id="header-left" class="absolute">
+            <div style="display: flex; align-items: flex-start;">
+                <div style="margin-right: 8px;">"""
+
+            # เพิ่มตราครุฑ
+            logo_path = "Crut.jpg"
+            if os.path.exists(logo_path):
+                try:
+                    import base64
+                    with open(logo_path, "rb") as image_file:
+                        logo_base64 = base64.b64encode(image_file.read()).decode()
+                    html_content += f'                    <img src="data:image/jpeg;base64,{logo_base64}" alt="ตราครุฑ" style="width: 67px; height: 67px;">'
+                except Exception:
+                    html_content += '                    <div style="width: 67px; height: 67px; background: #ccc; border-radius: 50%; text-align: center; line-height: 67px; font-size: 14px;">ตรา</div>'
+            else:
+                html_content += '                    <div style="width: 67px; height: 67px; background: #ccc; border-radius: 50%; text-align: center; line-height: 67px; font-size: 14px;">ตรา</div>'
+
+            html_content += f"""
+                </div>
+                <div style="font-size: 12px; line-height: 1.2; font-weight: bold;">
+                    ใช้ในราชการสำนักงานตำรวจแห่งชาติ<br>
+                    กองกำกับการ 1 กองบังคับการตำรวจสืบสวน<br>
+                    สอบสวนอาชญากรรมทางเทคโนโลยี 4<br>
+                    เลขที่ 370 หมู่ 3 ตำบลดอนแก้ว อำเภอแม่ริม<br>
+                    จังหวัดเชียงใหม่ 50180
+                </div>
+            </div>
+        </div>
+
+        <div id="postage-box" class="absolute">
+            <p style="margin: 0; padding: 0;">ชำระฝากส่งเป็นรายเดือน<br>ใบอนุญาตที่ ๑๙๙/๒๕๖๔<br>ไปรษณีย์ ศาลากลาง ชม.</p>
+        </div>
+
+        <div id="recipient-address" class="absolute">
+            <p class="label">กรุณาส่ง</p>
+            <table>
+                <tr>
+                    <td>{recipient_name}</td>
+                </tr>"""
+
+            # แยกที่อยู่สถานีตำรวจเป็นบรรทัด
+            if police_address:
+                address_lines = police_address.split('\n')
+                for line in address_lines:
+                    line = line.strip()
+                    if line:
+                        html_content += f"""
+                <tr>
+                    <td>{line}</td>
+                </tr>"""
+
+            html_content += """
+            </table>
+        </div>
+
+        <!-- เส้นแบ่งส่วนสำหรับพับซอง -->
+        <div class="fold-line fold-line-1"></div>
+    </div>
+</body>
+</html>"""
+
+            # บันทึกไฟล์ HTML
+            try:
+                with open(filename, 'w', encoding='utf-8') as f:
+                    f.write(html_content)
+
+                # เปิดไฟล์ในเบราว์เซอร์
+                file_path = os.path.abspath(filename)
+                webbrowser.open(f'file://{file_path}')
+
+                messagebox.showinfo("สำเร็จ", f"สร้างซองหมายเรียกผู้ต้องหา {filename} เรียบร้อย")
+
+            except Exception as e:
+                messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถบันทึกไฟล์ซองหมายเรียกผู้ต้องหา: {str(e)}")
+
+        except Exception as e:
+            messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถสร้างซองหมายเรียกผู้ต้องหา: {str(e)}")
+
+    def generate_multiple_suspect_envelopes_html(self, rows_data):
+        """สร้างไฟล์ HTML ซองหมายเรียกผู้ต้องหาหลายรายการ โดยรวมในไฟล์เดียว"""
+        try:
+            from datetime import datetime
+            import os
+
+            # เก็บเนื้อหา HTML ของแต่ละซองหมายเรียก
+            envelope_contents = []
+
+            for i, row_data in enumerate(rows_data):
+                # แปลง pandas Series เป็น dictionary สำหรับฟังก์ชันเดิม
+                if hasattr(row_data, 'iloc'):
+                    row_dict = {}
+                    if len(row_data) > 0: row_dict['ชื่อ ผตห.'] = row_data.iloc[0]
+                    if len(row_data) > 1: row_dict['เลขประจำตัว ปชช. ผตห.'] = row_data.iloc[1]
+                    if len(row_data) > 2: row_dict['สภ.พื้นที่รับผิดชอบ'] = row_data.iloc[2]
+                    if len(row_data) > 3: row_dict['จังหวัด สภ.พื้นที่รับผิดชอบ'] = row_data.iloc[3]
+                    if len(row_data) > 4: row_dict['ที่อยู่ สภ. พื้นที่รับผิดชอบ'] = row_data.iloc[4]
+                    if len(row_data) > 5: row_dict['เลขหนังสือ'] = row_data.iloc[5]
+                    row_data = row_dict
+                elif hasattr(row_data, 'to_dict'):
+                    # ถ้าเป็น pandas Series
+                    row_dict = row_data.to_dict()
+                    row_data = row_dict
+                else:
+                    # ถ้าเป็น dict อยู่แล้ว
+                    row_dict = row_data
+
+                # เรียกใช้ฟังก์ชันเดิมให้คืนค่า HTML สำหรับซองหมายเรียก
+                envelope_content = self.generate_single_suspect_envelope_content(row_dict)
+                envelope_contents.append(envelope_content)
+
+            # สร้างโฟลเดอร์ File_Summon หากยังไม่มี
+            os.makedirs("File_Summon", exist_ok=True)
+
+            # รวมเนื้อหา HTML ทั้งหมด
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            combined_filename = os.path.join("File_Summon", f"ซองหมายเรียกผู้ต้องหารวม_{len(rows_data)}รายการ_{timestamp}.html")
+
+            # สร้าง HTML header
+            combined_html = f"""<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ซองหมายเรียกผู้ต้องหารวม - {len(rows_data)} รายการ</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
+
+        * {{
+            box-sizing: border-box;
+        }}
+
+        body {{
+            font-family: 'Sarabun', sans-serif;
+            margin: 0;
+            padding: 0;
+        }}
+
+        .envelope-page {{
+            width: 210mm;
+            height: 297mm;
+            box-sizing: border-box;
+            background-color: white;
+            page-break-after: always;
+        }}
+
+        .envelope-page:last-child {{
+            page-break-after: avoid;
+        }}
+
+        .absolute {{
+            position: absolute;
+        }}
+
+        #header-left {{
+            top: 25mm;
+            left: 25mm;
+            width: 75mm;
+            font-size: 12px;
+            line-height: 1.3;
+        }}
+
+        #postage-box {{
+            top: 25mm;
+            right: 25mm;
+            width: 50mm;
+            height: 40mm;
+            border: 2px solid #000;
+            padding: 8px;
+            text-align: center;
+            font-size: 11px;
+            line-height: 1.3;
+        }}
+
+        #recipient-address {{
+            top: 100mm;
+            right: 25mm;
+            width: 90mm;
+            font-size: 14px;
+            line-height: 1.5;
+        }}
+
+        .label {{
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: center;
+        }}
+
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+        }}
+
+        td {{
+            padding: 3px 0;
+            vertical-align: top;
+        }}
+
+        .fold-line {{
+            position: absolute;
+            width: 100%;
+            height: 1px;
+            border-top: 1px dashed #999;
+        }}
+
+        .fold-line-1 {{
+            top: 99mm;
+        }}
+
+        @media print {{
+            body {{
+                background-color: white;
+            }}
+            .envelope-page {{
+                margin: 0;
+                box-shadow: none;
+                border: none;
+            }}
+        }}
+    </style>
+</head>
+<body>"""
+
+            # เพิ่มเนื้อหาของแต่ละซอง
+            for i, content in enumerate(envelope_contents):
+                combined_html += f"""
+    <div class="envelope-page">
+        {content}
+    </div>"""
+
+            combined_html += """
+</body>
+</html>"""
+
+            # บันทึกไฟล์ HTML
+            try:
+                with open(combined_filename, 'w', encoding='utf-8') as f:
+                    f.write(combined_html)
+
+                # เปิดไฟล์ในเบราว์เซอร์
+                import webbrowser
+                file_path = os.path.abspath(combined_filename)
+                webbrowser.open(f'file://{file_path}')
+
+                messagebox.showinfo("สำเร็จ", f"สร้างซองหมายเรียกผู้ต้องหารวม {len(rows_data)} รายการ\\nไฟล์: {combined_filename}")
+
+            except Exception as e:
+                messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถบันทึกไฟล์ซองหมายเรียกผู้ต้องหารวม: {str(e)}")
+
+        except Exception as e:
+            messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถสร้างซองหมายเรียกผู้ต้องหารวม: {str(e)}")
+
+    def generate_single_suspect_envelope_content(self, row_data):
+        """สร้างเนื้อหา HTML สำหรับซองหมายเรียกผู้ต้องหารายการเดียว (ไม่รวม HTML wrapper)"""
+        try:
+            import os
+
+            # ฟังก์ชันสำหรับจัดรูปแบบตัวเลข
+            def format_value(value):
+                if value is None or value == '' or str(value).lower() == 'nan':
+                    return ''
+                return str(value).strip()
+
+            # ดึงข้อมูลสำหรับซองหมายเรียก
+            suspect_name = format_value(row_data.get('ชื่อ ผตห.', ''))
+            police_station = format_value(row_data.get('สภ.พื้นที่รับผิดชอบ', ''))
+            police_province = format_value(row_data.get('จังหวัด สภ.พื้นที่รับผิดชอบ', ''))
+            police_address = format_value(row_data.get('ที่อยู่ สภ. พื้นที่รับผิดชอบ', ''))
+
+            # สร้างชื่อผู้รับ
+            if police_station and police_province:
+                recipient_name = f"ผกก.{police_station} จว.{police_province}"
+            else:
+                recipient_name = f"ผกก.{police_station}" if police_station else "ผู้รับ"
+
+            # สร้างเนื้อหา HTML ของซอง
+            content = """
+        <div id="header-left" class="absolute">
+            <div style="display: flex; align-items: flex-start;">
+                <div style="margin-right: 8px;">"""
+
+            # เพิ่มตราครุฑ
+            logo_path = "Crut.jpg"
+            if os.path.exists(logo_path):
+                try:
+                    import base64
+                    with open(logo_path, "rb") as image_file:
+                        logo_base64 = base64.b64encode(image_file.read()).decode()
+                    content += f'                <img src="data:image/jpeg;base64,{logo_base64}" alt="ตราครุฑ" style="width: 67px; height: 67px;">'
+                except Exception:
+                    content += '                <div style="width: 67px; height: 67px; background: #ccc; border-radius: 50%; text-align: center; line-height: 67px; font-size: 14px;">ตรา</div>'
+            else:
+                content += '                <div style="width: 67px; height: 67px; background: #ccc; border-radius: 50%; text-align: center; line-height: 67px; font-size: 14px;">ตรา</div>'
+
+            content += f"""
+            </div>
+            <div style="font-size: 12px; line-height: 1.2; font-weight: bold;">
+                ใช้ในราชการสำนักงานตำรวจแห่งชาติ<br>
+                กองกำกับการ 1 กองบังคับการตำรวจสืบสวน<br>
+                สอบสวนอาชญากรรมทางเทคโนโลยี 4<br>
+                เลขที่ 370 หมู่ 3 ตำบลดอนแก้ว อำเภอแม่ริม<br>
+                จังหวัดเชียงใหม่ 50180
+            </div>
+        </div>
+    </div>
+
+        <div id="postage-box" class="absolute">
+            <p style="margin: 0; padding: 0;">ชำระฝากส่งเป็นรายเดือน<br>ใบอนุญาตที่ ๑๙๙/๒๕๖๔<br>ไปรษณีย์ ศาลากลาง ชม.</p>
+        </div>
+
+
+        <div id="recipient-address" class="absolute">
+            <p class="label">กรุณาส่ง</p>
+            <table>
+                <tr>
+                    <td>{recipient_name}</td>
+                </tr>"""
+
+            # แยกที่อยู่สถานีตำรวจเป็นบรรทัด
+            if police_address:
+                address_lines = police_address.split('\n')
+                for line in address_lines:
+                    line = line.strip()
+                    if line:
+                        content += f"""
+            <tr>
+                <td>{line}</td>
+            </tr>"""
+
+            content += """
+            </table>
+        </div>
+
+        <!-- เส้นแบ่งส่วนสำหรับพับซอง -->
+        <div class="fold-line fold-line-1"></div>"""
+
+            return content
+
+        except Exception as e:
+            return f"<div>เกิดข้อผิดพลาดในการสร้างซองหมายเรียกผู้ต้องหา: {str(e)}</div>"
 
     def generate_bank_letter_pdf(self, row_data):
         """สร้างไฟล์ PDF หมายเรียกขอข้อมูลบัญชีธนาคาร ตามแบบฟอร์มจริง"""
