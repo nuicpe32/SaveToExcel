@@ -3526,7 +3526,7 @@ class SimpleExcelManager:
 			font-weight: bold;
 			font-style: normal;
 		}}
-		@page {{ margin: 0.3in 0.79in 0.79in 0.79in }}
+		@page {{ margin: 0.5in 0.79in 0.79in 0.79in }}
 		p {{ line-height: 115%; margin-bottom: 0.1in; background: transparent; font-family: 'THSarabunNew', sans-serif; }}
 		td p {{ margin-bottom: 0in; background: transparent; font-family: 'THSarabunNew', sans-serif; }}
 		body {{ font-family: 'THSarabunNew', sans-serif; }}
@@ -4055,7 +4055,7 @@ class SimpleExcelManager:
 			font-weight: bold;
 			font-style: normal;
 		}}
-		@page {{ margin: 0.3in 0.79in 0.79in 0.79in }}
+		@page {{ margin: 0.5in 0.79in 0.79in 0.79in }}
 		p {{ line-height: 115%; margin-bottom: 0.1in; background: transparent; font-family: 'THSarabunNew', sans-serif; }}
 		td p {{ margin-bottom: 0in; background: transparent; font-family: 'THSarabunNew', sans-serif; }}
 		body {{ font-family: 'THSarabunNew', sans-serif; }}
@@ -4230,7 +4230,7 @@ class SimpleExcelManager:
 			font-weight: bold;
 			font-style: normal;
 		}}
-		@page {{ margin: 0.3in 0.79in 0.79in 0.79in }}
+		@page {{ margin: 0.5in 0.79in 0.79in 0.79in }}
 		p {{ line-height: 115%; margin-bottom: 0.1in; background: transparent; font-family: 'THSarabunNew', sans-serif; }}
 		td p {{ margin-bottom: 0in; background: transparent; font-family: 'THSarabunNew', sans-serif; }}
 		body {{ font-family: 'THSarabunNew', sans-serif; }}
@@ -4374,19 +4374,27 @@ class SimpleExcelManager:
                     บก.สอท.4 ที่อยู่ เลขที่ 370 ม.3 ต.ดอนแก้ว อ.เเม่ริม
                     จ.เชียงใหม่ 50180" เพื่อพนักงานสอบสวนจะได้ใช้เป็นหลักฐานในการสอบสวนต่อไป</p>
                     <p><br/></p>
-                    <p style="margin-bottom: 0in">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;จึงเรียนมาเพื่อโปรดพิจารณาดำเนินการ</p>
-                    <p style="margin-bottom: 0in"><br/></p>
-                    <p style="margin-bottom: 0in"><font face="THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;พ.ต.ต.</font></p>
-                    <p style="margin-bottom: 0in"><br/></p>
-                    <p align="right" style="margin-bottom: 0in"><font face="THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(
+                    <p><br/>
+
+                    </p>
+                    <p style="margin-bottom: 0in">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;จึงเรียนมาเพื่อโปรดพิจารณาดำเนินการ</p>
+                    <p style="margin-bottom: 0in"><br/>
+
+                    </p>
+                    <p style="margin-bottom: 0in"><font face="THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;พ.ต.ต.</font></p>
+                    <p align="center" style="margin-bottom: 0in"><font face="THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(
                     อำพล ทองอร่าม )</font></p>
-                    <p align="right" style="margin-bottom: 0in"><font face="THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตำแหน่ง สว.(สอบสวน)ฯ
+                    <p align="center" style="margin-bottom: 0in"><font face="THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตำแหน่ง สว.(สอบสวน)ฯ
                     ปรท. ผกก.1 บก.สอท.4</font></p>
                 </td>
             </tr>
         </table>
-        <p><br/><br/></p>
-        <p><font face="Liberation Serif, serif">พนักงานสอบสวน พ.ต.ต.อำพล ทองอร่าม</font></p>
+        <p><br/>
+<br/>
+
+</p>
+        <p><font face="Liberation Serif, serif">พนักงานสอบสวน ว่าที่
+พ.ต.ต.อำพล ทองอร่าม</font></p>
         <p><font face="Liberation Serif, serif">โทร 062-2416478</font></p>
     </div>
     <div style="page-break-after: always;"></div>
