@@ -3,3 +3,4 @@ from .bank_account import BankAccountCreate, BankAccountUpdate, BankAccountRespo
 from .suspect import SuspectCreate, SuspectUpdate, SuspectResponse
 from .criminal_case import CriminalCaseCreate, CriminalCaseUpdate, CriminalCaseResponse
 from .post_arrest import PostArrestCreate, PostArrestUpdate, PostArrestResponse
+from .court import CourtCreate, CourtUpdate, Court

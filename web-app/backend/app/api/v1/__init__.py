@@ -1,11 +1,12 @@
 from fastapi import APIRouter
-from . import auth, bank_accounts, suspects, criminal_cases, post_arrests, documents, case_types
+from . import auth, bank_accounts, suspects, criminal_cases, post_arrests, documents, case_types, courts
 from .endpoints import banks
 
 api_router = APIRouter()
 
 api_router.include_router(auth.router, prefix="/auth", tags=["authentication"])
 api_router.include_router(banks.router, prefix="/banks", tags=["banks"])
+api_router.include_router(courts.router, prefix="/courts", tags=["courts"])
 api_router.include_router(bank_accounts.router, prefix="/bank-accounts", tags=["bank-accounts"])
 api_router.include_router(suspects.router, prefix="/suspects", tags=["suspects"])
 api_router.include_router(criminal_cases.router, prefix="/criminal-cases", tags=["criminal-cases"])

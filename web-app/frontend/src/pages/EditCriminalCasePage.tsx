@@ -14,6 +14,7 @@ interface CriminalCase {
   complainant: string
   complaint_date: string
   case_type?: string
+  court_name?: string
 }
 
 interface CriminalCaseForm {
@@ -23,10 +24,19 @@ interface CriminalCaseForm {
   complainant: string
   complaint_date: string
   case_type?: string
+  court_name?: string
 }
 
 interface CaseTypesResponse {
   case_types: string[]
+}
+
+interface Court {
+  id: number
+  court_name: string
+  court_type: string
+  region: string
+  province: string
 }
 
 const EditCriminalCasePage: React.FC = () => {
@@ -35,6 +45,7 @@ const EditCriminalCasePage: React.FC = () => {
   const [fetching, setFetching] = useState(true)
   const [criminalCase, setCriminalCase] = useState<CriminalCase | null>(null)
   const [caseTypes, setCaseTypes] = useState<string[]>([])
+  const [courts, setCourts] = useState<Court[]>([])
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
 
@@ -56,7 +67,13 @@ const EditCriminalCasePage: React.FC = () => {
         // Fetch case types
         const caseTypesResponse = await api.get<CaseTypesResponse>('/case-types')
         setCaseTypes(caseTypesResponse.data.case_types)
-        
+
+        // Fetch courts
+        const courtsResponse = await api.get('/courts/', {
+          params: { limit: 300 }
+        })
+        setCourts(courtsResponse.data)
+
         // Set form values
         form.setFieldsValue({
           case_number: response.data.case_number,
@@ -64,6 +81,7 @@ const EditCriminalCasePage: React.FC = () => {
           status: response.data.status,
           complainant: response.data.complainant,
           case_type: response.data.case_type,
+          court_name: response.data.court_name,
           complaint_date: response.data.complaint_date ? dayjs(response.data.complaint_date) : undefined
         })
       } catch (error: any) {
@@ -231,11 +249,39 @@ const EditCriminalCasePage: React.FC = () => {
             name="complaint_date"
             rules={[{ required: true, message: 'กรุณาเลือกวันที่รับคำร้องทุกข์' }]}
           >
-            <DatePicker 
-              style={{ width: '100%' }} 
+            <DatePicker
+              style={{ width: '100%' }}
               format="YYYY-MM-DD"
               placeholder="เลือกวันที่รับคำร้องทุกข์"
             />
+          </Form.Item>
+
+          <Form.Item
+            label="เขตอำนาจศาล"
+            name="court_name"
+          >
+            <Select
+              placeholder="เลือกศาล"
+              showSearch
+              allowClear
+              optionFilterProp="children"
+              filterOption={(input, option) => {
+                const children = option?.children as any
+                if (typeof children === 'string') {
+                  return children.toLowerCase().includes(input.toLowerCase())
+                }
+                if (Array.isArray(children)) {
+                  return children.join('').toLowerCase().includes(input.toLowerCase())
+                }
+                return false
+              }}
+            >
+              {courts.map(court => (
+                <Option key={court.id} value={court.court_name}>
+                  {court.court_name} ({court.province})
+                </Option>
+              ))}
+            </Select>
           </Form.Item>
 
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>

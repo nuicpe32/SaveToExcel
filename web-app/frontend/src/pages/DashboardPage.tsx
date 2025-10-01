@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Table, message, Tag, Space, Button, Descriptions, Drawer, Tabs, Popconfirm, Modal } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import { EditOutlined, DeleteOutlined, PlusOutlined, PrinterOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { useAuthStore } from '../stores/authStore'
@@ -553,24 +553,78 @@ export default function DashboardPage() {
                     title: 'การดำเนินการ',
                     key: 'action',
                     render: (_, record) => (
-                      <Space size="small">
-                        <Button
-                          type="link"
-                          icon={<EditOutlined />}
-                          onClick={() => handleEditBank(record)}
-                        >
-                          แก้ไข
-                        </Button>
-                        <Popconfirm
-                          title="คุณแน่ใจหรือไม่ที่จะลบบัญชีนี้?"
-                          onConfirm={() => handleDeleteBank(record.id)}
-                          okText="ใช่"
-                          cancelText="ไม่"
-                        >
-                          <Button type="link" danger icon={<DeleteOutlined />}>
-                            ลบ
+                      <Space size="small" direction="vertical">
+                        <Space size="small">
+                          <Button
+                            type="link"
+                            size="small"
+                            icon={<EditOutlined />}
+                            onClick={() => handleEditBank(record)}
+                          >
+                            แก้ไข
                           </Button>
-                        </Popconfirm>
+                          <Popconfirm
+                            title="คุณแน่ใจหรือไม่ที่จะลบบัญชีนี้?"
+                            onConfirm={() => handleDeleteBank(record.id)}
+                            okText="ใช่"
+                            cancelText="ไม่"
+                          >
+                            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                              ลบ
+                            </Button>
+                          </Popconfirm>
+                        </Space>
+                        <Button
+                          type="primary"
+                          size="small"
+                          icon={<PrinterOutlined />}
+                          onClick={async () => {
+                            try {
+                              const response = await api.get(`/documents/bank-summons/${record.id}`, {
+                                responseType: 'blob'
+                              })
+                              const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
+                              const url = window.URL.createObjectURL(blob)
+                              const printWindow = window.open(url, '_blank')
+                              if (printWindow) {
+                                printWindow.onload = () => {
+                                  setTimeout(() => printWindow.print(), 500)
+                                }
+                              }
+                              message.success('กำลังเปิดหน้าต่างพิมพ์หมายเรียก')
+                            } catch (err) {
+                              message.error('ไม่สามารถสร้างหมายเรียกได้')
+                            }
+                          }}
+                          block
+                        >
+                          ปริ้นหมายเรียก
+                        </Button>
+                        <Button
+                          size="small"
+                          icon={<PrinterOutlined />}
+                          onClick={async () => {
+                            try {
+                              const response = await api.get(`/documents/bank-envelope/${record.id}`, {
+                                responseType: 'blob'
+                              })
+                              const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
+                              const url = window.URL.createObjectURL(blob)
+                              const printWindow = window.open(url, '_blank')
+                              if (printWindow) {
+                                printWindow.onload = () => {
+                                  setTimeout(() => printWindow.print(), 500)
+                                }
+                              }
+                              message.success('กำลังเปิดหน้าต่างพิมพ์ซองหมายเรียก')
+                            } catch (err) {
+                              message.error('ไม่สามารถสร้างซองหมายเรียกได้')
+                            }
+                          }}
+                          block
+                        >
+                          ปริ้นซองหมายเรียก
+                        </Button>
                       </Space>
                     ),
                   },

@@ -67,7 +67,7 @@ class BankAccountUpdate(BaseModel):
 
 class BankAccountResponse(BankAccountBase):
     id: int
-    criminal_case_id: int  # Always required in response
+    criminal_case_id: Optional[int] = None  # Allow null for legacy data
     created_at: datetime
     updated_at: Optional[datetime] = None
     created_by: Optional[int] = None

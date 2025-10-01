@@ -10,7 +10,7 @@ class CriminalCase(Base):
 
     # Case Identification
     case_number = Column(String, unique=True, index=True, nullable=False)
-    case_id = Column(String, index=True, nullable=False)  # Now REQUIRED
+    case_id = Column(String, index=True, nullable=True)  # Allow NULL for cases without case_id
 
     # Case Status
     status = Column(String, default="ระหว่างสอบสวน")

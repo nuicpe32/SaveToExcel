@@ -20,7 +20,8 @@ import {
   BankOutlined,
   UserOutlined,
   FileTextOutlined,
-  ArrowLeftOutlined
+  ArrowLeftOutlined,
+  PrinterOutlined
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import api from '../services/api'
@@ -39,6 +40,7 @@ interface CriminalCase {
   victim_name?: string
   suspect?: string
   charge?: string
+  case_scene?: string
   damage_amount?: string
   complaint_date?: string
   incident_date?: string
@@ -192,6 +194,58 @@ export default function CriminalCaseDetailPage() {
     }
   }
 
+  // Print Bank Summons
+  const handlePrintBankSummons = async (bankAccountId: number) => {
+    try {
+      const response = await api.get(`/documents/bank-summons/${bankAccountId}`, {
+        responseType: 'blob'
+      })
+      
+      // สร้าง Blob URL และเปิดหน้าต่างใหม่
+      const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
+      const url = window.URL.createObjectURL(blob)
+      const printWindow = window.open(url, '_blank')
+      
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print()
+          }, 500)
+        }
+      }
+      
+      message.success('กำลังเปิดหน้าต่างพิมพ์หมายเรียก')
+    } catch (err) {
+      message.error('ไม่สามารถสร้างหมายเรียกได้')
+    }
+  }
+
+  // Print Bank Envelope
+  const handlePrintBankEnvelope = async (bankAccountId: number) => {
+    try {
+      const response = await api.get(`/documents/bank-envelope/${bankAccountId}`, {
+        responseType: 'blob'
+      })
+      
+      // สร้าง Blob URL และเปิดหน้าต่างใหม่
+      const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
+      const url = window.URL.createObjectURL(blob)
+      const printWindow = window.open(url, '_blank')
+      
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print()
+          }, 500)
+        }
+      }
+      
+      message.success('กำลังเปิดหน้าต่างพิมพ์ซองหมายเรียก')
+    } catch (err) {
+      message.error('ไม่สามารถสร้างซองหมายเรียกได้')
+    }
+  }
+
   // Table Columns
   const bankColumns: ColumnsType<BankAccount> = [
     {
@@ -233,27 +287,47 @@ export default function CriminalCaseDetailPage() {
     {
       title: 'การดำเนินการ',
       key: 'action',
-      width: 150,
+      width: 200,
       fixed: 'right',
       render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => handleEditBank(record)}
-          >
-            แก้ไข
-          </Button>
-          <Popconfirm
-            title="คุณแน่ใจหรือไม่ที่จะลบบัญชีนี้?"
-            onConfirm={() => handleDeleteBank(record.id)}
-            okText="ใช่"
-            cancelText="ไม่"
-          >
-            <Button type="link" danger icon={<DeleteOutlined />}>
-              ลบ
+        <Space size="small" direction="vertical" style={{ width: '100%' }}>
+          <Space size="small">
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleEditBank(record)}
+            >
+              แก้ไข
             </Button>
-          </Popconfirm>
+            <Popconfirm
+              title="คุณแน่ใจหรือไม่ที่จะลบบัญชีนี้?"
+              onConfirm={() => handleDeleteBank(record.id)}
+              okText="ใช่"
+              cancelText="ไม่"
+            >
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                ลบ
+              </Button>
+            </Popconfirm>
+          </Space>
+          <Button
+            type="primary"
+            size="small"
+            icon={<PrinterOutlined />}
+            onClick={() => handlePrintBankSummons(record.id)}
+            block
+          >
+            ปริ้นหมายเรียก
+          </Button>
+          <Button
+            size="small"
+            icon={<PrinterOutlined />}
+            onClick={() => handlePrintBankEnvelope(record.id)}
+            block
+          >
+            ปริ้นซองหมายเรียก
+          </Button>
         </Space>
       ),
     },
@@ -379,6 +453,12 @@ export default function CriminalCaseDetailPage() {
           </Descriptions.Item>
           <Descriptions.Item label="เจ้าหน้าที่รับผิดชอบ">
             {criminalCase.officer_in_charge || '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label="สถานที่เกิดเหตุ" span={2}>
+            {criminalCase.case_scene || '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label="เขตอำนาจศาล" span={2}>
+            {criminalCase.court_name || '-'}
           </Descriptions.Item>
           {criminalCase.notes && (
             <Descriptions.Item label="หมายเหตุ" span={2}>

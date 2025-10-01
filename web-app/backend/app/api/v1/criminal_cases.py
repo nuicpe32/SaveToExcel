@@ -18,10 +18,7 @@ def create_criminal_case(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # Auto-generate case_number if not provided
     case_data = criminal_case.dict()
-    if not case_data.get('case_number'):
-        case_data['case_number'] = generate_case_number(db)
 
     # Validate case_number format
     if not validate_case_number(case_data['case_number']):
@@ -162,61 +159,6 @@ def read_criminal_case(
 
     return case
 
-@router.put("/{case_id}", response_model=CriminalCaseResponse)
-def update_criminal_case(
-    case_id: int,
-    criminal_case: CriminalCaseUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    db_case = db.query(CriminalCase).filter(CriminalCase.id == case_id).first()
-    if db_case is None:
-        raise HTTPException(status_code=404, detail="Case not found")
-
-    for key, value in criminal_case.dict(exclude_unset=True).items():
-        setattr(db_case, key, value)
-
-    db_case.last_update_date = datetime.now()
-    
-    # Update Thai date fields if complaint_date is updated
-    if 'complaint_date' in criminal_case.dict(exclude_unset=True) and db_case.complaint_date:
-        from app.services.data_migration import DataMigration
-        migration = DataMigration()
-        db_case.complaint_date_thai = migration._format_thai_date(db_case.complaint_date)
-    
-    if 'incident_date' in criminal_case.dict(exclude_unset=True) and db_case.incident_date:
-        from app.services.data_migration import DataMigration
-        migration = DataMigration()
-        db_case.incident_date_thai = migration._format_thai_date(db_case.incident_date)
-    
-    db.commit()
-    db.refresh(db_case)
-
-    # Add related data counts using case ID
-    db_case.bank_accounts_count = get_bank_accounts_count(db, db_case.id)
-    db_case.suspects_count = get_suspects_count(db, db_case.id)
-    # case_id is already in the database
-
-    # Add row styling
-    complaint_date_str = db_case.complaint_date_thai or str(db_case.complaint_date) if db_case.complaint_date else ''
-    db_case.row_class = get_case_row_class(db_case.status, complaint_date_str, db_case.bank_accounts_count)
-    db_case.row_style = get_case_row_style(db_case.status, complaint_date_str, db_case.bank_accounts_count)
-
-    return db_case
-
-@router.delete("/{case_id}")
-def delete_criminal_case(
-    case_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    db_case = db.query(CriminalCase).filter(CriminalCase.id == case_id).first()
-    if db_case is None:
-        raise HTTPException(status_code=404, detail="Case not found")
-
-    db.delete(db_case)
-    db.commit()
-    return {"ok": True}
 
 @router.get("/{case_id}/bank-accounts", response_model=List[BankAccountResponse])
 def get_case_bank_accounts(

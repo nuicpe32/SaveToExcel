@@ -42,6 +42,7 @@ class PostArrestUpdate(BaseModel):
 class PostArrestResponse(PostArrestBase):
     id: int
     arrest_number: str
+    criminal_case_id: Optional[int] = None  # Allow null for legacy data
     arrest_date: Optional[datetime] = None
     interrogation_completed: bool
     interrogation_date: Optional[datetime] = None

@@ -105,7 +105,26 @@ class DataMigration:
                 if reply_status_raw and str(reply_status_raw).strip() == 'X':
                     reply_status = True
                 
+                # Find criminal case by victim name or create a placeholder
+                criminal_case = self.db.query(CriminalCase).filter(
+                    CriminalCase.victim_name == victim_name
+                ).first()
+                
+                if not criminal_case:
+                    # Create a placeholder criminal case
+                    criminal_case = CriminalCase(
+                        case_number=f"PLACEHOLDER_{index}",
+                        case_id=self._get_value(row, 'เลขเคสไอดี'),
+                        status="ระหว่างสอบสวน",
+                        victim_name=victim_name,
+                        complainant=victim_name,
+                        created_at=datetime.now()
+                    )
+                    self.db.add(criminal_case)
+                    self.db.flush()  # Get the ID
+                
                 suspect = Suspect(
+                    criminal_case_id=criminal_case.id,
                     document_number=self._get_value(row, 'เลขที่หนังสือ'),
                     document_date=self._parse_date(row.get('ลงวันที่')),
                     suspect_name=self._get_value(row, 'ชื่อ ผตห.'),
@@ -114,14 +133,10 @@ class DataMigration:
                     police_station=self._get_value(row, 'สภ.พื้นที่รับผิดชอบ'),
                     police_province=self._get_value(row, 'จังหวัด สภ.พื้นที่รับผิดชอบ'),
                     police_address=self._get_value(row, 'ที่อยู่ สภ. พื้นที่รับผิดชอบ'),
-                    complainant=victim_name,  # ชื่อผู้เสียหาย = ผู้ร้องทุกข์
-                    victim_name=victim_name,
                     case_type=self._get_value(row, 'ประเภทคดี'),
-                    damage_amount=self._get_value(row, 'ความเสียหาย'),
-                    case_id=self._get_value(row, 'เลขเคสไอดี'),
                     appointment_date=self._parse_date(row.get('กำหนดให้มาพบ')),
                     appointment_date_thai=self._get_value(row, 'กำหนดให้มาพบ (ไทย)'),
-                    reply_status=reply_status,  # เพิ่ม reply_status
+                    reply_status=reply_status,
                     status="pending"
                 )
 

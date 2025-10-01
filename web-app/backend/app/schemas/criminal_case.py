@@ -21,7 +21,7 @@ class CriminalCaseBase(BaseModel):
     incident_date: Optional[date] = None
     incident_date_thai: Optional[str] = None
 
-    court_name: Optional[str] = None
+    court_name: Optional[str] = None  # เขตอำนาจศาล
     prosecutor_name: Optional[str] = None
     prosecutor_file_number: Optional[str] = None
 
@@ -31,8 +31,8 @@ class CriminalCaseBase(BaseModel):
     notes: Optional[str] = None
 
 class CriminalCaseCreate(BaseModel):
-    case_number: Optional[str] = None  # Optional - will be auto-generated
-    case_id: str  # NOW REQUIRED - must be provided
+    case_number: str  # REQUIRED - user must provide
+    case_id: str  # REQUIRED - user must provide
     status: str
     complainant: str  # Required
     complaint_date: date  # Required
