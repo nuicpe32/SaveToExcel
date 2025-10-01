@@ -1,5 +1,6 @@
 from .user import User, UserRole
 from .bank import Bank
+from .court import Court
 from .bank_account import BankAccount
 from .suspect import Suspect
 from .criminal_case import CriminalCase

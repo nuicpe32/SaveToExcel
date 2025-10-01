@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "Bash(npm run build:*)",
+      "Bash(PGPASSWORD=password123 psql -h localhost -p 5432 -U user -d criminal_case_db -c \"SELECT DISTINCT bank_name FROM bank_accounts ORDER BY bank_name;\")",
+      "Bash(pip3 install:*)",
+      "Bash(/tmp/migration_venv/bin/pip install psycopg2-binary openpyxl pandas --quiet)",
+      "Bash(/tmp/migration_venv/bin/python3:*)",
+      "Bash(find:*)",
+      "Bash(PGPASSWORD=password123 psql -h localhost -p 5432 -U user -d criminal_case_db -c \"SELECT id, case_number, case_id FROM criminal_cases WHERE case_number = ''11457/2568'';\")",
+      "Bash(chmod:*)",
+      "Bash(/tmp/test_api.sh:*)",
+      "Bash(cat:*)",
+      "Bash(docker-compose exec:*)",
+      "Bash(docker-compose:*)",
+      "Bash(curl:*)",
+      "Bash(git restore:*)",
+      "Bash(git checkout:*)",
+      "Bash(git stash show:*)",
+      "Bash(git stash:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker stop:*)",
+      "Bash(bash:*)",
+      "Bash(dos2unix:*)",
+      "Bash(docker:*)",
+      "Bash(PGPASSWORD=password123 psql -h localhost -p 5432 -U user -d criminal_case_db -c \"SELECT COUNT(*) as total_cases FROM criminal_cases;\")",
+      "Bash(PGPASSWORD=password123 psql -h localhost -p 5432 -U user -d criminal_case_db -c \"SELECT COUNT(*) as total_suspects FROM suspects;\")",
+      "Bash(PGPASSWORD=password123 psql -h localhost -p 5432 -U user -d criminal_case_db -c \"SELECT COUNT(*) as total_bank_accounts FROM bank_accounts;\")",
+      "Read(//mnt/c/SaveToExcel/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

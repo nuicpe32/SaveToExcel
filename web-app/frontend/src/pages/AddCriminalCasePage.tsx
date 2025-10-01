@@ -7,22 +7,34 @@ import dayjs from 'dayjs'
 const { Option } = Select
 
 interface CriminalCaseForm {
-  case_number?: string
-  case_id?: string
+  case_number: string
+  case_id: string
   status: string
   complainant: string
   complaint_date: string
   case_type?: string
+  damage_amount?: string
+  court_name?: string
 }
 
 interface CaseTypesResponse {
   case_types: string[]
 }
 
+interface Court {
+  id: number
+  court_name: string
+  court_type: string
+  region: string
+  province: string
+}
+
+
 const AddCriminalCasePage: React.FC = () => {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [caseTypes, setCaseTypes] = useState<string[]>([])
+  const [courts, setCourts] = useState<Court[]>([])
   const navigate = useNavigate()
 
   const statusOptions = [
@@ -34,39 +46,41 @@ const AddCriminalCasePage: React.FC = () => {
   ]
 
   useEffect(() => {
-    const fetchCaseTypes = async () => {
+    const fetchData = async () => {
       try {
-        const response = await api.get<CaseTypesResponse>('/case-types')
-        setCaseTypes(response.data.case_types)
+        // Fetch case types
+        const caseTypesResponse = await api.get<CaseTypesResponse>('/case-types')
+        setCaseTypes(caseTypesResponse.data.case_types)
+
+        // Fetch courts
+        const courtsResponse = await api.get('/courts/', {
+          params: { limit: 300 }
+        })
+        setCourts(courtsResponse.data)
       } catch (error) {
-        console.error('Error fetching case types:', error)
-        message.error('ไม่สามารถโหลดรายการประเภทคดีได้')
+        console.error('Error fetching data:', error)
+        message.error('ไม่สามารถโหลดข้อมูลได้')
       }
     }
 
-    fetchCaseTypes()
+    fetchData()
   }, [])
 
   const onFinish = async (values: CriminalCaseForm) => {
     try {
       setLoading(true)
 
-      // Format date for API
+      // Format date and values for API
       const formattedValues = {
         ...values,
-        // Remove empty case_number to trigger auto-generation
-        case_number: values.case_number?.trim() || undefined,
-        complaint_date: values.complaint_date ? dayjs(values.complaint_date).format('YYYY-MM-DD') : undefined
+        complaint_date: values.complaint_date ? dayjs(values.complaint_date).format('YYYY-MM-DD') : undefined,
+        // Convert damage_amount to string if provided
+        damage_amount: values.damage_amount ? String(values.damage_amount) : undefined
       }
 
       const response = await api.post('/criminal-cases/', formattedValues)
 
-      // Show success message with generated case number
-      if (response.data.case_number) {
-        message.success(`เพิ่มข้อมูลคดีอาญาสำเร็จ - เลขที่คดี: ${response.data.case_number}`)
-      } else {
-        message.success('เพิ่มข้อมูลคดีอาญาสำเร็จ')
-      }
+      message.success(`เพิ่มข้อมูลคดีอาญาสำเร็จ - เลขที่คดี: ${response.data.case_number}`)
 
       // Use setTimeout to ensure message is shown before navigation
       setTimeout(() => {
@@ -101,19 +115,20 @@ const AddCriminalCasePage: React.FC = () => {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
-                label="เลขที่คดี (Auto-generate)"
+                label="เลขที่คดี"
                 name="case_number"
-                help="เว้นว่างไว้เพื่อสร้างเลขที่คดีอัตโนมัติ หรือระบุเอง เช่น 1385/2568"
+                rules={[{ required: true, message: 'กรุณาระบุเลขที่คดี' }]}
               >
-                <Input placeholder="เว้นว่างเพื่อสร้างอัตโนมัติ" />
+                <Input placeholder="เช่น 1385/2568" />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
                 label="CaseID"
                 name="case_id"
+                rules={[{ required: true, message: 'กรุณาระบุ CaseID' }]}
               >
-                <Input placeholder="เช่น 1) นาย โสภณ พรหมแก้ว" />
+                <Input placeholder="เช่น 68012345678" />
               </Form.Item>
             </Col>
           </Row>
@@ -158,16 +173,60 @@ const AddCriminalCasePage: React.FC = () => {
             <Input placeholder="เช่น นาย โสภณ พรหมแก้ว" />
           </Form.Item>
 
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="วันที่/เวลา รับคำร้องทุกข์"
+                name="complaint_date"
+                rules={[{ required: true, message: 'กรุณาเลือกวันที่รับคำร้องทุกข์' }]}
+              >
+                <DatePicker
+                  style={{ width: '100%' }}
+                  format="YYYY-MM-DD"
+                  placeholder="เลือกวันที่รับคำร้องทุกข์"
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="ความเสียหาย (บาท)"
+                name="damage_amount"
+              >
+                <Input
+                  type="number"
+                  placeholder="เช่น 500000"
+                  style={{ width: '100%' }}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
           <Form.Item
-            label="วันที่/เวลา รับคำร้องทุกข์"
-            name="complaint_date"
-            rules={[{ required: true, message: 'กรุณาเลือกวันที่รับคำร้องทุกข์' }]}
+            label="เขตอำนาจศาล"
+            name="court_name"
           >
-            <DatePicker 
-              style={{ width: '100%' }} 
-              format="YYYY-MM-DD"
-              placeholder="เลือกวันที่รับคำร้องทุกข์"
-            />
+            <Select
+              placeholder="เลือกศาล"
+              showSearch
+              allowClear
+              optionFilterProp="children"
+              filterOption={(input, option) => {
+                const children = option?.children as any
+                if (typeof children === 'string') {
+                  return children.toLowerCase().includes(input.toLowerCase())
+                }
+                if (Array.isArray(children)) {
+                  return children.join('').toLowerCase().includes(input.toLowerCase())
+                }
+                return false
+              }}
+            >
+              {courts.map(court => (
+                <Option key={court.id} value={court.court_name}>
+                  {court.court_name} ({court.province})
+                </Option>
+              ))}
+            </Select>
           </Form.Item>
 
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>

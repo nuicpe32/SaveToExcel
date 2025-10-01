@@ -1,0 +1,81 @@
+# DBeaver PostgreSQL Connection Settings
+# Copy ค่าเหล่านี้ไปใส่ใน DBeaver
+
+=== Main Tab ===
+Connection Type:     PostgreSQL
+Host:               localhost
+Port:               5432
+Database:           criminal_case_db
+Authentication:     Database Native
+Username:           dbuser
+Password:           dbpass123
+
+*** หรือใช้ user เดิม ***
+Username:           user
+Password:           password
+☑ Save password
+☑ Show all databases
+
+=== PostgreSQL Tab ===
+☑ Show all databases
+☐ Show template databases
+☐ Show databases not available for connection
+☑ Show database statistics
+Database:           criminal_case_db
+
+=== Driver Properties Tab ===
+ssl:                false
+sslmode:            disable
+ApplicationName:    DBeaver
+
+=== SSH Tab ===
+☐ Use SSH Tunnel
+
+=== Advanced Tab ===
+☐ Use legacy dialect
+
+=== Test Connection ===
+กด "Test Connection..." ควรได้ผลลัพธ์:
+✓ Connected
+  Server: PostgreSQL 15.14
+  Driver: PostgreSQL JDBC Driver
+
+=== Available Tables (6 tables) ===
+1. bank_accounts                - ข้อมูลบัญชีธนาคาร
+2. criminal_cases               - ข้อมูลคดีอาญา
+3. criminal_cases_case_id_backup - สำรองข้อมูล
+4. post_arrests                 - ข้อมูลหลังจับกุม
+5. suspects                     - ข้อมูลผู้ต้องหา
+6. users                        - ข้อมูลผู้ใช้งาน
+
+=== Connection URL ===
+jdbc:postgresql://localhost:5432/criminal_case_db
+
+=== Alternative: Command Line Connection ===
+psql -h localhost -p 5432 -U user -d criminal_case_db
+Password: password
+
+=== Docker Container Info ===
+Container Name:     criminal-case-db
+Image:              postgres:15-alpine
+Network:            web-app_default
+Port Mapping:       0.0.0.0:5432 -> 5432/tcp
+
+=== Troubleshooting ===
+หากยังเชื่อมต่อไม่ได้:
+
+1. ตรวจสอบ Docker container ทำงาน:
+   docker ps | grep criminal-case-db
+
+2. ทดสอบเชื่อมต่อจาก command line:
+   docker exec criminal-case-db psql -U user -d criminal_case_db -c "SELECT version();"
+
+3. ตรวจสอบ port 5432 ไม่ถูกใช้โดยโปรแกรมอื่น:
+   netstat -an | findstr 5432    (Windows)
+   lsof -i :5432                 (Linux/Mac)
+
+4. Reset password:
+   docker exec criminal-case-db psql -U user -d criminal_case_db -c "ALTER USER \"user\" WITH PASSWORD 'password';"
+
+5. Restart PostgreSQL container:
+   docker restart criminal-case-db

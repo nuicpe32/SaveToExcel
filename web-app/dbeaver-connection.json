@@ -1,0 +1,48 @@
+{
+  "folders": {},
+  "connections": {
+    "postgres-criminal-case-18f3c5d9e8a-4c8a5b3f2e1d0c9a": {
+      "provider": "postgresql",
+      "driver": "postgres-jdbc",
+      "name": "Criminal Case Database",
+      "save-password": true,
+      "configuration": {
+        "host": "localhost",
+        "port": "5432",
+        "database": "criminal_case_db",
+        "url": "jdbc:postgresql://localhost:5432/criminal_case_db",
+        "configurationType": "MANUAL",
+        "type": "dev",
+        "closeIdleConnection": true,
+        "properties": {
+          "connectTimeout": "20",
+          "loginTimeout": "20",
+          "ssl": "false",
+          "sslmode": "disable"
+        },
+        "provider-properties": {
+          "show-database-statistics": "true",
+          "show-unavailable-databases": "false",
+          "show-template-databases": "false",
+          "show-non-default-databases": "false",
+          "read-all-data-types": "false",
+          "read-keys-with-columns": "true",
+          "show-database-description": "true"
+        },
+        "auth-model": "native",
+        "handlers": {}
+      }
+    }
+  },
+  "connection-types": {
+    "dev": {
+      "name": "Development",
+      "color": "255,255,255",
+      "description": "Regular development database",
+      "auto-commit": true,
+      "confirm-execute": false,
+      "confirm-data-change": false,
+      "auto-close-transactions": false
+    }
+  }
+}

@@ -1,4 +1,60 @@
-# ระบบจัดการคดีอาญา - Web Application v3.0.0
+# ระบบจัดการคดีอาญา - Web Application v3.0.1
+
+## ⚠️ สำคัญ: โปรเจคนี้ใช้งาน DEV MODE เป็นหลัก
+
+**🔧 Development Mode เป็นโหมดหลักในการใช้งาน** (อัพเดทเมื่อ 1 ต.ค. 2025)
+
+เนื่องจากระบบมีการพัฒนาต่อเนื่องและต้องการความยืดหยุ่นในการแก้ไข โปรเจคนี้จึงตั้งค่าให้ **ใช้งาน Development Mode เป็นหลัก** แทน Production Mode
+
+### 🚀 วิธีเริ่มต้นใช้งาน (Quick Start)
+
+```bash
+cd /mnt/c/SaveToExcel/web-app
+docker-compose -f docker-compose.dev.yml up -d
+```
+
+**URLs:**
+- Frontend: http://localhost:3001
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+
+**Login:**
+- Username: `admin`
+- Password: `admin123`
+
+**หยุดระบบ:**
+```bash
+docker-compose -f docker-compose.dev.yml down
+```
+
+### 📦 Docker Volumes & Containers
+
+**⚠️ สำคัญมาก:** โปรเจคนี้ใช้ Development Volumes ต่อไปนี้เป็นหลัก:
+
+| Volume Name | Description | Status |
+|------------|-------------|--------|
+| `criminal-case-postgres-dev` | ฐานข้อมูลหลัก (DEV) | ✅ **ใช้งานอยู่** |
+| `criminal-case-uploads-dev` | ไฟล์อัพโหลด (DEV) | ✅ **ใช้งานอยู่** |
+| `web-app_postgres_data` | ฐานข้อมูลเก่า (Production) | ⚠️ ไม่ได้ใช้แล้ว |
+
+**Container Names:**
+- `criminal-case-db-dev` (PostgreSQL)
+- `criminal-case-redis-dev` (Redis)
+- `criminal-case-backend-dev` (FastAPI)
+- `criminal-case-frontend-dev` (React)
+
+### 🔄 กรณีข้อมูลหาย (Volume Recovery)
+
+หากมีการใช้ volume ผิดและข้อมูลหาย ให้ใช้ backup file:
+```bash
+# ใช้ backup ล่าสุด (อยู่ใน /mnt/c/SaveToExcel/web-app/)
+docker cp backup_database_YYYYMMDD_HHMMSS.dump criminal-case-db-dev:/tmp/restore.dump
+docker exec criminal-case-db-dev pg_restore -U user -d criminal_case_db -c -F c /tmp/restore.dump
+```
+
+📖 ดูรายละเอียดใน [BACKUP_RESTORE_GUIDE.md](./BACKUP_RESTORE_GUIDE.md)
+
+---
 
 ## 🎯 ภาพรวมโปรเจค
 
@@ -53,6 +109,53 @@ web-app/
 ```
 
 ## 🚀 การติดตั้งและรันโปรเจค
+
+### 🎨 โหมดการใช้งาน
+
+โปรเจคนี้รองรับ 2 โหมด:
+
+| โหมด | คำอธิบาย | เหมาะสำหรับ | Port |
+|------|---------|-------------|------|
+| **🔧 Development** | Hot Reload, Debug Mode | พัฒนา/ดีบัก | 5173 |
+| **🚀 Production** | Optimized, Static Build | ใช้งานจริง | 3001 |
+
+---
+
+### 🔧 Development Mode (สำหรับ Developer)
+
+**✨ แก้ไขใหม่! พร้อม Hot Reload**
+
+```powershell
+# เข้าโฟลเดอร์
+cd web-app
+
+# รัน Development Mode
+.\start-dev-improved.ps1
+```
+
+**ฟีเจอร์:**
+- ✅ Frontend Hot Reload (Vite Dev Server)
+- ✅ Backend Auto-reload (Uvicorn)
+- ✅ เห็นผลการแก้ไขทันที
+- ✅ Debug Mode เปิดอยู่
+- ✅ Source Maps
+
+**URLs:**
+- Frontend: http://localhost:5173
+- Backend: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+
+**หยุด Development:**
+```powershell
+# กด Ctrl+C ที่ Frontend Terminal
+.\stop-dev-improved.ps1
+```
+
+📖 **เอกสารเต็ม:** [DEV_MODE_SETUP.md](./DEV_MODE_SETUP.md)
+
+---
+
+### 🚀 Production Mode
 
 ### 🎯 วิธีติดตั้งแบบเร็ว (Quick Setup)
 

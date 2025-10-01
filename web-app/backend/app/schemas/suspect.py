@@ -65,7 +65,7 @@ class SuspectUpdate(BaseModel):
 
 class SuspectResponse(SuspectBase):
     id: int
-    criminal_case_id: int  # Always required in response
+    criminal_case_id: Optional[int] = None  # Allow null for legacy data
     reply_status: bool = False
     created_at: datetime
     updated_at: Optional[datetime] = None

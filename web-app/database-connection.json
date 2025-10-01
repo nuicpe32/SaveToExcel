@@ -1,0 +1,45 @@
+{
+  "name": "Criminal Case Database",
+  "type": "PostgreSQL",
+  "connection": {
+    "host": "localhost",
+    "port": 5432,
+    "database": "criminal_case_db",
+    "username": "user",
+    "password": "password",
+    "ssl": false,
+    "sslmode": "disable"
+  },
+  "jdbc_url": "jdbc:postgresql://localhost:5432/criminal_case_db",
+  "connection_string": "postgresql://user:password@localhost:5432/criminal_case_db",
+  "docker": {
+    "container_name": "criminal-case-db",
+    "image": "postgres:15-alpine",
+    "network": "web-app_default",
+    "port_mapping": "0.0.0.0:5432->5432/tcp"
+  },
+  "tables": [
+    "bank_accounts",
+    "criminal_cases",
+    "criminal_cases_case_id_backup",
+    "post_arrests",
+    "suspects",
+    "users"
+  ],
+  "tools": {
+    "dbeaver": {
+      "driver": "PostgreSQL JDBC Driver",
+      "authentication": "Database Native"
+    },
+    "pgadmin": {
+      "url": "http://localhost:5050",
+      "email": "admin@admin.com",
+      "password": "admin"
+    },
+    "adminer": {
+      "url": "http://localhost:8080",
+      "system": "PostgreSQL",
+      "server": "postgres"
+    }
+  }
+}

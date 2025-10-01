@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
 from app.core import get_db
-from app.models import BankAccount, User
+from app.models import BankAccount, User, Bank
 from app.schemas import BankAccountCreate, BankAccountUpdate, BankAccountResponse
 from app.api.v1.auth import get_current_user
 from app.utils.thai_date_utils import format_date_to_thai_buddhist_era
@@ -25,17 +25,23 @@ def create_bank_account(
 ):
     # แปลง BankAccountCreate เป็น dict และเตรียมข้อมูล
     bank_data = bank_account.dict()
-    
+
     # ไม่ต้อง auto-generate document_number
     # ให้ผู้ใช้กรอกเอง หรือเว้นว่างไว้
-    
+
+    # Auto-lookup bank_id from bank_name
+    if bank_data.get('bank_name'):
+        bank = db.query(Bank).filter(Bank.bank_name == bank_data['bank_name']).first()
+        if bank:
+            bank_data['bank_id'] = bank.id
+
     # แปลง document_date เป็น document_date_thai อัตโนมัติ
     if bank_data.get('document_date'):
         bank_data['document_date_thai'] = format_date_to_thai_buddhist_era(bank_data['document_date'])
-    
+
     # เพิ่ม created_by
     bank_data['created_by'] = current_user.id
-    
+
     # สร้าง BankAccount instance
     db_bank_account = BankAccount(**bank_data)
     db.add(db_bank_account)
@@ -76,11 +82,17 @@ def update_bank_account(
         raise HTTPException(status_code=404, detail="Bank account not found")
 
     update_data = bank_account.dict(exclude_unset=True)
-    
+
+    # Auto-lookup bank_id from bank_name if bank_name is being updated
+    if 'bank_name' in update_data and update_data['bank_name']:
+        bank = db.query(Bank).filter(Bank.bank_name == update_data['bank_name']).first()
+        if bank:
+            update_data['bank_id'] = bank.id
+
     # แปลง document_date เป็น document_date_thai อัตโนมัติ
     if 'document_date' in update_data and update_data['document_date']:
         update_data['document_date_thai'] = format_date_to_thai_buddhist_era(update_data['document_date'])
-    
+
     for key, value in update_data.items():
         setattr(db_bank_account, key, value)
 

@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <defs>
+    <style>
+      .entity { fill: #E8F4F8; stroke: #2E86AB; stroke-width: 2; }
+      .entity-header { fill: #2E86AB; }
+      .text-header { fill: white; font-family: Arial; font-size: 16px; font-weight: bold; }
+      .text-field { font-family: 'Courier New'; font-size: 13px; fill: #333; }
+      .text-pk { font-weight: bold; fill: #D4AF37; }
+      .text-fk { fill: #4A90E2; }
+      .relationship { stroke: #2E86AB; stroke-width: 2; fill: none; }
+      .crow-foot { stroke: #2E86AB; stroke-width: 2; }
+    </style>
+  </defs>
+
+  <!-- Title -->
+  <text x="600" y="30" text-anchor="middle" font-family="Arial" font-size="24" font-weight="bold" fill="#2E86AB">
+    Criminal Case Management System - ERD
+  </text>
+
+  <!-- CRIMINAL_CASES (Center Top) -->
+  <g id="criminal_cases">
+    <rect x="450" y="60" width="300" height="200" class="entity" rx="5"/>
+    <rect x="450" y="60" width="300" height="35" class="entity-header" rx="5"/>
+    <text x="600" y="83" text-anchor="middle" class="text-header">CRIMINAL_CASES</text>
+    <text x="460" y="110" class="text-field text-pk">🔑 id (PK)</text>
+    <text x="460" y="130" class="text-field">case_number (UK)</text>
+    <text x="460" y="150" class="text-field">complainant</text>
+    <text x="460" y="170" class="text-field">victim_name</text>
+    <text x="460" y="190" class="text-field">status</text>
+    <text x="460" y="210" class="text-field">complaint_date</text>
+    <text x="460" y="230" class="text-field text-fk">created_by (FK)</text>
+    <text x="460" y="248" class="text-field" font-size="11">+ 24 more fields...</text>
+  </g>
+
+  <!-- BANK_ACCOUNTS (Left) -->
+  <g id="bank_accounts">
+    <rect x="50" y="320" width="280" height="180" class="entity" rx="5"/>
+    <rect x="50" y="320" width="280" height="35" class="entity-header" rx="5"/>
+    <text x="190" y="343" text-anchor="middle" class="text-header">BANK_ACCOUNTS</text>
+    <text x="60" y="370" class="text-field text-pk">🔑 id (PK)</text>
+    <text x="60" y="390" class="text-field text-fk">🔗 criminal_case_id (FK)</text>
+    <text x="60" y="410" class="text-field">document_number</text>
+    <text x="60" y="430" class="text-field">bank_name</text>
+    <text x="60" y="450" class="text-field">account_number</text>
+    <text x="60" y="470" class="text-field">reply_status</text>
+    <text x="60" y="490" class="text-field" font-size="11">+ 28 more fields...</text>
+  </g>
+
+  <!-- SUSPECTS (Center) -->
+  <g id="suspects">
+    <rect x="460" y="320" width="280" height="180" class="entity" rx="5"/>
+    <rect x="460" y="320" width="280" height="35" class="entity-header" rx="5"/>
+    <text x="600" y="343" text-anchor="middle" class="text-header">SUSPECTS</text>
+    <text x="470" y="370" class="text-field text-pk">🔑 id (PK)</text>
+    <text x="470" y="390" class="text-field text-fk">🔗 criminal_case_id (FK)</text>
+    <text x="470" y="410" class="text-field">suspect_name</text>
+    <text x="470" y="430" class="text-field">suspect_id_card</text>
+    <text x="470" y="450" class="text-field">appointment_date</text>
+    <text x="470" y="470" class="text-field">reply_status</text>
+    <text x="470" y="490" class="text-field" font-size="11">+ 18 more fields...</text>
+  </g>
+
+  <!-- POST_ARRESTS (Right) -->
+  <g id="post_arrests">
+    <rect x="870" y="320" width="280" height="200" class="entity" rx="5"/>
+    <rect x="870" y="320" width="280" height="35" class="entity-header" rx="5"/>
+    <text x="1010" y="343" text-anchor="middle" class="text-header">POST_ARRESTS</text>
+    <text x="880" y="370" class="text-field text-pk">🔑 id (PK)</text>
+    <text x="880" y="390" class="text-field text-fk">🔗 criminal_case_id (FK)</text>
+    <text x="880" y="410" class="text-field">suspect_name</text>
+    <text x="880" y="430" class="text-field">arrest_date</text>
+    <text x="880" y="450" class="text-field">warrant_number</text>
+    <text x="880" y="470" class="text-field">prosecutor_name</text>
+    <text x="880" y="490" class="text-field">bail_status</text>
+    <text x="880" y="510" class="text-field" font-size="11">+ 42 more fields...</text>
+  </g>
+
+  <!-- USERS (Bottom Center) -->
+  <g id="users">
+    <rect x="475" y="580" width="250" height="160" class="entity" rx="5"/>
+    <rect x="475" y="580" width="250" height="35" class="entity-header" rx="5"/>
+    <text x="600" y="603" text-anchor="middle" class="text-header">USERS</text>
+    <text x="485" y="630" class="text-field text-pk">🔑 id (PK)</text>
+    <text x="485" y="650" class="text-field">username (UK)</text>
+    <text x="485" y="670" class="text-field">email (UK)</text>
+    <text x="485" y="690" class="text-field">full_name</text>
+    <text x="485" y="710" class="text-field">role</text>
+    <text x="485" y="730" class="text-field">is_active</text>
+  </g>
+
+  <!-- Relationships: CRIMINAL_CASES to children -->
+
+  <!-- CC to BANK_ACCOUNTS (1:N) -->
+  <path d="M 450 160 L 330 160 L 330 390" class="relationship" marker-end="url(#crow-foot)"/>
+  <text x="340" y="270" font-size="12" fill="#2E86AB">1:N</text>
+  <text x="340" y="285" font-size="10" fill="#666">CASCADE</text>
+
+  <!-- CC to SUSPECTS (1:N) -->
+  <path d="M 600 260 L 600 320" class="relationship" marker-end="url(#crow-foot)"/>
+  <text x="610" y="290" font-size="12" fill="#2E86AB">1:N</text>
+  <text x="610" y="305" font-size="10" fill="#666">CASCADE</text>
+
+  <!-- CC to POST_ARRESTS (1:N) -->
+  <path d="M 750 160 L 1010 160 L 1010 320" class="relationship" marker-end="url(#crow-foot)"/>
+  <text x="870" y="155" font-size="12" fill="#2E86AB">1:N</text>
+
+  <!-- USERS to CRIMINAL_CASES (1:N) - dotted for missing FK -->
+  <path d="M 600 540 L 600 580" class="relationship" stroke-dasharray="5,5" marker-end="url(#crow-foot)"/>
+  <text x="610" y="560" font-size="12" fill="#E74C3C">1:N*</text>
+  <text x="610" y="572" font-size="9" fill="#E74C3C">Missing FK</text>
+
+  <!-- Arrow markers -->
+  <defs>
+    <marker id="crow-foot" markerWidth="15" markerHeight="15" refX="10" refY="7.5" orient="auto">
+      <path d="M 0 0 L 10 7.5 L 0 15 M 10 7.5 L 15 7.5" class="crow-foot" fill="none"/>
+    </marker>
+  </defs>
+
+  <!-- Legend -->
+  <g id="legend">
+    <rect x="50" y="600" width="350" height="140" fill="#F8F9FA" stroke="#CCC" stroke-width="1" rx="5"/>
+    <text x="60" y="625" font-family="Arial" font-size="14" font-weight="bold" fill="#333">Legend</text>
+    <text x="60" y="650" font-size="12" fill="#333">🔑 PK = Primary Key</text>
+    <text x="60" y="670" font-size="12" fill="#333">🔗 FK = Foreign Key</text>
+    <text x="60" y="690" font-size="12" fill="#333">UK = Unique Key</text>
+    <text x="60" y="710" font-size="12" fill="#333">─── Solid line = Active FK</text>
+    <text x="60" y="730" font-size="12" fill="#E74C3C">- - - Dashed line = Missing FK</text>
+  </g>
+
+  <!-- Statistics Box -->
+  <g id="stats">
+    <rect x="850" y="600" width="300" height="140" fill="#F8F9FA" stroke="#CCC" stroke-width="1" rx="5"/>
+    <text x="860" y="625" font-family="Arial" font-size="14" font-weight="bold" fill="#333">Current Records</text>
+    <text x="860" y="650" font-size="12" fill="#333">Bank Accounts: 417</text>
+    <text x="860" y="670" font-size="12" fill="#333">Criminal Cases: 47</text>
+    <text x="860" y="690" font-size="12" fill="#333">Suspects: 15</text>
+    <text x="860" y="710" font-size="12" fill="#333">Post Arrests: 12</text>
+    <text x="860" y="730" font-size="12" fill="#333">Users: 1</text>
+  </g>
+
+  <!-- Footer -->
+  <text x="600" y="780" text-anchor="middle" font-size="11" fill="#999">
+    Generated from PostgreSQL 15 | Criminal Case Management System v2.9.0
+  </text>
+</svg>
