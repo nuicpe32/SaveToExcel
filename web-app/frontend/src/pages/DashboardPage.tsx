@@ -483,36 +483,38 @@ export default function DashboardPage() {
 
   return (
     <div style={{ padding: '20px' }}>
-      {/* แถบสถิติ */}
-      <div style={{ 
-        marginBottom: '20px', 
-        padding: '12px 16px', 
-        backgroundColor: '#f0f8ff', 
-        border: '1px solid #d9d9d9', 
-        borderRadius: '6px',
-        fontSize: '14px',
-        fontWeight: '500',
-        color: '#1890ff'
-      }}>
-        <span style={{ marginRight: '20px' }}>
-          จำนวนคดีทั้งหมด: <strong>{stats.totalCases}</strong>
-        </span>
-        <span style={{ marginRight: '20px' }}>
-          กำลังดำเนินการ: <strong style={{ color: '#52c41a' }}>{stats.processingCases}</strong>
-        </span>
-        <span style={{ marginRight: '20px' }}>
-          เกิน 6 เดือน: <strong style={{ color: '#fa8c16' }}>{stats.over6MonthsCases}</strong>
-        </span>
-        <span>
-          จำหน่ายแล้ว: <strong style={{ color: '#722ed1' }}>{stats.closedCases}</strong>
-        </span>
-      </div>
-
-      <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1>คดีอาญาในความรับผิดชอบ</h1>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAddNew}>
-          เพิ่มคดีใหม่
-        </Button>
+      {/* หัวข้อและแถบสถิติ */}
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h1 style={{ margin: 0 }}>คดีอาญาในความรับผิดชอบ</h1>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAddNew}>
+            เพิ่มคดีใหม่
+          </Button>
+        </div>
+        
+        {/* แถบสถิติ */}
+        <div style={{ 
+          padding: '12px 16px', 
+          backgroundColor: '#f0f8ff', 
+          border: '1px solid #d9d9d9', 
+          borderRadius: '6px',
+          fontSize: '14px',
+          fontWeight: '500',
+          color: '#1890ff'
+        }}>
+          <span style={{ marginRight: '20px' }}>
+            จำนวนคดีทั้งหมด: <strong>{stats.totalCases}</strong>
+          </span>
+          <span style={{ marginRight: '20px' }}>
+            กำลังดำเนินการ: <strong style={{ color: '#52c41a' }}>{stats.processingCases}</strong>
+          </span>
+          <span style={{ marginRight: '20px' }}>
+            เกิน 6 เดือน: <strong style={{ color: '#fa8c16' }}>{stats.over6MonthsCases}</strong>
+          </span>
+          <span>
+            จำหน่ายแล้ว: <strong style={{ color: '#722ed1' }}>{stats.closedCases}</strong>
+          </span>
+        </div>
       </div>
 
       <Table
