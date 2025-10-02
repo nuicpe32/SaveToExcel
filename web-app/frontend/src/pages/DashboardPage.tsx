@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Table, message, Tag, Space, Button, Descriptions, Drawer, Tabs, Popconfirm, Modal } from 'antd'
+import { Table, message, Tag, Space, Button, Descriptions, Drawer, Tabs, Popconfirm, Modal, Input } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { EditOutlined, DeleteOutlined, PlusOutlined, PrinterOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
@@ -108,8 +108,8 @@ export default function DashboardPage() {
     let closedCases = 0
     
     cases.forEach(caseItem => {
-      // ตรวจสอบสถานะคดี
-      if (caseItem.status === 'closed' || caseItem.status === 'completed') {
+      // ตรวจสอบสถานะคดี - แก้ไขให้รองรับสถานะ 'จำหน่าย'
+      if (caseItem.status === 'closed' || caseItem.status === 'completed' || caseItem.status === 'จำหน่าย') {
         closedCases++
       } else {
         processingCases++
@@ -122,6 +122,17 @@ export default function DashboardPage() {
           }
         }
       }
+    })
+    
+    console.log('📊 Statistics calculation:', {
+      totalCases,
+      processingCases,
+      over6MonthsCases,
+      closedCases,
+      statusBreakdown: cases.reduce((acc, caseItem) => {
+        acc[caseItem.status] = (acc[caseItem.status] || 0) + 1
+        return acc
+      }, {} as Record<string, number>)
     })
     
     return {
@@ -383,6 +394,30 @@ export default function DashboardPage() {
 
   const columns: ColumnsType<CriminalCase> = [
     {
+      title: 'ลำดับ',
+      key: 'row_number',
+      width: 80,
+      render: (_, __, index) => index + 1,
+      filters: [
+        { text: '1-10', value: '1-10' },
+        { text: '11-20', value: '11-20' },
+        { text: '21-30', value: '21-30' },
+        { text: '31+', value: '31+' },
+      ],
+      onFilter: (value: any, record: CriminalCase) => {
+        // สำหรับคอลัมน์ลำดับ เราจะใช้ index จาก dataSource
+        const index = data.findIndex(item => item.id === record.id)
+        const num = index + 1
+        switch (value) {
+          case '1-10': return num >= 1 && num <= 10
+          case '11-20': return num >= 11 && num <= 20
+          case '21-30': return num >= 21 && num <= 30
+          case '31+': return num >= 31
+          default: return true
+        }
+      },
+    },
+    {
       title: 'เลขที่คดี',
       dataIndex: 'case_number',
       key: 'case_number',
@@ -391,11 +426,63 @@ export default function DashboardPage() {
           {record.case_number}
         </Button>
       ),
+      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
+        <div style={{ padding: 8 }}>
+          <Input
+            placeholder="ค้นหาเลขที่คดี"
+            value={selectedKeys[0]}
+            onChange={(e: any) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+            onPressEnter={() => confirm()}
+            style={{ width: 188, marginBottom: 8, display: 'block' }}
+          />
+          <Space>
+            <Button
+              type="primary"
+              onClick={() => confirm()}
+              size="small"
+              style={{ width: 90 }}
+            >
+              ค้นหา
+            </Button>
+            <Button onClick={() => clearFilters && clearFilters()} size="small" style={{ width: 90 }}>
+              รีเซ็ต
+            </Button>
+          </Space>
+        </div>
+      ),
+      onFilter: (value: any, record: CriminalCase) =>
+        record.case_number?.toLowerCase().includes((value as string).toLowerCase()) || false,
     },
     {
       title: 'CaseID',
       dataIndex: 'case_id',
       key: 'case_id',
+      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
+        <div style={{ padding: 8 }}>
+          <Input
+            placeholder="ค้นหา CaseID"
+            value={selectedKeys[0]}
+            onChange={(e: any) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+            onPressEnter={() => confirm()}
+            style={{ width: 188, marginBottom: 8, display: 'block' }}
+          />
+          <Space>
+            <Button
+              type="primary"
+              onClick={() => confirm()}
+              size="small"
+              style={{ width: 90 }}
+            >
+              ค้นหา
+            </Button>
+            <Button onClick={() => clearFilters && clearFilters()} size="small" style={{ width: 90 }}>
+              รีเซ็ต
+            </Button>
+          </Space>
+        </div>
+      ),
+      onFilter: (value: any, record: CriminalCase) =>
+        record.case_id?.toLowerCase().includes((value as string).toLowerCase()) || false,
     },
     {
       title: 'สถานะคดี',
@@ -405,11 +492,43 @@ export default function DashboardPage() {
         const textStyle = getStatusTextStyle(status, record.complaint_date)
         return <Tag color="blue" style={textStyle}>{status}</Tag>
       },
+      filters: [
+        { text: 'ระหว่างสอบสวน', value: 'ระหว่างสอบสวน' },
+        { text: 'จำหน่าย', value: 'จำหน่าย' },
+        { text: 'ส่งอัยการ', value: 'ส่งอัยการ' },
+      ],
+      onFilter: (value: any, record: CriminalCase) => record.status === value,
     },
     {
       title: 'ผู้ร้องทุกข์',
       dataIndex: 'complainant',
       key: 'complainant',
+      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
+        <div style={{ padding: 8 }}>
+          <Input
+            placeholder="ค้นหาผู้ร้องทุกข์"
+            value={selectedKeys[0]}
+            onChange={(e: any) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+            onPressEnter={() => confirm()}
+            style={{ width: 188, marginBottom: 8, display: 'block' }}
+          />
+          <Space>
+            <Button
+              type="primary"
+              onClick={() => confirm()}
+              size="small"
+              style={{ width: 90 }}
+            >
+              ค้นหา
+            </Button>
+            <Button onClick={() => clearFilters && clearFilters()} size="small" style={{ width: 90 }}>
+              รีเซ็ต
+            </Button>
+          </Space>
+        </div>
+      ),
+      onFilter: (value: any, record: CriminalCase) =>
+        record.complainant?.toLowerCase().includes((value as string).toLowerCase()) || false,
     },
     {
       title: 'วันที่/เวลา รับคำร้องทุกข์',
@@ -429,22 +548,103 @@ export default function DashboardPage() {
       dataIndex: 'court_name',
       key: 'court_name',
       render: (courtName: string) => courtName || '-',
+      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }) => (
+        <div style={{ padding: 8 }}>
+          <Input
+            placeholder="ค้นหาเขตอำนาจศาล"
+            value={selectedKeys[0]}
+            onChange={(e: any) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+            onPressEnter={() => confirm()}
+            style={{ width: 188, marginBottom: 8, display: 'block' }}
+          />
+          <Space>
+            <Button
+              type="primary"
+              onClick={() => confirm()}
+              size="small"
+              style={{ width: 90 }}
+            >
+              ค้นหา
+            </Button>
+            <Button onClick={() => clearFilters && clearFilters()} size="small" style={{ width: 90 }}>
+              รีเซ็ต
+            </Button>
+          </Space>
+        </div>
+      ),
+      onFilter: (value: any, record: CriminalCase) =>
+        (record.court_name || '').toLowerCase().includes((value as string).toLowerCase()),
     },
     {
       title: 'อายุคดี',
       dataIndex: 'complaint_date',
       key: 'case_age',
       render: (date: string) => calculateCaseAge(date),
+      filters: [
+        { text: '0-30 วัน', value: '0-30' },
+        { text: '31-90 วัน', value: '31-90' },
+        { text: '91-180 วัน', value: '91-180' },
+        { text: '181-365 วัน', value: '181-365' },
+        { text: 'มากกว่า 1 ปี', value: '365+' },
+      ],
+      onFilter: (value: any, record: CriminalCase) => {
+        if (!record.complaint_date) return false
+        const complaintDate = new Date(record.complaint_date)
+        const now = new Date()
+        const diffTime = Math.abs(now.getTime() - complaintDate.getTime())
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+        
+        switch (value) {
+          case '0-30': return diffDays <= 30
+          case '31-90': return diffDays >= 31 && diffDays <= 90
+          case '91-180': return diffDays >= 91 && diffDays <= 180
+          case '181-365': return diffDays >= 181 && diffDays <= 365
+          case '365+': return diffDays > 365
+          default: return true
+        }
+      },
     },
     {
       title: 'จำนวนบัญชีธนาคาร',
       dataIndex: 'bank_accounts_count',
       key: 'bank_accounts_count',
+      filters: [
+        { text: '0 บัญชี', value: '0' },
+        { text: '1-5 บัญชี', value: '1-5' },
+        { text: '6-10 บัญชี', value: '6-10' },
+        { text: 'มากกว่า 10 บัญชี', value: '10+' },
+      ],
+      onFilter: (value: any, record: CriminalCase) => {
+        const count = parseInt(record.bank_accounts_count || '0')
+        switch (value) {
+          case '0': return count === 0
+          case '1-5': return count >= 1 && count <= 5
+          case '6-10': return count >= 6 && count <= 10
+          case '10+': return count > 10
+          default: return true
+        }
+      },
     },
     {
       title: 'จำนวน ผู้ต้องหาที่เกี่ยวข้อง',
       dataIndex: 'suspects_count',
       key: 'suspects_count',
+      filters: [
+        { text: '0 คน', value: '0' },
+        { text: '1-3 คน', value: '1-3' },
+        { text: '4-6 คน', value: '4-6' },
+        { text: 'มากกว่า 6 คน', value: '6+' },
+      ],
+      onFilter: (value: any, record: CriminalCase) => {
+        const count = parseInt(record.suspects_count || '0')
+        switch (value) {
+          case '0': return count === 0
+          case '1-3': return count >= 1 && count <= 3
+          case '4-6': return count >= 4 && count <= 6
+          case '6+': return count > 6
+          default: return true
+        }
+      },
     },
     {
       title: 'จัดการ',
