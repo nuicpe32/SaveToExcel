@@ -108,14 +108,13 @@ export default function DashboardPage() {
     let closedCases = 0
     
     cases.forEach(caseItem => {
-      // ตรวจสอบสถานะคดี - 'ส่งอัยการ' และ 'จำหน่าย' ถือเป็นจำหน่ายแล้ว
-      if (caseItem.status === 'closed' || caseItem.status === 'completed' || 
-          caseItem.status === 'จำหน่าย' || caseItem.status === 'ส่งอัยการ') {
+      // ตรวจสอบสถานะคดี - มีแค่ 2 สถานะ: 'จำหน่าย' และ 'ระหว่างสอบสวน'
+      if (caseItem.status === 'จำหน่าย') {
         closedCases++
-      } else {
+      } else if (caseItem.status === 'ระหว่างสอบสวน') {
         processingCases++
         
-        // ตรวจสอบคดีที่เกิน 6 เดือน
+        // ตรวจสอบคดีที่เกิน 6 เดือน (เฉพาะคดีที่ยังดำเนินการอยู่)
         if (caseItem.complaint_date) {
           const complaintDate = new Date(caseItem.complaint_date)
           if (complaintDate < sixMonthsAgo) {
@@ -496,7 +495,6 @@ export default function DashboardPage() {
       filters: [
         { text: 'ระหว่างสอบสวน', value: 'ระหว่างสอบสวน' },
         { text: 'จำหน่าย', value: 'จำหน่าย' },
-        { text: 'ส่งอัยการ', value: 'ส่งอัยการ' },
       ],
       onFilter: (value: any, record: CriminalCase) => record.status === value,
     },
