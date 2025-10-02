@@ -43,8 +43,6 @@ interface Suspect {
   police_address?: string
   complainant?: string
   victim_name?: string
-  case_type?: string
-  damage_amount?: string
   case_id?: string
   appointment_date?: string
   appointment_date_thai?: string
@@ -68,6 +66,7 @@ interface CriminalCase {
   case_age_days?: number
   bank_accounts_count?: string
   suspects_count?: string
+  court_name?: string
   row_class?: string
   row_style?: Record<string, any>
 }
@@ -374,6 +373,12 @@ export default function DashboardPage() {
         return new Date(a.complaint_date).getTime() - new Date(b.complaint_date).getTime()
       },
       defaultSortOrder: 'descend',
+    },
+    {
+      title: 'เขตอำนาจศาล',
+      dataIndex: 'court_name',
+      key: 'court_name',
+      render: (courtName: string) => courtName || '-',
     },
     {
       title: 'อายุคดี',
@@ -773,9 +778,6 @@ export default function DashboardPage() {
             </Descriptions.Item>
             <Descriptions.Item label="ที่อยู่สถานีตำรวจ">
               {selectedSuspect.police_address || '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label="ประเภทคดี">
-              {selectedSuspect.case_type || '-'}
             </Descriptions.Item>
             <Descriptions.Item label="สถานะตอบกลับ">
               {selectedSuspect.reply_status ? (

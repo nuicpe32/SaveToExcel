@@ -15,6 +15,7 @@ interface CriminalCase {
   complaint_date: string
   case_type?: string
   court_name?: string
+  damage_amount?: string
 }
 
 interface CriminalCaseForm {
@@ -25,6 +26,7 @@ interface CriminalCaseForm {
   complaint_date: string
   case_type?: string
   court_name?: string
+  damage_amount?: string
 }
 
 interface CaseTypesResponse {
@@ -82,6 +84,7 @@ const EditCriminalCasePage: React.FC = () => {
           complainant: response.data.complainant,
           case_type: response.data.case_type,
           court_name: response.data.court_name,
+          damage_amount: response.data.damage_amount,
           complaint_date: response.data.complaint_date ? dayjs(response.data.complaint_date) : undefined
         })
       } catch (error: any) {
@@ -256,33 +259,45 @@ const EditCriminalCasePage: React.FC = () => {
             />
           </Form.Item>
 
-          <Form.Item
-            label="เขตอำนาจศาล"
-            name="court_name"
-          >
-            <Select
-              placeholder="เลือกศาล"
-              showSearch
-              allowClear
-              optionFilterProp="children"
-              filterOption={(input, option) => {
-                const children = option?.children as any
-                if (typeof children === 'string') {
-                  return children.toLowerCase().includes(input.toLowerCase())
-                }
-                if (Array.isArray(children)) {
-                  return children.join('').toLowerCase().includes(input.toLowerCase())
-                }
-                return false
-              }}
-            >
-              {courts.map(court => (
-                <Option key={court.id} value={court.court_name}>
-                  {court.court_name} ({court.province})
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="เขตอำนาจศาล"
+                name="court_name"
+              >
+                <Select
+                  placeholder="เลือกศาล"
+                  showSearch
+                  allowClear
+                  optionFilterProp="children"
+                  filterOption={(input, option) => {
+                    const children = option?.children as any
+                    if (typeof children === 'string') {
+                      return children.toLowerCase().includes(input.toLowerCase())
+                    }
+                    if (Array.isArray(children)) {
+                      return children.join('').toLowerCase().includes(input.toLowerCase())
+                    }
+                    return false
+                  }}
+                >
+                  {courts.map(court => (
+                    <Option key={court.id} value={court.court_name}>
+                      {court.court_name} ({court.province})
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                label="ความเสียหาย (บาท)"
+                name="damage_amount"
+              >
+                <Input placeholder="เช่น 500000" />
+              </Form.Item>
+            </Col>
+          </Row>
 
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Button onClick={onCancel} style={{ marginRight: 8 }}>

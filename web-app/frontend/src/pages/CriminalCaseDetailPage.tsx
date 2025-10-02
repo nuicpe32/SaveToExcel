@@ -365,13 +365,13 @@ export default function CriminalCaseDetailPage() {
       width: 120,
     },
     {
-      title: 'สถานะมาตามนัด',
+      title: 'สถานะผลหมายเรียก',
       dataIndex: 'reply_status',
       key: 'reply_status',
       width: 120,
       render: (status: boolean) => (
         <Tag color={status ? 'green' : 'orange'}>
-          {status ? 'มาแล้ว' : 'ยังไม่มา'}
+          {status ? 'ตอบกลับแล้ว' : 'ยังไม่ตอบกลับ'}
         </Tag>
       ),
     },

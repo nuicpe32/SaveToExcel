@@ -10,8 +10,746 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 #root {
   min-height: 100vh;
+}
+
+/* Light Theme */
+body.light {
+  background-color: #f5f5f5;
+  color: #000000;
+}
+
+/* Dark Theme */
+body.dark {
+  background-color: #141414;
+  color: #ffffff;
+}
+
+/* Dark Mode Styles */
+.dark .ant-layout {
+  background: #141414 !important;
+  color: #ffffff !important;
+}
+
+.dark .ant-layout-header {
+  background: #1f1f1f !important;
+  border-bottom: 1px solid #303030;
+  color: #ffffff !important;
+}
+
+.dark .ant-layout-content {
+  background: #141414 !important;
+  color: #ffffff !important;
+}
+
+/* Fix all text colors in dark mode */
+.dark,
+.dark * {
+  color: #ffffff !important;
+}
+
+/* Specific text color fixes */
+.dark p,
+.dark span,
+.dark div,
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6,
+.dark label,
+.dark .ant-typography {
+  color: #ffffff !important;
+}
+
+/* Fix button text colors */
+.dark .ant-btn {
+  color: #ffffff !important;
+}
+
+.dark .ant-btn-default {
+  color: #ffffff !important;
+}
+
+.dark .ant-btn-text {
+  color: #ffffff !important;
+}
+
+.dark .ant-btn-link {
+  color: #177ddc !important;
+}
+
+.dark .ant-btn-link:hover {
+  color: #3c9ae8 !important;
+}
+
+.dark .ant-card {
+  background: #1f1f1f !important;
+  border: 1px solid #303030;
+  color: #ffffff !important;
+}
+
+.dark .ant-card-head-title {
+  color: #ffffff !important;
+}
+
+.dark .ant-card-body {
+  color: #ffffff !important;
+}
+
+.dark .ant-table {
+  background: #1f1f1f !important;
+  color: #ffffff !important;
+}
+
+.dark .ant-table-thead > tr > th {
+  background: #262626 !important;
+  border-bottom: 1px solid #303030;
+  color: #ffffff !important;
+}
+
+.dark .ant-table-tbody > tr > td {
+  background: #1f1f1f !important;
+  border-bottom: 1px solid #303030;
+  color: #ffffff !important;
+}
+
+.dark .ant-table-tbody > tr:hover > td {
+  background: #262626 !important;
+  color: #ffffff !important;
+}
+
+.dark .ant-table-cell {
+  color: #ffffff !important;
+}
+
+.dark .ant-table-cell-row-hover {
+  color: #ffffff !important;
+}
+
+.dark .ant-form-item-label > label {
+  color: #ffffff !important;
+}
+
+.dark .ant-form-item-explain,
+.dark .ant-form-item-explain-error,
+.dark .ant-form-item-explain-success {
+  color: #ffffff !important;
+}
+
+.dark .ant-input {
+  background: #262626 !important;
+  border: 1px solid #434343;
+  color: #ffffff !important;
+}
+
+.dark .ant-input::placeholder {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.dark .ant-input:focus,
+.dark .ant-input-focused {
+  border-color: #177ddc;
+  box-shadow: 0 0 0 2px rgba(23, 125, 220, 0.2);
+  color: #ffffff !important;
+}
+
+.dark .ant-select-selector {
+  background: #262626 !important;
+  border: 1px solid #434343 !important;
+  color: #ffffff !important;
+}
+
+.dark .ant-select-selection-item {
+  color: #ffffff !important;
+}
+
+.dark .ant-select-selection-placeholder {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.dark .ant-select-dropdown {
+  background: #1f1f1f !important;
+  border: 1px solid #303030;
+}
+
+.dark .ant-select-item {
+  color: #ffffff !important;
+}
+
+.dark .ant-select-item:hover {
+  background: #262626 !important;
+  color: #ffffff !important;
+}
+
+.dark .ant-select-item-option-selected {
+  background: #177ddc !important;
+  color: #ffffff !important;
+}
+
+.dark .ant-select-item-option-active {
+  background: #262626 !important;
+  color: #ffffff !important;
+}
+
+.dark .ant-date-picker {
+  background: #262626;
+  border: 1px solid #434343;
+}
+
+.dark .ant-btn-default {
+  background: #262626;
+  border: 1px solid #434343;
+  color: #ffffff;
+}
+
+.dark .ant-btn-default:hover {
+  background: #404040;
+  border-color: #434343;
+  color: #ffffff;
+}
+
+.dark .ant-btn-primary {
+  background: #177ddc;
+  border-color: #177ddc;
+}
+
+.dark .ant-btn-primary:hover {
+  background: #3c9ae8;
+  border-color: #3c9ae8;
+}
+
+.dark .ant-modal-mask {
+  background: rgba(0, 0, 0, 0.65) !important;
+}
+
+.dark .ant-modal-wrap {
+  background: rgba(0, 0, 0, 0.45) !important;
+}
+
+.dark .ant-modal {
+  color: #ffffff !important;
+}
+
+.dark .ant-modal-content {
+  background: #1f1f1f !important;
+  border: 1px solid #303030;
+  color: #ffffff !important;
+  box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05) !important;
+}
+
+.dark .ant-modal-header {
+  background: #262626 !important;
+  border-bottom: 1px solid #303030;
+  color: #ffffff !important;
+}
+
+.dark .ant-modal-title {
+  color: #ffffff !important;
+}
+
+.dark .ant-modal-body {
+  background: #1f1f1f !important;
+  color: #ffffff !important;
+}
+
+.dark .ant-modal-footer {
+  background: #262626 !important;
+  border-top: 1px solid #303030;
+  color: #ffffff !important;
+}
+
+.dark .ant-modal-close {
+  color: #ffffff !important;
+}
+
+.dark .ant-modal-close:hover {
+  color: #177ddc !important;
+}
+
+.dark .ant-modal-close-x {
+  color: #ffffff !important;
+}
+
+.dark .ant-modal-close-x:hover {
+  color: #177ddc !important;
+}
+
+.dark .ant-descriptions {
+  background: #1f1f1f !important;
+  border: 1px solid #303030;
+}
+
+.dark .ant-descriptions-item-label {
+  color: rgba(255, 255, 255, 0.85) !important;
+  background: #262626 !important;
+  border-bottom: 1px solid #303030;
+  border-right: 1px solid #303030;
+}
+
+.dark .ant-descriptions-item-content {
+  color: #ffffff !important;
+  background: #1f1f1f !important;
+  border-bottom: 1px solid #303030;
+  border-right: 1px solid #303030;
+}
+
+.dark .ant-descriptions-bordered .ant-descriptions-item-label {
+  background: #262626 !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.dark .ant-descriptions-bordered .ant-descriptions-item-content {
+  background: #1f1f1f !important;
+  color: #ffffff !important;
+}
+
+.dark .ant-typography {
+  color: #ffffff !important;
+}
+
+.dark .ant-typography-title {
+  color: #ffffff !important;
+}
+
+.dark .ant-typography-paragraph {
+  color: #ffffff !important;
+}
+
+.dark .ant-typography-text {
+  color: #ffffff !important;
+}
+
+.dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+  color: #ffffff !important;
+}
+
+.dark .ant-tabs-tab {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.dark .ant-tabs-tab-active {
+  color: #177ddc !important;
+}
+
+.dark .ant-tabs-content-holder {
+  background: #1f1f1f !important;
+}
+
+.dark .ant-popover-inner {
+  background: #1f1f1f !important;
+  border: 1px solid #303030;
+}
+
+.dark .ant-popover-title {
+  color: #ffffff !important;
+}
+
+.dark .ant-popover-inner-content {
+  color: #ffffff !important;
+}
+
+.dark .ant-tooltip {
+  background: #1f1f1f !important;
+  color: #ffffff !important;
+}
+
+.dark .ant-tooltip-inner {
+  background: #1f1f1f !important;
+  color: #ffffff !important;
+}
+
+.dark .ant-tooltip-arrow::before {
+  background: #1f1f1f !important;
+}
+
+.dark .ant-tooltip-arrow-content {
+  background: #1f1f1f !important;
+}
+
+.dark .ant-popconfirm-buttons {
+  background: #1f1f1f !important;
+}
+
+.dark .ant-popconfirm-buttons .ant-btn {
+  color: #ffffff !important;
+}
+
+.dark .ant-drawer {
+  background: #1f1f1f !important;
+  color: #ffffff !important;
+}
+
+.dark .ant-drawer-mask {
+  background: rgba(0, 0, 0, 0.45) !important;
+}
+
+.dark .ant-drawer-content {
+  background: #1f1f1f !important;
+  color: #ffffff !important;
+}
+
+.dark .ant-drawer-header {
+  background: #262626 !important;
+  border-bottom: 1px solid #303030;
+  color: #ffffff !important;
+}
+
+.dark .ant-drawer-title {
+  color: #ffffff !important;
+}
+
+.dark .ant-drawer-body {
+  background: #1f1f1f !important;
+  color: #ffffff !important;
+}
+
+.dark .ant-drawer-footer {
+  background: #262626 !important;
+  border-top: 1px solid #303030;
+  color: #ffffff !important;
+}
+
+.dark .ant-drawer-close {
+  color: #ffffff !important;
+}
+
+.dark .ant-drawer-close:hover {
+  color: #177ddc !important;
+}
+
+.dark .ant-space {
+  color: #ffffff !important;
+}
+
+.dark .ant-space-item {
+  color: #ffffff !important;
+}
+
+.dark .ant-tag {
+  color: #ffffff !important;
+}
+
+.dark .ant-tag-blue {
+  background: #111b26 !important;
+  border-color: #177ddc !important;
+  color: #ffffff !important;
+}
+
+.dark .ant-tag-green {
+  background: #162312 !important;
+  border-color: #389e0d !important;
+  color: #ffffff !important;
+}
+
+.dark .ant-tag-orange {
+  background: #2b2111 !important;
+  border-color: #d48806 !important;
+  color: #ffffff !important;
+}
+
+.dark .ant-tag-red {
+  background: #2a1215 !important;
+  border-color: #cf1322 !important;
+  color: #ffffff !important;
+}
+
+.dark .ant-message-notice-content {
+  background: #1f1f1f !important;
+  border: 1px solid #303030;
+  color: #ffffff !important;
+}
+
+.dark .ant-message-notice-message {
+  color: #ffffff !important;
+}
+
+.dark .ant-message-notice-description {
+  color: #ffffff !important;
+}
+
+.dark .ant-message-success .ant-message-notice-content {
+  background: #162312 !important;
+  border: 1px solid #389e0d;
+}
+
+.dark .ant-message-error .ant-message-notice-content {
+  background: #2a1215 !important;
+  border: 1px solid #cf1322;
+}
+
+.dark .ant-message-warning .ant-message-notice-content {
+  background: #2b2111 !important;
+  border: 1px solid #d48806;
+}
+
+.dark .ant-message-info .ant-message-notice-content {
+  background: #111b26 !important;
+  border: 1px solid #177ddc;
+}
+
+.dark .ant-notification {
+  background: #1f1f1f !important;
+  border: 1px solid #303030;
+}
+
+.dark .ant-notification-notice {
+  background: #1f1f1f !important;
+  border: 1px solid #303030;
+  color: #ffffff !important;
+}
+
+.dark .ant-notification-notice-message {
+  color: #ffffff !important;
+}
+
+.dark .ant-notification-notice-description {
+  color: #ffffff !important;
+}
+
+.dark .ant-alert {
+  background: #1f1f1f !important;
+  border: 1px solid #303030;
+  color: #ffffff !important;
+}
+
+.dark .ant-alert-message {
+  color: #ffffff !important;
+}
+
+.dark .ant-alert-description {
+  color: #ffffff !important;
+}
+
+.dark .ant-alert-success {
+  background: #162312 !important;
+  border: 1px solid #389e0d;
+}
+
+.dark .ant-alert-error {
+  background: #2a1215 !important;
+  border: 1px solid #cf1322;
+}
+
+.dark .ant-alert-warning {
+  background: #2b2111 !important;
+  border: 1px solid #d48806;
+}
+
+.dark .ant-alert-info {
+  background: #111b26 !important;
+  border: 1px solid #177ddc;
+}
+
+/* Custom row styling for dark mode */
+.dark .row-red {
+  background-color: rgba(255, 77, 79, 0.1) !important;
+}
+
+.dark .row-red:hover {
+  background-color: rgba(255, 77, 79, 0.2) !important;
+}
+
+/* Login page dark mode */
+.dark .login-container {
+  background: #141414 !important;
+  color: #ffffff !important;
+}
+
+.dark .login-card {
+  background: #1f1f1f !important;
+  border: 1px solid #303030;
+  color: #ffffff !important;
+}
+
+.dark .login-card .ant-card-head-title {
+  color: #ffffff !important;
+}
+
+.dark .login-card .ant-card-body {
+  color: #ffffff !important;
+}
+
+/* Sidebar dark mode adjustments */
+.dark .ant-layout-sider {
+  background: #001529 !important;
+  color: #ffffff !important;
+}
+
+.dark .ant-layout-sider .ant-layout-sider-children {
+  color: #ffffff !important;
+}
+
+.dark .ant-menu-dark {
+  background: #001529 !important;
+}
+
+.dark .ant-menu-dark .ant-menu-item {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.dark .ant-menu-dark .ant-menu-item:hover {
+  background: #177ddc !important;
+  color: #ffffff !important;
+}
+
+.dark .ant-menu-dark .ant-menu-item-selected {
+  background: #177ddc !important;
+  color: #ffffff !important;
+}
+
+/* Universal text color fix for dark mode */
+.dark * {
+  color: inherit !important;
+}
+
+.dark *:not(.ant-btn-primary):not(.ant-tag-blue):not(.ant-tag-green):not(.ant-tag-orange):not(.ant-tag-red) {
+  color: #ffffff !important;
+}
+
+/* Fix for any remaining black text */
+.dark *[style*="color: black"],
+.dark *[style*="color: #000"],
+.dark *[style*="color: #000000"],
+.dark *[style*="color: rgb(0,0,0)"],
+.dark *[style*="color: rgba(0,0,0"] {
+  color: #ffffff !important;
+}
+
+/* Fix for empty states and fallback text */
+.dark .ant-empty {
+  color: #ffffff !important;
+}
+
+.dark .ant-empty-description {
+  color: #ffffff !important;
+}
+
+.dark .ant-empty-footer {
+  color: #ffffff !important;
+}
+
+/* Fix for any text content that might be hidden */
+.dark [data-testid],
+.dark [class*="text-"],
+.dark [class*="content"] {
+  color: #ffffff !important;
+}
+
+/* Fix for any remaining inline styles */
+.dark * {
+  color: #ffffff !important;
+}
+
+/* Override any specific color values that might be set inline */
+.dark *[style] {
+  color: #ffffff !important;
+}
+
+.dark .ant-breadcrumb {
+  color: #ffffff !important;
+}
+
+.dark .ant-breadcrumb-link {
+  color: #ffffff !important;
+}
+
+.dark .ant-breadcrumb-separator {
+  color: #ffffff !important;
+}
+
+.dark .ant-pagination {
+  color: #ffffff !important;
+}
+
+.dark .ant-pagination-item {
+  background: #1f1f1f !important;
+  border: 1px solid #303030;
+  color: #ffffff !important;
+}
+
+.dark .ant-pagination-item:hover {
+  background: #262626 !important;
+  border-color: #434343;
+  color: #ffffff !important;
+}
+
+.dark .ant-pagination-item-active {
+  background: #177ddc !important;
+  border-color: #177ddc;
+  color: #ffffff !important;
+}
+
+.dark .ant-pagination-prev,
+.dark .ant-pagination-next {
+  background: #1f1f1f !important;
+  border: 1px solid #303030;
+  color: #ffffff !important;
+}
+
+.dark .ant-pagination-prev:hover,
+.dark .ant-pagination-next:hover {
+  background: #262626 !important;
+  border-color: #434343;
+  color: #ffffff !important;
+}
+
+.dark .ant-pagination-options {
+  color: #ffffff !important;
+}
+
+.dark .ant-pagination-options-size-changer {
+  color: #ffffff !important;
+}
+
+.dark .ant-pagination-options-quick-jumper {
+  color: #ffffff !important;
+}
+
+.dark .ant-pagination-total-text {
+  color: #ffffff !important;
+}
+
+.dark .ant-spin {
+  color: #ffffff !important;
+}
+
+.dark .ant-spin-dot {
+  color: #177ddc !important;
+}
+
+.dark .ant-spin-text {
+  color: #ffffff !important;
+}
+
+.dark .ant-spin-container {
+  color: #ffffff !important;
+}
+
+.dark .ant-spin-blur {
+  color: #ffffff !important;
+}
+
+/* Scrollbar styling for dark mode */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #1f1f1f;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #434343;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #595959;
 }

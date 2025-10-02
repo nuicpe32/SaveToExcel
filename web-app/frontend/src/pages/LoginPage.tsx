@@ -1,13 +1,15 @@
 import { useState } from 'react'
-import { Card, Form, Input, Button, message } from 'antd'
-import { UserOutlined, LockOutlined } from '@ant-design/icons'
+import { Card, Form, Input, Button, message, Space } from 'antd'
+import { UserOutlined, LockOutlined, SunOutlined, MoonOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
+import { useTheme } from '../contexts/ThemeContext'
 import api from '../services/api'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const { setAuth } = useAuthStore()
+  const { isDark, toggleTheme } = useTheme()
   const [loading, setLoading] = useState(false)
 
   const onFinish = async (values: any) => {
@@ -36,8 +38,32 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f0f2f5' }}>
-      <Card title="เข้าสู่ระบบจัดการคดีอาญา" style={{ width: 400 }}>
+    <div className="login-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f0f2f5' }}>
+      <div style={{ position: 'absolute', top: '20px', right: '20px' }}>
+        <Button
+          type="text"
+          icon={isDark ? <SunOutlined /> : <MoonOutlined />}
+          onClick={toggleTheme}
+          style={{ fontSize: '18px', width: 48, height: 48 }}
+          title={isDark ? 'โหมดสว่าง' : 'โหมดมืด'}
+        />
+      </div>
+      <Card 
+        className="login-card"
+        title="เข้าสู่ระบบจัดการคดีอาญา" 
+        style={{ width: 400 }}
+        extra={
+          <Space>
+            <Button
+              type="text"
+              icon={isDark ? <SunOutlined /> : <MoonOutlined />}
+              onClick={toggleTheme}
+              size="small"
+              title={isDark ? 'โหมดสว่าง' : 'โหมดมืด'}
+            />
+          </Space>
+        }
+      >
         <Form onFinish={onFinish} layout="vertical">
           <Form.Item name="username" rules={[{ required: true, message: 'กรุณากรอกชื่อผู้ใช้' }]}>
             <Input prefix={<UserOutlined />} placeholder="ชื่อผู้ใช้" size="large" />

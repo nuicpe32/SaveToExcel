@@ -1,22 +1,66 @@
 # ระบบจัดการคดีอาญา (Criminal Case Management System)
 
-โปรแกรม GUI สำหรับจัดการข้อมูลคดีอาญาด้วยภาษา Python - รองรับข้อมูลบัญชีธนาคาร, หมายเรียกผู้ต้องหา, คดีอาญา และการจับกุม
+ระบบจัดการข้อมูลคดีอาญาแบบครบวงจร - รองรับทั้ง **Desktop Application** (Python/Tkinter) และ **Web Application** (React/FastAPI)
 
 [![Python](https://img.shields.io/badge/Python-3.6+-blue.svg)](https://www.python.org/)
+[![React](https://img.shields.io/badge/React-18+-blue.svg)](https://reactjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.68+-green.svg)](https://fastapi.tiangolo.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-2.9.0-red.svg)](https://github.com/nuicpe32/SaveToExcel)
+[![Version](https://img.shields.io/badge/Version-3.0.1-red.svg)](https://github.com/nuicpe32/SaveToExcel)
 
 ## 📋 สารบัญ
 
-- [📁 ระบบจัดการเอกสารครบครัน](#-ระบบจัดการเอกสารครบครัน-เวอร์ชัน-260)
-- [🏗️ Professional Architecture](#-professional-architecture-เวอร์ชัน-250)
+- [🌐 Web Application (ใหม่!)](#-web-application-เวอร์ชัน-300)
+- [🖥️ Desktop Application](#-desktop-application-เวอร์ชัน-290)
 - [⭐ ฟีเจอร์หลัก](#-ฟีเจอร์หลัก)
-- [🆕 ฟีเจอร์ใหม่ล่าสุด](#-ฟีเจอร์ใหม่ล่าสุด-เวอร์ชัน-290)
-- [🔥 ฟีเจอร์อัจฉริยะ](#-ฟีเจอร์อัจฉริยะใหม่)
 - [🚀 วิธีติดตั้งและใช้งาน](#-วิธีติดตั้งและใช้งาน)
 - [📁 โครงสร้างโปรเจค](#-โครงสร้างไฟล์)
 - [📖 เอกสารและคู่มือ](#-เอกสารและคู่มือ)
+- [👨‍💻 คู่มือการพัฒนา](#-คู่มือการพัฒนา)
 - [🔧 การแก้ไขปัญหา](#การแก้ไขปัญหา)
+
+## 🌐 Web Application (เวอร์ชัน 3.0.1)
+
+🎯 **ฟีเจอร์ใหม่ล่าสุด!** - ระบบจัดการคดีอาญาแบบ Web Application ที่มีความสมบูรณ์เทียบเท่า Desktop Application
+
+### ✨ ฟีเจอร์เด่น
+- 🌐 **Web-based Interface** - ใช้งานผ่านเบราว์เซอร์ ไม่ต้องติดตั้งโปรแกรม
+- 📱 **Responsive Design** - รองรับทุกขนาดหน้าจอ (Desktop, Tablet, Mobile)
+- 🔐 **Authentication System** - ระบบล็อกอินด้วย JWT Token
+- 📊 **Real-time Dashboard** - แดชบอร์ดแสดงข้อมูลแบบเรียลไทม์
+- 🔄 **CRUD Operations** - เพิ่ม/แก้ไข/ลบข้อมูลได้ผ่าน Web Interface
+
+### 🏗️ Technology Stack
+- **Frontend**: React 18 + TypeScript + Ant Design
+- **Backend**: FastAPI + Python 3.11
+- **Database**: PostgreSQL + SQLAlchemy
+- **Authentication**: JWT + bcrypt
+- **Containerization**: Docker + Docker Compose
+
+### 🚀 วิธีใช้งาน Web Application
+```bash
+# เข้าไปในโฟลเดอร์ web-app
+cd web-app
+
+# รันระบบด้วย Docker
+docker-compose up -d
+
+# เข้าใช้งานที่
+# http://localhost:3001
+```
+
+### 📋 ฟีเจอร์ครบถ้วน
+- ✅ **แดชบอร์ดคดีอาญา** - แสดงรายการคดีพร้อมการเรียงลำดับและค้นหา
+- ✅ **จัดการคดีอาญา** - เพิ่ม/แก้ไข/ลบคดีอาญา
+- ✅ **รายละเอียดคดี** - แสดงข้อมูลครบถ้วนในรูปแบบ Drawer
+- ✅ **ข้อมูลบัญชีธนาคาร** - จัดการข้อมูลบัญชีธนาคารที่เกี่ยวข้อง
+- ✅ **ข้อมูลผู้ต้องหา** - จัดการข้อมูลหมายเรียกผู้ต้องหา
+- ✅ **ระบบ Authentication** - ล็อกอิน/ล็อกเอาท์
+- ✅ **Role-based Access** - ระบบสิทธิ์ผู้ใช้
+
+## 🖥️ Desktop Application (เวอร์ชัน 2.9.0)
+
+โปรแกรม GUI สำหรับจัดการข้อมูลคดีอาญาด้วยภาษา Python - รองรับข้อมูลบัญชีธนาคาร, หมายเรียกผู้ต้องหา, คดีอาญา และการจับกุม
 
 ## 📁 ระบบจัดการเอกสารครบครัน (เวอร์ชัน 2.6.0)
 
@@ -282,7 +326,7 @@ python3 simple_excel_manager.py
 
 ## 🚀 วิธีติดตั้งและใช้งาน
 
-### 📦 การติดตั้ง
+### 🌐 Web Application (แนะนำ)
 
 **1. Clone Repository**
 ```bash
@@ -290,7 +334,26 @@ git clone https://github.com/nuicpe32/SaveToExcel.git
 cd SaveToExcel
 ```
 
-**2. ติดตั้ง Dependencies**
+**2. รัน Web Application**
+```bash
+# เข้าไปในโฟลเดอร์ web-app
+cd web-app
+
+# รันระบบด้วย Docker (แนะนำ)
+docker-compose up -d
+
+# เข้าใช้งานที่ http://localhost:3001
+```
+
+**3. ข้อกำหนดระบบ Web Application**
+- **Docker**: Docker Desktop หรือ Docker Engine
+- **Browser**: Chrome, Firefox, Safari, Edge (เวอร์ชันล่าสุด)
+- **Memory**: อย่างน้อย 4GB RAM
+- **Storage**: อย่างน้อย 2GB เนื้อที่ว่าง
+
+### 🖥️ Desktop Application
+
+**1. ติดตั้ง Dependencies**
 ```bash
 python3 install_dependencies.py
 ```
@@ -299,24 +362,19 @@ python3 install_dependencies.py
 pip install pandas openpyxl
 ```
 
-### ▶️ การรันโปรแกรม
-
-**วิธีแนะนำ** (Architecture ใหม่):
+**2. รันโปรแกรม**
 ```bash
+# วิธีแนะนำ (Architecture ใหม่)
 python3 run.py
-```
 
-**ทางเลือกอื่น**:
-```bash
-# Modular entry point
+# หรือใช้ modular version
 python3 criminal_case_manager.py
 
-# Original version (สำรอง)
+# หรือใช้เดิม (สำรอง)
 python3 simple_excel_manager.py
 ```
 
-### ⚙️ ข้อกำหนดระบบ
-
+**3. ข้อกำหนดระบบ Desktop**
 - **Python**: 3.6 ขึ้นไป
 - **GUI**: tkinter (มักติดตั้งมาพร้อม Python)
 - **Dependencies**: pandas, openpyxl
@@ -324,21 +382,55 @@ python3 simple_excel_manager.py
 
 ## 📁 โครงสร้างไฟล์
 
-### 🆕 Architecture ใหม่ (แนะนำ)
-- `run.py` - Entry point หลัก (เรียกใช้ง่าย)
-- `criminal_case_manager.py` - Modular application controller  
-- `src/` - โฟลเดอร์ modular architecture
-  - `config/settings.py` - การตั้งค่าทั้งหมด
-  - `data/` - ตัวจัดการข้อมูลแต่ละประเภท
-  - `gui/` - ส่วนติดต่อผู้ใช้
-  - `utils/` - ฟังก์ชันช่วยเหลือ
-- `ARCHITECTURE.md` - เอกสารสถาปัตยกรรม
+### 🌐 Web Application Structure
+```
+web-app/
+├── backend/                 # FastAPI Backend
+│   ├── app/
+│   │   ├── api/            # API Routes
+│   │   ├── core/           # Core Configuration
+│   │   ├── models/         # SQLAlchemy Models
+│   │   ├── schemas/        # Pydantic Schemas
+│   │   ├── services/       # Business Logic
+│   │   └── utils/          # Utility Functions
+│   ├── Dockerfile          # Backend Container
+│   └── requirements.txt    # Python Dependencies
+├── frontend/               # React Frontend
+│   ├── src/
+│   │   ├── components/     # React Components
+│   │   ├── pages/          # Page Components
+│   │   ├── services/       # API Services
+│   │   └── stores/         # State Management
+│   ├── Dockerfile          # Frontend Container
+│   └── package.json        # Node Dependencies
+├── docker-compose.yml      # Multi-container Setup
+└── README.md               # Web App Documentation
+```
 
-### 📁 ไฟล์เดิม (สำรอง)
-- `simple_excel_manager.py` - โปรแกรมหลักแบบเดิม
-- `excel_manager.py` - เวอร์ชันเต็ม
-- `install_dependencies.py` - สคริปต์ติดตั้ง
-- `requirements.txt` - รายการ dependencies
+### 🖥️ Desktop Application Structure
+```
+├── run.py                  # Entry point หลัก (แนะนำ)
+├── criminal_case_manager.py # Modular application controller
+├── src/                    # Modular architecture
+│   ├── config/settings.py  # การตั้งค่าทั้งหมด
+│   ├── data/               # ตัวจัดการข้อมูลแต่ละประเภท
+│   ├── gui/                # ส่วนติดต่อผู้ใช้
+│   └── utils/              # ฟังก์ชันช่วยเหลือ
+├── simple_excel_manager.py # โปรแกรมหลักแบบเดิม (สำรอง)
+├── excel_manager.py        # เวอร์ชันเต็ม (สำรอง)
+├── install_dependencies.py # สคริปต์ติดตั้ง
+└── requirements.txt        # รายการ dependencies
+```
+
+### 📁 ไฟล์ข้อมูลและเอกสาร
+```
+├── Xlsx/                   # ไฟล์ Excel ฐานข้อมูล
+├── Doc/                    # เอกสาร Word เทมเพลต
+├── Pdf/                    # ไฟล์ PDF
+├── THSarabunNew/           # ฟอนต์ไทย
+├── logo ccib.png           # โลโก้ CCIB
+└── Web_CCMS/              # ฐานข้อมูล SQLite (สำรอง)
+```
 
 ## 📖 เอกสารและคู่มือ
 
@@ -348,6 +440,59 @@ python3 simple_excel_manager.py
 | [`CAPABILITIES.md`](CAPABILITIES.md) | 🔧 ความสามารถและข้อกำหนดทางเทคนิค |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | 🏗️ สถาปัตยกรรมและการออกแบบระบบ |
 | [`PROJECT_STATE.md`](PROJECT_STATE.md) | 📊 สถานะและประวัติการพัฒนา |
+| [`web-app/README.md`](web-app/README.md) | 🌐 คู่มือ Web Application |
+| [`web-app/QUICK_START_GUIDE.md`](web-app/QUICK_START_GUIDE.md) | 🚀 คู่มือเริ่มต้นเร็ว |
+| [`web-app/DEPLOYMENT.md`](web-app/DEPLOYMENT.md) | 🚀 คู่มือการ Deploy |
+
+## 👨‍💻 คู่มือการพัฒนา
+
+### 🌐 Web Application Development
+
+**สำหรับผู้พัฒนา Web Application:**
+
+1. **Setup Development Environment**
+   ```bash
+   cd web-app
+   docker-compose up -d
+   ```
+
+2. **Backend Development (FastAPI)**
+   - API Routes: `backend/app/api/`
+   - Models: `backend/app/models/`
+   - Schemas: `backend/app/schemas/`
+   - Services: `backend/app/services/`
+
+3. **Frontend Development (React)**
+   - Components: `frontend/src/components/`
+   - Pages: `frontend/src/pages/`
+   - Services: `frontend/src/services/`
+   - State: `frontend/src/stores/`
+
+4. **Database Migration**
+   ```bash
+   # Migrate data from Excel to PostgreSQL
+   docker-compose exec backend python -m app.services.data_migration
+   ```
+
+### 🖥️ Desktop Application Development
+
+**สำหรับผู้พัฒนา Desktop Application:**
+
+1. **Entry Points**
+   - `run.py` - Main entry point (recommended)
+   - `criminal_case_manager.py` - Modular controller
+   - `simple_excel_manager.py` - Legacy version
+
+2. **Architecture**
+   - `src/config/` - Configuration
+   - `src/data/` - Data managers
+   - `src/gui/` - UI components
+   - `src/utils/` - Utilities
+
+3. **Data Files**
+   - Excel files: `Xlsx/` directory
+   - Word templates: `Doc/` directory
+   - Fonts: `THSarabunNew/` directory
 
 ## 📱 การใช้งาน
 

@@ -7,7 +7,6 @@ interface Suspect {
   id: number
   document_number?: string
   suspect_name: string
-  case_type?: string
   appointment_date?: string
   appointment_date_thai?: string
   status: string
@@ -18,7 +17,6 @@ interface Suspect {
   police_address?: string
   victim_name?: string
   case_id?: string
-  damage_amount?: string
   notes?: string
 }
 
@@ -64,7 +62,6 @@ export default function SuspectsPage() {
   const columns: ColumnsType<Suspect> = [
     { title: 'เลขที่เอกสาร', dataIndex: 'document_number', key: 'document_number' },
     { title: 'ชื่อ-นามสกุล', dataIndex: 'suspect_name', key: 'suspect_name' },
-    { title: 'ประเภทคดี', dataIndex: 'case_type', key: 'case_type' },
     { title: 'วันนัดหมาย', dataIndex: 'appointment_date_thai', key: 'appointment_date_thai' },
     { title: 'สถานะ', dataIndex: 'status', key: 'status' },
     {
@@ -136,10 +133,8 @@ export default function SuspectsPage() {
                 label: 'ข้อมูลคดี',
                 children: (
                   <Descriptions column={1} bordered size="small">
-                    <Descriptions.Item label="ประเภทคดี">{selected.case_type || '-'}</Descriptions.Item>
                     <Descriptions.Item label="ผู้เสียหาย">{selected.victim_name || '-'}</Descriptions.Item>
                     <Descriptions.Item label="เลขเคสไอดี">{selected.case_id || '-'}</Descriptions.Item>
-                    <Descriptions.Item label="ความเสียหาย">{selected.damage_amount || '-'}</Descriptions.Item>
                   </Descriptions>
                 ),
               },
