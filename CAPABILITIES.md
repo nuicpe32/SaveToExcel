@@ -5,15 +5,55 @@
 
 ## 🎯 ภาพรวมความสามารถ
 
-**ระบบจัดการคดีอาญา** เป็นโปรแกรมที่ครอบคลุมการจัดการข้อมูลคดีอาญาแบบครบวงจร ตั้งแต่การขอข้อมูลธนาคาร การออกหมายเรียกผู้ต้องหา การติดตามความคืบหน้าคดี ไปจนถึงการจัดการข้อมูลหลังการจับกุม
+**ระบบจัดการคดีอาญา** เป็นระบบที่ครอบคลุมการจัดการข้อมูลคดีอาญาแบบครบวงจร ตั้งแต่การขอข้อมูลธนาคาร การออกหมายเรียกผู้ต้องหา การติดตามความคืบหน้าคดี ไปจนถึงการจัดการข้อมูลหลังการจับกุม
+
+## 🌐 **Dual Platform Support**
+
+ระบบรองรับการใช้งานใน **2 รูปแบบ**:
+
+### 🖥️ **Desktop Application (Version 2.9.0)**
+- **GUI Framework**: tkinter (Python built-in)
+- **Data Storage**: Excel files (.xlsx)
+- **Platform**: Windows, Linux, macOS
+- **Features**: Full-featured desktop application
+
+### 🌐 **Web Application (Version 3.0.0)**
+- **Frontend**: React 18 + TypeScript + Ant Design
+- **Backend**: FastAPI + Python 3.11
+- **Database**: PostgreSQL
+- **Platform**: Any modern web browser
+- **Features**: Full-featured web application with authentication
 
 ---
 
 ## 🏗️ สถาปัตยกรรมและโครงสร้าง
 
-### 🔧 **Professional Modular Architecture v2.4.0**
-โปรแกรมได้รับการรีแฟกเตอร์เป็น **Architecture แบบมืออาชีพ** ที่แยกส่วนการทำงานอย่างชัดเจน:
+### 🌐 **Web Application Architecture (Version 3.0.0)**
+```
+web-app/
+├── backend/                    # FastAPI Backend
+│   ├── app/
+│   │   ├── api/               # API Routes (v1)
+│   │   ├── core/              # Core Configuration
+│   │   ├── models/            # SQLAlchemy Models
+│   │   ├── schemas/           # Pydantic Schemas
+│   │   ├── services/          # Business Logic
+│   │   └── utils/             # Utility Functions
+│   ├── Dockerfile             # Backend Container
+│   └── requirements.txt       # Python Dependencies
+├── frontend/                  # React Frontend
+│   ├── src/
+│   │   ├── components/        # React Components
+│   │   ├── pages/             # Page Components
+│   │   ├── services/          # API Services
+│   │   ├── stores/            # State Management
+│   │   └── App.tsx            # Main App Component
+│   ├── Dockerfile             # Frontend Container
+│   └── package.json           # Node Dependencies
+└── docker-compose.yml         # Multi-container Setup
+```
 
+### 🖥️ **Desktop Application Architecture (Version 2.9.0)**
 ```
 src/
 ├── config/     # การจัดการค่าตั้งต่างๆ
@@ -24,8 +64,9 @@ src/
 
 ### 🛡️ **ความเสถียรและความปลอดภัย**
 - ✅ **100% Backward Compatible** - ใช้งานได้เหมือนเดิมทุกอย่าง
-- ✅ **Automatic Fallback** - ระบบสำรองอัตโนมัติ
+- ✅ **Dual Platform Support** - รองรับทั้ง Desktop และ Web
 - ✅ **Data Integrity** - การตรวจสอบความถูกต้องของข้อมูล
+- ✅ **Authentication & Authorization** - ระบบล็อกอินและสิทธิ์ผู้ใช้
 - ✅ **Error Recovery** - ระบบกู้คืนเมื่อเกิดข้อผิดพลาด
 
 ---
@@ -104,30 +145,45 @@ src/
 จัดการและติดตามความคืบหน้าคดีอาญาแบบครบวงจร พร้อมระบบวิเคราะห์และรายงาน
 
 #### **⚡ ความสามารถหลัก:**
+
+##### 🌐 **Web Application Features:**
 1. **📊 แดชบอร์ดคดีแบบเรียลไทม์**
    - สถิติคดีทั้งหมด แบ่งตามสถานะ
    - ตรวจจับคดีเกิน 6 เดือน (ระหว่างสอบสวน)
    - นับสัดส่วนการตอบกลับธนาคาร/หมายเรียก
    - แสดงผล CaseID อัตโนมัติ
+   - เรียงลำดับตามวันที่รับคำร้องทุกข์
+
+2. **🔄 CRUD Operations (Create, Read, Update, Delete)**
+   - เพิ่มคดีอาญาใหม่
+   - แก้ไขข้อมูลคดี
+   - ลบคดี
+   - ดูรายละเอียดคดีในรูปแบบ Drawer
+
+3. **🎨 ระบบแสดงผล Visual Indicators**
+   - 🔴 แถวสีแดง: คดีเกิน 6 เดือน (ระหว่างสอบสวน)
+   - 🟡 แถวสีเหลือง: ธนาคารตอบครบแล้ว
+   - 🟢 แถวสีเขียว: คดีจำหน่าย
+   - 📊 แสดงสัดส่วน: ทั้งหมด/ตอบแล้ว
+
+4. **📱 Responsive Design**
+   - รองรับทุกขนาดหน้าจอ
+   - ใช้งานได้บน Desktop, Tablet, Mobile
+   - Modern UI/UX ด้วย Ant Design
+
+##### 🖥️ **Desktop Application Features:**
+1. **🖨️ ระบบรายงานมืออาชีพ**
+   - สร้างรายงาน HTML รายละเอียดคดี
+   - ใช้ฟอนต์ไทย THSarabunNew
+   - แสดงโลโก้ CCIB ขนาดเหมาะสม
+   - รายงานครบถ้วน: คดี + ธนาคาร + หมายเรียก
+   - พิมพ์ผ่านเบราว์เซอร์ (Ctrl+P)
 
 2. **🔗 ระบบเชื่อมโยงข้อมูลอัจฉริยะ**
    - เชื่อมโยงคดีกับบัญชีธนาคารโดยอัตโนมัติ
    - เชื่อมโยงกับหมายเรียกผู้ต้องหา
    - ดึง CaseID จากข้อมูลธนาคาร
    - อัปเดตสถานะแบบเรียลไทม์
-
-3. **🎨 ระบบแสดงผล Visual Indicators**
-   - 🔴 แถวสีแดง: คดีเกิน 6 เดือน
-   - 🟡 แถวสีเหลือง: ธนาคารตอบครบแล้ว
-   - 📊 แสดงสัดส่วน: ทั้งหมด/ตอบแล้ว
-   - 📈 กราฟแสดงสถิติ
-
-4. **🖨️ ระบบรายงานมืออาชีพ**
-   - สร้างรายงาน HTML รายละเอียดคดี
-   - ใช้ฟอนต์ไทย THSarabunNew
-   - แสดงโลโก้ CCIB ขนาดเหมาะสม
-   - รายงานครบถ้วน: คดี + ธนาคาร + หมายเรียก
-   - พิมพ์ผ่านเบราว์เซอร์ (Ctrl+P)
 
 #### **📈 การวิเคราะห์ข้อมูล:**
 - จำนวนคดีทั้งหมด
@@ -434,23 +490,32 @@ Footer:     [Generation Info] + [Timestamp]
 
 ### 🔄 **Version Roadmap**
 
-#### **v2.4.0 (ปัจจุบัน)**
+#### **v2.9.0 (Desktop - ปัจจุบัน)**
 - ✅ Professional Architecture
 - ✅ Modular Design
 - ✅ Enhanced UI/UX
 - ✅ Smart Data Linking
+- ✅ Complete Feature Set
 
-#### **v2.5.0 (วางแผน)**
-- 🔄 Complete GUI Refactoring
-- 🔄 Plugin System
-- 🔄 Advanced Reporting
-- 🔄 Database Support
+#### **v3.0.0 (Web Application - ปัจจุบัน)**
+- ✅ Full-Stack Web Application
+- ✅ React Frontend + FastAPI Backend
+- ✅ PostgreSQL Database
+- ✅ JWT Authentication
+- ✅ CRUD Operations
+- ✅ Responsive Design
 
-#### **v3.0.0 (อนาคต)**
-- 📱 Web Interface
+#### **v3.1.0 (วางแผน)**
+- 🔄 Advanced Reporting (PDF/Excel Export)
+- 🔄 Real-time Updates (WebSocket)
+- 🔄 Advanced Analytics
+- 🔄 Mobile App (React Native)
+
+#### **v4.0.0 (อนาคต)**
 - ☁️ Cloud Integration
 - 👥 Multi-user Support
 - 🔐 Advanced Security
+- 🤖 AI-Powered Analytics
 
 ### 💡 **Innovation Focus Areas**
 - **Artificial Intelligence**: ใช้ AI ในการวิเคราะห์ข้อมูล
@@ -460,5 +525,5 @@ Footer:     [Generation Info] + [Timestamp]
 
 ---
 
-*📊 เอกสารความสามารถฉบับนี้อัปเดตล่าสุด: ระบบจัดการคดีอาญา v2.4.0*  
-*🏗️ Professional Modular Architecture - พร้อมใช้งานระดับองค์กร*
+*📊 เอกสารความสามารถฉบับนี้อัปเดตล่าสุด: ระบบจัดการคดีอาญา v3.0.0*  
+*🌐 Full-Stack Web Application + 🖥️ Desktop Application - พร้อมใช้งานระดับองค์กร*

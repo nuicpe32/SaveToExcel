@@ -11,10 +11,10 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     networks:
-      - web-app_default
+      - criminal-case-network
 
 networks:
-  web-app_default:
+  criminal-case-network:
     external: true
 
 volumes:

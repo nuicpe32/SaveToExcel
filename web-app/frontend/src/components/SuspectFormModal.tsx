@@ -1,10 +1,10 @@
-import { useEffect } from 'react'
-import { Modal, Form, Input, DatePicker, Select, Switch, Row, Col, message } from 'antd'
+import { useEffect, useState } from 'react'
+import { Modal, Form, Input, DatePicker, Switch, Row, Col, message, AutoComplete, Upload, Button } from 'antd'
+import { UploadOutlined, FileTextOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../services/api'
 
 const { TextArea } = Input
-const { Option } = Select
 
 interface SuspectFormModalProps {
   visible: boolean
@@ -20,10 +20,92 @@ export default function SuspectFormModal({
   onClose,
 }: SuspectFormModalProps) {
   const [form] = Form.useForm()
+  const [bankAccountNames, setBankAccountNames] = useState<string[]>([])
+  const [uploading, setUploading] = useState(false)
   const isEdit = !!editingRecord
+
+  // ดึงข้อมูลชื่อเจ้าของบัญชีธนาคารจากคดีนี้
+  const fetchBankAccountNames = async () => {
+    try {
+      const response = await api.get(`/criminal-cases/${criminalCaseId}/bank-accounts`)
+      const accountNames = response.data
+        .map((account: any) => account.account_name)
+        .filter((name: string) => name && name.trim() !== '')
+        .filter((name: string, index: number, arr: string[]) => arr.indexOf(name) === index) // remove duplicates
+      setBankAccountNames(accountNames)
+    } catch (error) {
+      console.error('Error fetching bank account names:', error)
+      setBankAccountNames([])
+    }
+  }
+
+  // แกะข้อมูลจากไฟล์ PDF ทร.14
+  const parsePDFData = async (file: File): Promise<{name: string, idCard: string, address: string} | null> => {
+    try {
+      setUploading(true)
+      
+      // สร้าง FormData สำหรับส่งไฟล์
+      const formData = new FormData()
+      formData.append('file', file)
+      
+      // ส่งไฟล์ไปยัง backend เพื่อแกะข้อมูล
+      const response = await api.post('/parse-pdf-thor14', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+      
+      if (response.data && response.data.success) {
+        const data = response.data.data
+        return {
+          name: data?.name || '',
+          idCard: data?.idCard || '',
+          address: data?.address || ''
+        }
+      }
+      
+      return null
+    } catch (error) {
+      console.error('Error parsing PDF:', error)
+      message.error('ไม่สามารถแกะข้อมูลจากไฟล์ PDF ได้')
+      return null
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  // จัดการการอัปโหลดไฟล์ PDF
+  const handlePDFUpload = async (file: File) => {
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      message.error('กรุณาเลือกไฟล์ PDF เท่านั้น')
+      return false
+    }
+
+    const pdfData = await parsePDFData(file)
+    
+    if (pdfData) {
+      // เติมข้อมูลลงในฟอร์ม
+      const formData = {
+        suspect_name: pdfData.name,
+        suspect_id_card: pdfData.idCard,
+        suspect_address: pdfData.address
+      }
+      
+      form.setFieldsValue(formData)
+      
+      message.success('แกะข้อมูลจากไฟล์ PDF สำเร็จ')
+    } else {
+      message.warning('ไม่พบข้อมูลในไฟล์ PDF')
+    }
+    
+    return false // ป้องกันการอัปโหลดไฟล์จริง
+  }
 
   useEffect(() => {
     if (visible) {
+      // ดึงข้อมูลชื่อเจ้าของบัญชีธนาคาร
+      fetchBankAccountNames()
+      
       if (editingRecord) {
         // แก้ไข - ใส่ค่าเดิม
         form.setFieldsValue({
@@ -41,7 +123,8 @@ export default function SuspectFormModal({
         form.setFieldsValue({
           criminal_case_id: criminalCaseId,
           reply_status: false,
-          status: 'pending',
+          document_date: dayjs(), // ตั้งค่าวันที่ปัจจุบัน
+          appointment_time: '09:00 น.', // ตั้งค่าเวลานัดหมายเริ่มต้น
         })
       }
     }
@@ -51,16 +134,31 @@ export default function SuspectFormModal({
     try {
       const values = await form.validateFields()
 
-      // แปลง dates เป็น string
+      // แปลง dates เป็น string และสร้างวันที่ไทย
+      const formatThaiDate = (date: any) => {
+        if (!date) return null;
+        const thaiMonths = [
+          'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+          'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+        ];
+        const day = date.date();
+        const month = thaiMonths[date.month()];
+        const year = date.year() + 543; // แปลงเป็น พ.ศ.
+        return `${day} ${month} ${year}`;
+      };
+
       const payload = {
         ...values,
         criminal_case_id: criminalCaseId,
+        status: 'pending', // ตั้งค่า default status
         document_date: values.document_date
           ? values.document_date.format('YYYY-MM-DD')
           : null,
+        document_date_thai: formatThaiDate(values.document_date),
         appointment_date: values.appointment_date
           ? values.appointment_date.format('YYYY-MM-DD')
           : null,
+        appointment_date_thai: formatThaiDate(values.appointment_date),
       }
 
       if (isEdit) {
@@ -110,17 +208,21 @@ export default function SuspectFormModal({
 
           <Col span={12}>
             <Form.Item
-              label="เลขที่เอกสาร"
+              label="เลขที่หนังสือ"
               name="document_number"
               tooltip="ระบบจะสร้างอัตโนมัติถ้าไม่ระบุ"
             >
-              <Input placeholder="เช่น SP-2568-0001" />
+              <Input placeholder="เช่น ตช. 0039.52/....." />
             </Form.Item>
           </Col>
 
           <Col span={12}>
-            <Form.Item label="วันที่เอกสาร" name="document_date">
-              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+            <Form.Item label="ลงวันที่" name="document_date">
+              <DatePicker 
+                style={{ width: '100%' }} 
+                format="DD/MM/YYYY" 
+                defaultValue={dayjs()}
+              />
             </Form.Item>
           </Col>
 
@@ -131,28 +233,62 @@ export default function SuspectFormModal({
             </h4>
           </Col>
 
+          {/* Upload PDF ทร.14 */}
+          <Col span={24}>
+            <div style={{ marginBottom: 16, padding: 12, backgroundColor: '#f0f8ff', borderRadius: 6, border: '1px solid #d9d9d9' }}>
+              <div style={{ marginBottom: 8, fontWeight: 'bold', color: '#1890ff' }}>
+                <FileTextOutlined style={{ marginRight: 8 }} />
+                อัปโหลดไฟล์ ทร.14 (PDF) เพื่อแกะข้อมูลอัตโนมัติ
+              </div>
+              <Upload
+                accept=".pdf"
+                beforeUpload={handlePDFUpload}
+                showUploadList={false}
+                disabled={uploading}
+              >
+                <Button 
+                  icon={<UploadOutlined />} 
+                  loading={uploading}
+                  disabled={uploading}
+                >
+                  {uploading ? 'กำลังแกะข้อมูล...' : 'เลือกไฟล์ ทร.14 (PDF)'}
+                </Button>
+              </Upload>
+              <div style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
+                ระบบจะแกะข้อมูล ชื่อ-นามสกุล, เลขบัตรประชาชน, และที่อยู่ จากไฟล์ PDF อัตโนมัติ
+              </div>
+            </div>
+          </Col>
+
           <Col span={12}>
             <Form.Item
               label="ชื่อผู้ต้องหา"
               name="suspect_name"
               rules={[{ required: true, message: 'กรุณาระบุชื่อผู้ต้องหา' }]}
             >
-              <Input placeholder="ชื่อ-นามสกุล" />
+              <AutoComplete
+                placeholder="ชื่อ-นามสกุล หรือเลือกจากรายการ"
+                options={bankAccountNames.map(name => ({ value: name }))}
+                filterOption={(inputValue, option) =>
+                  option?.value?.toLowerCase().includes(inputValue.toLowerCase()) ?? false
+                }
+                allowClear
+              />
             </Form.Item>
           </Col>
 
           <Col span={12}>
             <Form.Item
-              label="เลขบัตรประชาชน"
+              label="เลขบัตรประชาชน/เลขที่หนังสือเดินทาง"
               name="suspect_id_card"
               rules={[
                 {
-                  pattern: /^[0-9]{13}$/,
-                  message: 'เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก',
+                  pattern: /^[0-9]{13}$|^[A-Z]{2}[0-9]{7}$/,
+                  message: 'กรุณากรอกเลขบัตรประชาชน 13 หลัก หรือเลขที่หนังสือเดินทาง',
                 },
               ]}
             >
-              <Input placeholder="1234567890123" maxLength={13} />
+              <Input placeholder="1234567890123 หรือ A1234567" maxLength={13} />
             </Form.Item>
           </Col>
 
@@ -190,30 +326,6 @@ export default function SuspectFormModal({
             </Form.Item>
           </Col>
 
-          {/* ประเภทคดี */}
-          <Col span={24}>
-            <h4 style={{ marginTop: 16, marginBottom: 12, color: '#1890ff' }}>
-              ข้อมูลคดี
-            </h4>
-          </Col>
-
-          <Col span={12}>
-            <Form.Item label="ประเภทคดี" name="case_type">
-              <Select placeholder="เลือกประเภทคดี">
-                <Option value="ฉ้อโกง">ฉ้อโกง</Option>
-                <Option value="โกงรายได้">โกงรายได้</Option>
-                <Option value="ยักยอกทรัพย์">ยักยอกทรัพย์</Option>
-                <Option value="ฟอกเงิน">ฟอกเงิน</Option>
-                <Option value="อื่นๆ">อื่นๆ</Option>
-              </Select>
-            </Form.Item>
-          </Col>
-
-          <Col span={12}>
-            <Form.Item label="มูลค่าความเสียหาย" name="damage_amount">
-              <Input placeholder="จำนวนเงิน (บาท)" />
-            </Form.Item>
-          </Col>
 
           {/* วันนัดหมาย */}
           <Col span={24}>
@@ -234,7 +346,7 @@ export default function SuspectFormModal({
 
           <Col span={12}>
             <Form.Item label="เวลานัดหมาย" name="appointment_time">
-              <Input placeholder="เช่น 09:00" />
+              <Input placeholder="เช่น 09:00" defaultValue="09:00 น." />
             </Form.Item>
           </Col>
 
@@ -247,25 +359,14 @@ export default function SuspectFormModal({
 
           <Col span={8}>
             <Form.Item
-              label="สถานะมาตามนัด"
+              label="สถานะผลหมายเรียก"
               name="reply_status"
               valuePropName="checked"
             >
-              <Switch checkedChildren="มาแล้ว" unCheckedChildren="ยังไม่มา" />
+              <Switch checkedChildren="ตอบกลับแล้ว" unCheckedChildren="ยังไม่ตอบกลับ" />
             </Form.Item>
           </Col>
 
-          <Col span={8}>
-            <Form.Item label="สถานะ" name="status">
-              <Select>
-                <Option value="pending">รอดำเนินการ</Option>
-                <Option value="summoned">ออกหมายเรียกแล้ว</Option>
-                <Option value="appeared">มาตามนัด</Option>
-                <Option value="not_appeared">ไม่มาตามนัด</Option>
-                <Option value="completed">เสร็จสิ้น</Option>
-              </Select>
-            </Form.Item>
-          </Col>
 
           {/* หมายเหตุ */}
           <Col span={24}>

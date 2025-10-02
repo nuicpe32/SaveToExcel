@@ -71,13 +71,16 @@ class BankSummonsGenerator:
         victim_name = self._format_value(criminal_case.get('victim_name', ''))
         case_id = self._format_value(criminal_case.get('case_id', ''))
         
+        # สร้าง title ตามที่ต้องการ
+        html_title = f"หมายเรียกพยานเอกสาร{document_no} ลงวันที่ {date_thai}"
+        
         # สร้าง HTML
         html_content = f"""<!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>หนังสือขอข้อมูลบัญชีม้า (สอท.4)</title>
+    <title>{html_title}</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
 

@@ -26,8 +26,6 @@ class Suspect(Base):
     police_province = Column(String, index=True)
     police_address = Column(Text)
 
-    # Case Type
-    case_type = Column(String, index=True)  # ประเภทคดี
 
     # Appointment Information
     appointment_date = Column(Date, index=True)

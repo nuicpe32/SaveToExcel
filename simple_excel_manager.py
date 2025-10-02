@@ -1658,7 +1658,7 @@ class SimpleExcelManager:
                     try:
                         # ใช้ pandas
                         import pandas as pd
-                        self.data = pd.read_excel(self.excel_file)
+                        self.data = pd.read_excel(self.excel_file, dtype={'เลขบัญชี': str})
                         print(f"โหลดข้อมูล {len(self.data)} แถว จากไฟล์ Excel (pandas)")
                         
                     except Exception as pandas_error:
@@ -1688,7 +1688,7 @@ class SimpleExcelManager:
                     try:
                         # ใช้ pandas
                         import pandas as pd
-                        self.summons_data = pd.read_excel(self.summons_file)
+                        self.summons_data = pd.read_excel(self.summons_file, dtype={'เลขประจำตัว ปชช. ผตห.': str, 'เลขที่หนังสือ': str})
                         print(f"โหลดข้อมูลหมายเรียก {len(self.summons_data)} แถว จากไฟล์ Excel (pandas)")
                         
                     except Exception as pandas_error:
@@ -3056,7 +3056,7 @@ class SimpleExcelManager:
             account_owner = str(row_data.get('เจ้าของบัญชีม้า', ''))
             bank_branch = str(row_data.get('ธนาคารสาขา', ''))
             bank_name_full = str(row_data.get('ชื่อธนาคาร', ''))
-            account_no = format_number(row_data.get('เลขบัญชี', ''))
+            account_no = str(row_data.get('เลขบัญชี', '')).strip()
             account_name = str(row_data.get('ชื่อบัญชี', ''))
             time_period = str(row_data.get('ช่วงเวลา', ''))
             day = format_number(row_data.get('วัน', ''))
@@ -3410,6 +3410,7 @@ class SimpleExcelManager:
         """สร้างไฟล์ HTML หมายเรียกขอข้อมูลบัญชีธนาคารหลายรายการ โดยใช้ฟังก์ชันเดิม"""
         try:
             from datetime import datetime
+            import os
 
             # เก็บเนื้อหา HTML ของแต่ละหมายเรียก
             html_contents = []
@@ -3473,7 +3474,6 @@ class SimpleExcelManager:
             # เปิดไฟล์
             import subprocess
             import platform
-            import os
             try:
                 abs_path = os.path.abspath(filename)
                 if platform.system() == 'Darwin':
@@ -3489,12 +3489,14 @@ class SimpleExcelManager:
             messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถสร้าง HTML รวม: {str(e)}")
 
     def combine_html_contents_simple(self, html_contents):
-        """รวมเนื้อหา HTML หลายไฟล์เป็นไฟล์เดียว โดยเพิ่ม page-break"""
+        """รวมเนื้อหา HTML หลายไฟล์เป็นไฟล์เดียว โดยใช้รูปแบบเดียวกับไฟล์เดียว"""
         if not html_contents:
             return ""
 
-        # ดึง head จากไฟล์แรก
+        # ดึง HTML แรกเป็นฐาน (header และ style ที่ถูกต้อง)
         first_html = html_contents[0]
+
+        # ดึง head จากไฟล์แรกทั้งหมด (เพื่อให้ได้ style ที่ถูกต้อง)
         head_start = first_html.find('<head>')
         head_end = first_html.find('</head>')
         head_content = first_html[head_start:head_end + 7] if head_start != -1 and head_end != -1 else '<head></head>'
@@ -3514,36 +3516,17 @@ class SimpleExcelManager:
                 if i < len(html_contents) - 1:
                     combined_body += '<div style="page-break-after: always;"></div>'
 
-        # สร้าง HTML รวม พร้อม CSS สำหรับ LibreOffice
-        combined_html = f"""<!DOCTYPE html>
-<html>
-<head>
-	<meta http-equiv="content-type" content="text/html; charset=utf-8"/>
-	<title>หมายเรียกผู้ต้องหารวม</title>
-	<meta name="generator" content="LibreOffice 24.2.6.2 (Linux)"/>
-	<style type="text/css">
-		@font-face {{
-			font-family: 'THSarabunNew';
-			src: url('THSarabunNew/THSarabunNew.ttf') format('truetype');
-			font-weight: normal;
-			font-style: normal;
-		}}
-		@font-face {{
-			font-family: 'THSarabunNew';
-			src: url('THSarabunNew/THSarabunNew Bold.ttf') format('truetype');
-			font-weight: bold;
-			font-style: normal;
-		}}
-		@page {{ margin: 0.5in 0.79in 0.79in 0.79in }}
-		p {{ line-height: 115%; margin-bottom: 0.1in; background: transparent; font-family: 'THSarabunNew', sans-serif; }}
-		td p {{ margin-bottom: 0in; background: transparent; font-family: 'THSarabunNew', sans-serif; }}
-		body {{ font-family: 'THSarabunNew', sans-serif; }}
-		a:link {{ color: #000080; so-language: zxx; text-decoration: underline }}
-		a:visited {{ color: #800080; so-language: zxx; text-decoration: underline }}
-		.memo-title {{ font-size: 1.5em; font-weight: bold; margin-left: -5%; }}
-	</style>
-</head>
-<body lang="th-TH" link="#000080" vlink="#800080" dir="ltr">
+        # ดึง DOCTYPE และ html tag จากไฟล์แรก
+        doctype_start = first_html.find('<!DOCTYPE')
+        html_tag_start = first_html.find('<html')
+        html_tag_end = first_html.find('>', html_tag_start) + 1
+
+        doctype_and_html_start = first_html[doctype_start:html_tag_end] if doctype_start != -1 else '<!DOCTYPE html>\n<html>'
+
+        # สร้าง HTML รวม โดยใช้ head จากไฟล์เดิม
+        combined_html = f"""{doctype_and_html_start}
+{head_content}
+<body>
 {combined_body}
 </body>
 </html>"""
@@ -3771,7 +3754,7 @@ class SimpleExcelManager:
     </div>
 
     <div id="postage-box" class="absolute">
-        <p style="margin: 0; padding: 0;">ชำระฝากส่งเป็นรายเดือน<br>ใบอนุญาตที่ ๑๙๙/๒๕๖๔<br>ไปรษณีย์ ศาลากลาง ชม.</p>
+        <p style="margin: 0; padding: 0;">ชำระฝากส่งเป็นรายเดือน<br>ใบอนุญาตที่ ๑๙๙/๒๕๖๘<br>ไปรษณีย์ ศาลากลาง ชม.</p>
     </div>
 
 
@@ -4051,22 +4034,12 @@ class SimpleExcelManager:
 	<meta name="created" content="2024-12-27T21:28:40.027796400"/>
 	<meta name="changed" content="2024-12-27T21:29:19.524058300"/>
 	<style type="text/css">
-		@font-face {{
-			font-family: 'THSarabunNew';
-			src: url('THSarabunNew/THSarabunNew.ttf') format('truetype');
-			font-weight: normal;
-			font-style: normal;
-		}}
-		@font-face {{
-			font-family: 'THSarabunNew';
-			src: url('THSarabunNew/THSarabunNew Bold.ttf') format('truetype');
-			font-weight: bold;
-			font-style: normal;
-		}}
+		@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
+
 		@page {{ margin: 0.5in 0.79in 0.79in 0.79in }}
-		p {{ line-height: 115%; margin-bottom: 0.1in; background: transparent; font-family: 'THSarabunNew', sans-serif; }}
-		td p {{ margin-bottom: 0in; background: transparent; font-family: 'THSarabunNew', sans-serif; }}
-		body {{ font-family: 'THSarabunNew', sans-serif; }}
+		p {{ line-height: 115%; margin-bottom: 0.1in; background: transparent; font-family: 'Sarabun', 'THSarabunNew', sans-serif; }}
+		td p {{ margin-bottom: 0in; background: transparent; font-family: 'Sarabun', 'THSarabunNew', sans-serif; }}
+		body {{ font-family: 'Sarabun', 'THSarabunNew', sans-serif; }}
 		a:link {{ color: #000080; so-language: zxx; text-decoration: underline }}
 		a:visited {{ color: #800080; so-language: zxx; text-decoration: underline }}
 		.memo-title {{ font-size: 1.5em; font-weight: bold; margin-left: -5%; }}
@@ -4083,7 +4056,7 @@ class SimpleExcelManager:
 	<col width="100"/>
 	<tr>
 		<td colspan="4" width="333" valign="top" style="border: none; padding: 0in">
-			<p><span style="font-family: Liberation Serif, serif">
+			<p><span style="font-family: Sarabun, THSarabunNew, serif">
 			"""
 
             # เพิ่ม logo ถ้ามี
@@ -4098,41 +4071,41 @@ class SimpleExcelManager:
 	</tr>
 	<tr>
 		<td colspan="7" width="625" valign="top" style="border: none; padding: 0in">
-			<p><font face="Liberation Serif, serif"><b>ส่วนราชการ</b>
+			<p><font face="Sarabun, THSarabunNew, serif"><b>ส่วนราชการ</b>
 			กก.1 บก.สอท.4 เลขที่ 370 หมู่ 3 ตำบลดอนแก้ว อำเภอเเม่ริม
 			จังหวัดเชียงใหม่ 50180</font></p>
 		</td>
 	</tr>
 	<tr>
 		<td width="13" valign="top" style="border: none; padding: 0in">
-			<p><font face="Liberation Serif, serif"><b>ที่</b></font></p>
+			<p><font face="Sarabun, THSarabunNew, serif"><b>ที่</b></font></p>
 		</td>
 		<td colspan="3" width="313" valign="top" style="border: none; padding: 0in">
-			<p><font face="Liberation Serif, serif">ตช.0039.52/{document_no}</font></p>
+			<p><font face="Sarabun, THSarabunNew, serif">ตช.0039.52/{document_no}</font></p>
 		</td>
 		<td width="100" valign="top" style="border: none; padding: 0in">
-			<p><font face="Liberation Serif, serif"><b>วันที่</b></font></p>
+			<p><font face="Sarabun, THSarabunNew, serif"><b>วันที่</b></font></p>
 		</td>
 		<td colspan="2" width="200" valign="top" style="border: none; padding: 0in">
-			<p><font face="Liberation Serif, serif">{document_date}</font></p>
+			<p><font face="Sarabun, THSarabunNew, serif">{document_date}</font></p>
 		</td>
 	</tr>
 </table>
-<p><font face="THSarabunNew, serif"><b>เรื่อง</b>&nbsp;&nbsp;&nbsp;ส่งหมายเรียกผู้ต้องหา <b>({suspect_name} เลขประจำตัวประชาชน {suspect_id_card})</b></font></p>
-<p><font face="THSarabunNew, serif"><b>เรียน</b>&nbsp;&nbsp;&nbsp;ผกก.{police_station} จว.{police_province}</font></p>
+<p><font face="Sarabun, THSarabunNew, serif"><b>เรื่อง</b>&nbsp;&nbsp;&nbsp;ส่งหมายเรียกผู้ต้องหา <b>({suspect_name} เลขประจำตัวประชาชน {suspect_id_card})</b></font></p>
+<p><font face="Sarabun, THSarabunNew, serif"><b>เรียน</b>&nbsp;&nbsp;&nbsp;ผกก.{police_station} จว.{police_province}</font></p>
 <table width="639" cellpadding="7" cellspacing="0">
 	<col width="625"/>
 	<tr>
 		<td colspan="7" width="625" valign="top" style="border: none; padding: 0in">
-			<p align="justify" style="margin-bottom: 0in">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ด้วยพนักงานสอบสวน
+			<p align="justify" style="margin-bottom: 0in"><font face="Sarabun, THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ด้วยพนักงานสอบสวน
 			กก.1 บก.สอท.4 ได้รับคำร้องทุกข์ จาก {victim_name} เรื่อง {case_type}
 			ได้รับความเสียหาย จำนวน {damage_amount} บาท เลขรับแจ้งความออนไลน์ :
-			{case_id}</p>
-			<p align="justify" style="margin-bottom: 0in">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;เจ้าพนักงานตำรวจ
+			{case_id}</font></p>
+			<p align="justify" style="margin-bottom: 0in"><font face="Sarabun, THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;เจ้าพนักงานตำรวจ
 			กก.1 บก.สอท.4 จึงได้ทำการสืบสวนสอบสวนเรื่อยมา พบว่า {suspect_name}
 			เลขประจำตัวประชาชน {suspect_id_card} ที่อยู่ {suspect_address}
-			เป็นเจ้าของบัญชีธนาคารที่รับโอนเงินจากผู้เสียหาย</p>
-			<p align="justify" style="margin-bottom: 0in">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;เนื่องจากผู้ถูกเรียกมีภูมิลำเนาอยู่ในพื้นที่ของท่าน
+			เป็นเจ้าของบัญชีธนาคารที่รับโอนเงินจากผู้เสียหาย</font></p>
+			<p align="justify" style="margin-bottom: 0in"><font face="Sarabun, THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;เนื่องจากผู้ถูกเรียกมีภูมิลำเนาอยู่ในพื้นที่ของท่าน
 			เพื่อให้เป็นไปตามความในประมวลกฎหมายวิธีพิจารณาความอาญา
 			มาตรา 56 จึงขอส่ง <u>หมายเรียกผู้ต้องหา ฉบับลงวันที่
 			{document_date} กำหนดให้มาตามหมายเรียกในวันที่ {appointment_date}
@@ -4141,18 +4114,18 @@ class SimpleExcelManager:
 			และเมื่อจัดส่งหมายแล้วขอให้ส่ง ใบรับหมายตำรวจ กลับมายัง
 			"พนักงานสอบสวน พ.ต.ต.อำพล ทองอร่าม สว.(สอบสวน) กก.1
 			บก.สอท.4 ที่อยู่ เลขที่ 370 ม.3 ต.ดอนแก้ว อ.เเม่ริม
-			จ.เชียงใหม่ 50180" เพื่อพนักงานสอบสวนจะได้ใช้เป็นหลักฐานในการสอบสวนต่อไป</p>
+			จ.เชียงใหม่ 50180" เพื่อพนักงานสอบสวนจะได้ใช้เป็นหลักฐานในการสอบสวนต่อไป</font></p>
 			<p><br/>
 
 			</p>
-			<p style="margin-bottom: 0in">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;จึงเรียนมาเพื่อโปรดพิจารณาดำเนินการ</p>
+			<p style="margin-bottom: 0in"><font face="Sarabun, THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;จึงเรียนมาเพื่อโปรดพิจารณาดำเนินการ</font></p>
 			<p style="margin-bottom: 0in"><br/>
 
 			</p>
-			<p style="margin-bottom: 0in"><font face="THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;พ.ต.ต.</font></p>
-			<p align="center" style="margin-bottom: 0in"><font face="THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(
+			<p style="margin-bottom: 0in"><font face="Sarabun, THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;พ.ต.ต.</font></p>
+			<p align="center" style="margin-bottom: 0in"><font face="Sarabun, THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(
 			อำพล ทองอร่าม )</font></p>
-			<p align="center" style="margin-bottom: 0in"><font face="THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตำแหน่ง สว.(สอบสวน)ฯ
+			<p align="center" style="margin-bottom: 0in"><font face="Sarabun, THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตำแหน่ง สว.(สอบสวน)ฯ
 			ปรท. ผกก.1 บก.สอท.4</font></p>
 		</td>
 	</tr>
@@ -4161,9 +4134,9 @@ class SimpleExcelManager:
 <br/>
 
 </p>
-<p><font face="Liberation Serif, serif">พนักงานสอบสวน ว่าที่
+<p><font face="Sarabun, THSarabunNew, serif">พนักงานสอบสวน ว่าที่
 พ.ต.ต.อำพล ทองอร่าม</font></p>
-<p><font face="Liberation Serif, serif">โทร 062-2416478</font></p>
+<p><font face="Sarabun, THSarabunNew, serif">โทร 062-2416478</font></p>
 </body>
 </html>"""
 
@@ -4226,22 +4199,12 @@ class SimpleExcelManager:
 	<title>หมายเรียกผู้ต้องหา รวม {len(rows_data)} ฉบับ</title>
 	<meta name="generator" content="LibreOffice 24.2.6.2 (Linux)"/>
 	<style type="text/css">
-		@font-face {{
-			font-family: 'THSarabunNew';
-			src: url('THSarabunNew/THSarabunNew.ttf') format('truetype');
-			font-weight: normal;
-			font-style: normal;
-		}}
-		@font-face {{
-			font-family: 'THSarabunNew';
-			src: url('THSarabunNew/THSarabunNew Bold.ttf') format('truetype');
-			font-weight: bold;
-			font-style: normal;
-		}}
+		@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
+
 		@page {{ margin: 0.5in 0.79in 0.79in 0.79in }}
-		p {{ line-height: 115%; margin-bottom: 0.1in; background: transparent; font-family: 'THSarabunNew', sans-serif; }}
-		td p {{ margin-bottom: 0in; background: transparent; font-family: 'THSarabunNew', sans-serif; }}
-		body {{ font-family: 'THSarabunNew', sans-serif; }}
+		p {{ line-height: 115%; margin-bottom: 0.1in; background: transparent; font-family: 'Sarabun', 'THSarabunNew', sans-serif; }}
+		td p {{ margin-bottom: 0in; background: transparent; font-family: 'Sarabun', 'THSarabunNew', sans-serif; }}
+		body {{ font-family: 'Sarabun', 'THSarabunNew', sans-serif; }}
 		a:link {{ color: #000080; so-language: zxx; text-decoration: underline }}
 		a:visited {{ color: #800080; so-language: zxx; text-decoration: underline }}
 		.memo-title {{ font-size: 1.5em; font-weight: bold; margin-left: -5%; }}
@@ -4322,7 +4285,7 @@ class SimpleExcelManager:
             <col width="100"/>
             <tr>
                 <td colspan="4" width="333" valign="top" style="border: none; padding: 0in">
-                    <p><span style="font-family: Liberation Serif, serif">"""
+                    <p><span style="font-family: Sarabun, THSarabunNew, serif">"""
 
             # เพิ่ม logo ถ้ามี
             if logo_base64:
@@ -4336,42 +4299,42 @@ class SimpleExcelManager:
             </tr>
             <tr>
                 <td colspan="7" width="625" valign="top" style="border: none; padding: 0in">
-                    <p><font face="Liberation Serif, serif"><b>ส่วนราชการ</b>
+                    <p><font face="Sarabun, THSarabunNew, serif"><b>ส่วนราชการ</b>
                     กก.1 บก.สอท.4 เลขที่ 370 หมู่ 3 ตำบลดอนแก้ว อำเภอเเม่ริม
                     จังหวัดเชียงใหม่ 50180</font></p>
                 </td>
             </tr>
             <tr>
                 <td width="13" valign="top" style="border: none; padding: 0in">
-                    <p><font face="Liberation Serif, serif"><b>ที่</b></font></p>
+                    <p><font face="Sarabun, THSarabunNew, serif"><b>ที่</b></font></p>
                 </td>
                 <td colspan="3" width="313" valign="top" style="border: none; padding: 0in">
-                    <p><font face="Liberation Serif, serif">&nbsp;&nbsp;ตช.0039.52/{document_no}</font></p>
+                    <p><font face="Sarabun, THSarabunNew, serif">&nbsp;&nbsp;ตช.0039.52/{document_no}</font></p>
                 </td>
                 <td width="100" valign="top" style="border: none; padding: 0in">
-                    <p><font face="Liberation Serif, serif"><b>วันที่</b></font></p>
+                    <p><font face="Sarabun, THSarabunNew, serif"><b>วันที่</b></font></p>
                 </td>
                 <td colspan="2" width="200" valign="top" style="border: none; padding: 0in">
-                    <p><font face="Liberation Serif, serif">{document_date}</font></p>
+                    <p><font face="Sarabun, THSarabunNew, serif">{document_date}</font></p>
                 </td>
             </tr>
         </table>
-        <p><font face="THSarabunNew, serif"><b>เรื่อง</b>&nbsp;&nbsp;&nbsp;ส่งหมายเรียกผู้ต้องหา <b>({suspect_name} เลขประจำตัวประชาชน {suspect_id_card})</b></font></p>
-        <p><font face="THSarabunNew, serif"><b>เรียน</b>&nbsp;&nbsp;&nbsp;ผกก.{police_station} จว.{police_province}</font></p>
+        <p><font face="Sarabun, THSarabunNew, serif"><b>เรื่อง</b>&nbsp;&nbsp;&nbsp;ส่งหมายเรียกผู้ต้องหา <b>({suspect_name} เลขประจำตัวประชาชน {suspect_id_card})</b></font></p>
+        <p><font face="Sarabun, THSarabunNew, serif"><b>เรียน</b>&nbsp;&nbsp;&nbsp;ผกก.{police_station} จว.{police_province}</font></p>
         <table width="639" cellpadding="7" cellspacing="0">
             <col width="625"/>
             <tr>
                 <td width="625" valign="top" style="border: none; padding: 0in">
                     <p><br/></p>
-                    <p align="justify" style="margin-bottom: 0in">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ด้วยพนักงานสอบสวน
+                    <p align="justify" style="margin-bottom: 0in"><font face="Sarabun, THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ด้วยพนักงานสอบสวน
                     กก.1 บก.สอท.4 ได้รับคำร้องทุกข์ จาก {victim_name} เรื่อง {case_type}
                     ได้รับความเสียหาย จำนวน {damage_amount} บาท เลขรับแจ้งความออนไลน์ :
-                    {case_id}</p>
-                    <p align="justify" style="margin-bottom: 0in">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;เจ้าพนักงานตำรวจ
+                    {case_id}</font></p>
+                    <p align="justify" style="margin-bottom: 0in"><font face="Sarabun, THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;เจ้าพนักงานตำรวจ
                     กก.1 บก.สอท.4 จึงได้ทำการสืบสวนสอบสวนเรื่อยมา พบว่า {suspect_name}
                     เลขประจำตัวประชาชน {suspect_id_card} ที่อยู่ {suspect_address}
-                    เป็นเจ้าของบัญชีธนาคารที่รับโอนเงินจากผู้เสียหาย</p>
-                    <p align="justify" style="margin-bottom: 0in">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;เนื่องจากผู้ถูกเรียกมีภูมิลำเนาอยู่ในพื้นที่ของท่าน
+                    เป็นเจ้าของบัญชีธนาคารที่รับโอนเงินจากผู้เสียหาย</font></p>
+                    <p align="justify" style="margin-bottom: 0in"><font face="Sarabun, THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;เนื่องจากผู้ถูกเรียกมีภูมิลำเนาอยู่ในพื้นที่ของท่าน
                     เพื่อให้เป็นไปตามความในประมวลกฎหมายวิธีพิจารณาความอาญา
                     มาตรา 56 จึงขอส่ง <u>หมายเรียกผู้ต้องหา ฉบับลงวันที่
                     {document_date} กำหนดให้มาตามหมายเรียกในวันที่ {appointment_date}
@@ -4380,19 +4343,19 @@ class SimpleExcelManager:
                     และเมื่อจัดส่งหมายแล้วขอให้ส่ง ใบรับหมายตำรวจ กลับมายัง
                     "พนักงานสอบสวน พ.ต.ต.อำพล ทองอร่าม สว.(สอบสวน) กก.1
                     บก.สอท.4 ที่อยู่ เลขที่ 370 ม.3 ต.ดอนแก้ว อ.เเม่ริม
-                    จ.เชียงใหม่ 50180" เพื่อพนักงานสอบสวนจะได้ใช้เป็นหลักฐานในการสอบสวนต่อไป</p>
+                    จ.เชียงใหม่ 50180" เพื่อพนักงานสอบสวนจะได้ใช้เป็นหลักฐานในการสอบสวนต่อไป</font></p>
                     <p><br/></p>
                     <p><br/>
 
                     </p>
-                    <p style="margin-bottom: 0in">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;จึงเรียนมาเพื่อโปรดพิจารณาดำเนินการ</p>
+                    <p style="margin-bottom: 0in"><font face="Sarabun, THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;จึงเรียนมาเพื่อโปรดพิจารณาดำเนินการ</font></p>
                     <p style="margin-bottom: 0in"><br/>
 
                     </p>
-                    <p style="margin-bottom: 0in"><font face="THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;พ.ต.ต.</font></p>
-                    <p align="center" style="margin-bottom: 0in"><font face="THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(
+                    <p style="margin-bottom: 0in"><font face="Sarabun, THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;พ.ต.ต.</font></p>
+                    <p align="center" style="margin-bottom: 0in"><font face="Sarabun, THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(
                     อำพล ทองอร่าม )</font></p>
-                    <p align="center" style="margin-bottom: 0in"><font face="THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตำแหน่ง สว.(สอบสวน)ฯ
+                    <p align="center" style="margin-bottom: 0in"><font face="Sarabun, THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ตำแหน่ง สว.(สอบสวน)ฯ
                     ปรท. ผกก.1 บก.สอท.4</font></p>
                 </td>
             </tr>
@@ -4401,9 +4364,9 @@ class SimpleExcelManager:
 <br/>
 
 </p>
-        <p><font face="Liberation Serif, serif">พนักงานสอบสวน ว่าที่
+        <p><font face="Sarabun, THSarabunNew, serif">พนักงานสอบสวน ว่าที่
 พ.ต.ต.อำพล ทองอร่าม</font></p>
-        <p><font face="Liberation Serif, serif">โทร 062-2416478</font></p>
+        <p><font face="Sarabun, THSarabunNew, serif">โทร 062-2416478</font></p>
     </div>
     <div style="page-break-after: always;"></div>
 """
@@ -4507,7 +4470,7 @@ class SimpleExcelManager:
     </div>
 
         <div id="postage-box" class="absolute">
-            <p style="margin: 0; padding: 0;">ชำระฝากส่งเป็นรายเดือน<br>ใบอนุญาตที่ ๑๙๙/๒๕๖๔<br>ไปรษณีย์ ศาลากลาง ชม.</p>
+            <p style="margin: 0; padding: 0;">ชำระฝากส่งเป็นรายเดือน<br>ใบอนุญาตที่ ๑๙๙/๒๕๖๘<br>ไปรษณีย์ ศาลากลาง ชม.</p>
         </div>
 
 
@@ -4722,7 +4685,7 @@ class SimpleExcelManager:
     </div>
 
     <div id="postage-box" class="absolute">
-        <p style="margin: 0; padding: 0;">ชำระฝากส่งเป็นรายเดือน<br>ใบอนุญาตที่ ๑๙๙/๒๕๖๔<br>ไปรษณีย์ ศาลากลาง ชม.</p>
+        <p style="margin: 0; padding: 0;">ชำระฝากส่งเป็นรายเดือน<br>ใบอนุญาตที่ ๑๙๙/๒๕๖๘<br>ไปรษณีย์ ศาลากลาง ชม.</p>
     </div>
 
 
@@ -5006,7 +4969,7 @@ class SimpleExcelManager:
     </div>
 
     <div id="postage-box" class="absolute" style="top: 0.5cm; right: 0.2cm; border: 1px solid black; padding: 5px 10px; text-align: center; width: 5cm;">
-        <p style="margin: 0; padding: 0;">ชำระฝากส่งเป็นรายเดือน<br>ใบอนุญาตที่ ๑๙๙/๒๕๖๔<br>ไปรษณีย์ ศาลากลาง ชม.</p>
+        <p style="margin: 0; padding: 0;">ชำระฝากส่งเป็นรายเดือน<br>ใบอนุญาตที่ ๑๙๙/๒๕๖๘<br>ไปรษณีย์ ศาลากลาง ชม.</p>
     </div>
 
     <div id="recipient-address" class="absolute" style="top: 2.5cm; left: 9cm;">
@@ -7168,8 +7131,8 @@ class SimpleExcelManager:
                 print("ไม่พบไฟล์ข้อมูลธนาคาร หนังสือส่งธนาคารขอข้อมูลบัญชีม้า.xlsx")
                 return related_bank
             
-            # โหลดข้อมูลธนาคาร
-            bank_df = pd.read_excel(bank_file, engine='openpyxl')
+            # โหลดข้อมูลธนาคาร โดยระบุให้อ่านเลขบัญชีเป็น string เพื่อรักษาเลข 0 หน้า
+            bank_df = pd.read_excel(bank_file, engine='openpyxl', dtype={'เลขบัญชี': str})
             
             # ค้นหาข้อมูลที่ตรงกับชื่อผู้ร้องทุกข์
             for _, row in bank_df.iterrows():
@@ -7268,8 +7231,8 @@ class SimpleExcelManager:
             if not bank_file:
                 return ""
             
-            # โหลดข้อมูลธนาคาร
-            bank_df = pd.read_excel(bank_file, engine='openpyxl')
+            # โหลดข้อมูลธนาคาร โดยระบุให้อ่านเลขบัญชีเป็น string เพื่อรักษาเลข 0 หน้า
+            bank_df = pd.read_excel(bank_file, engine='openpyxl', dtype={'เลขบัญชี': str})
             
             # ค้นหาข้อมูลที่ตรงกับชื่อผู้ร้องทุกข์
             for _, row in bank_df.iterrows():
@@ -7800,33 +7763,10 @@ class SimpleExcelManager:
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>รายงานรายละเอียดคดี - {case_no}</title>
     <style>
-        @font-face {{
-            font-family: 'THSarabunNew';
-            src: url('file://{font_path}/THSarabunNew.ttf') format('truetype');
-            font-weight: normal;
-            font-style: normal;
-        }}
-        @font-face {{
-            font-family: 'THSarabunNew';
-            src: url('file://{font_path}/THSarabunNew Bold.ttf') format('truetype');
-            font-weight: bold;
-            font-style: normal;
-        }}
-        @font-face {{
-            font-family: 'THSarabunNew';
-            src: url('file://{font_path}/THSarabunNew Italic.ttf') format('truetype');
-            font-weight: normal;
-            font-style: italic;
-        }}
-        @font-face {{
-            font-family: 'THSarabunNew';
-            src: url('file://{font_path}/THSarabunNew BoldItalic.ttf') format('truetype');
-            font-weight: bold;
-            font-style: italic;
-        }}
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
         
         body {{
-            font-family: 'THSarabunNew', Arial, sans-serif;
+            font-family: 'Sarabun', 'THSarabunNew', Arial, sans-serif;
             font-size: 14pt;
             line-height: 1.4;
             margin: 0;
@@ -8371,20 +8311,9 @@ class SimpleExcelManager:
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>รายงานคดีอาญาในความรับผิดชอบ</title>
     <style>
-        @font-face {
-            font-family: 'THSarabunNew';
-            src: url('THSarabunNew/THSarabunNew.ttf') format('truetype');
-            font-weight: normal;
-            font-style: normal;
-        }
-        @font-face {
-            font-family: 'THSarabunNew';
-            src: url('THSarabunNew/THSarabunNew Bold.ttf') format('truetype');
-            font-weight: bold;
-            font-style: normal;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
         body {
-            font-family: 'THSarabunNew', 'TH Sarabun New', sans-serif;
+            font-family: 'Sarabun', 'THSarabunNew', 'TH Sarabun New', sans-serif;
             font-size: 16px;
             line-height: 1.4;
             margin: 0;

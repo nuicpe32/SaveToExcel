@@ -13,7 +13,22 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(git rm:*)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(git restore:*)",
+      "Bash(mkdir:*)",
+      "Bash(docker:*)",
+      "Bash(docker-compose restart:*)",
+      "Bash(docker-compose exec:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker-compose logs:*)",
+      "Bash(curl:*)",
+      "Bash(chmod:*)",
+      "Bash(if [ ! -f .env ])",
+      "Bash(then cp .env.example .env)",
+      "Bash(else echo \".env already exists\")",
+      "Bash(fi)",
+      "Bash(docker-compose:*)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []

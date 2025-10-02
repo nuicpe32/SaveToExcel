@@ -18,8 +18,6 @@ class SuspectBase(BaseModel):
     police_province: Optional[str] = None
     police_address: Optional[str] = None
 
-    # Case Type
-    case_type: Optional[str] = None
 
     # Appointment Information
     appointment_date: Optional[date] = None
@@ -49,8 +47,6 @@ class SuspectUpdate(BaseModel):
     police_province: Optional[str] = None
     police_address: Optional[str] = None
 
-    # Case Type
-    case_type: Optional[str] = None
 
     # Appointment Information
     appointment_date: Optional[date] = None
