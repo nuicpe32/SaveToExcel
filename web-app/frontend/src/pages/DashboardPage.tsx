@@ -425,6 +425,20 @@ export default function DashboardPage() {
       },
     },
     {
+      title: 'สถานะคดี',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string, record: CriminalCase) => {
+        const textStyle = getStatusTextStyle(status, record.complaint_date)
+        return <Tag color="blue" style={textStyle}>{status}</Tag>
+      },
+      filters: [
+        { text: 'ระหว่างสอบสวน', value: 'ระหว่างสอบสวน' },
+        { text: 'จำหน่าย', value: 'จำหน่าย' },
+      ],
+      onFilter: (value: any, record: CriminalCase) => record.status === value,
+    },
+    {
       title: 'เลขที่คดี',
       dataIndex: 'case_number',
       key: 'case_number',
@@ -490,20 +504,6 @@ export default function DashboardPage() {
       ),
       onFilter: (value: any, record: CriminalCase) =>
         record.case_id?.toLowerCase().includes((value as string).toLowerCase()) || false,
-    },
-    {
-      title: 'สถานะคดี',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string, record: CriminalCase) => {
-        const textStyle = getStatusTextStyle(status, record.complaint_date)
-        return <Tag color="blue" style={textStyle}>{status}</Tag>
-      },
-      filters: [
-        { text: 'ระหว่างสอบสวน', value: 'ระหว่างสอบสวน' },
-        { text: 'จำหน่าย', value: 'จำหน่าย' },
-      ],
-      onFilter: (value: any, record: CriminalCase) => record.status === value,
     },
     {
       title: 'ผู้ร้องทุกข์',
