@@ -317,7 +317,13 @@ export default function DashboardPage() {
   }
 
   const getRowClassName = (record: CriminalCase) => {
-    if (record.status === 'อยู่ระหว่างสอบสวน' && record.complaint_date) {
+    // ถ้าสถานะคดีเป็น 'จำหน่าย' ให้ใช้สีพื้นหลังเขียวอ่อน
+    if (record.status === 'จำหน่าย') {
+      return 'row-closed-case'
+    }
+    
+    // ถ้าสถานะคดีเป็น 'ระหว่างสอบสวน' และเกิน 6 เดือน ให้ใช้สีแดงอ่อน
+    if (record.status === 'ระหว่างสอบสวน' && record.complaint_date) {
       const complaintDateObj = new Date(record.complaint_date)
       const now = new Date()
       const diffTime = now.getTime() - complaintDateObj.getTime()
@@ -327,6 +333,7 @@ export default function DashboardPage() {
         return 'row-red'
       }
     }
+    
     return ''
   }
 
@@ -1085,6 +1092,9 @@ export default function DashboardPage() {
           background-color: #fff2f0 !important;
         }
         .row-green {
+          background-color: #f6ffed !important;
+        }
+        .row-closed-case {
           background-color: #f6ffed !important;
         }
       `}</style>
