@@ -108,8 +108,9 @@ export default function DashboardPage() {
     let closedCases = 0
     
     cases.forEach(caseItem => {
-      // ตรวจสอบสถานะคดี - แก้ไขให้รองรับสถานะ 'จำหน่าย'
-      if (caseItem.status === 'closed' || caseItem.status === 'completed' || caseItem.status === 'จำหน่าย') {
+      // ตรวจสอบสถานะคดี - 'ส่งอัยการ' และ 'จำหน่าย' ถือเป็นจำหน่ายแล้ว
+      if (caseItem.status === 'closed' || caseItem.status === 'completed' || 
+          caseItem.status === 'จำหน่าย' || caseItem.status === 'ส่งอัยการ') {
         closedCases++
       } else {
         processingCases++
