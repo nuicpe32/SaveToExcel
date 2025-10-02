@@ -85,8 +85,52 @@ export default function DashboardPage() {
   const [suspectModalVisible, setSuspectModalVisible] = useState(false)
   const [editingBank, setEditingBank] = useState<BankAccount | null>(null)
   const [editingSuspect, setEditingSuspect] = useState<Suspect | null>(null)
+  
+  // Statistics state
+  const [stats, setStats] = useState({
+    totalCases: 0,
+    processingCases: 0,
+    over6MonthsCases: 0,
+    closedCases: 0
+  })
+  
   const navigate = useNavigate()
   const { token, user } = useAuthStore()
+
+  // คำนวณสถิติจากข้อมูลคดี
+  const calculateStats = useCallback((cases: CriminalCase[]) => {
+    const now = new Date()
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate())
+    
+    const totalCases = cases.length
+    let processingCases = 0
+    let over6MonthsCases = 0
+    let closedCases = 0
+    
+    cases.forEach(caseItem => {
+      // ตรวจสอบสถานะคดี
+      if (caseItem.status === 'closed' || caseItem.status === 'completed') {
+        closedCases++
+      } else {
+        processingCases++
+        
+        // ตรวจสอบคดีที่เกิน 6 เดือน
+        if (caseItem.complaint_date) {
+          const complaintDate = new Date(caseItem.complaint_date)
+          if (complaintDate < sixMonthsAgo) {
+            over6MonthsCases++
+          }
+        }
+      }
+    })
+    
+    return {
+      totalCases,
+      processingCases,
+      over6MonthsCases,
+      closedCases
+    }
+  }, [])
 
   const fetchData = useCallback(async () => {
     try {
@@ -104,7 +148,13 @@ export default function DashboardPage() {
         return new Date(b.complaint_date).getTime() - new Date(a.complaint_date).getTime()
       })
       setData(sortedData)
+      
+      // คำนวณสถิติ
+      const calculatedStats = calculateStats(sortedData)
+      setStats(calculatedStats)
+      
       console.log('✅ Dashboard: Data sorted and set:', sortedData.length, 'cases')
+      console.log('📊 Dashboard: Statistics calculated:', calculatedStats)
     } catch (err: any) {
       console.error('❌ Dashboard: Error fetching data:', err)
       console.error('❌ Dashboard: Error response:', err.response?.data)
@@ -433,6 +483,31 @@ export default function DashboardPage() {
 
   return (
     <div style={{ padding: '20px' }}>
+      {/* แถบสถิติ */}
+      <div style={{ 
+        marginBottom: '20px', 
+        padding: '12px 16px', 
+        backgroundColor: '#f0f8ff', 
+        border: '1px solid #d9d9d9', 
+        borderRadius: '6px',
+        fontSize: '14px',
+        fontWeight: '500',
+        color: '#1890ff'
+      }}>
+        <span style={{ marginRight: '20px' }}>
+          จำนวนคดีทั้งหมด: <strong>{stats.totalCases}</strong>
+        </span>
+        <span style={{ marginRight: '20px' }}>
+          กำลังดำเนินการ: <strong style={{ color: '#52c41a' }}>{stats.processingCases}</strong>
+        </span>
+        <span style={{ marginRight: '20px' }}>
+          เกิน 6 เดือน: <strong style={{ color: '#fa8c16' }}>{stats.over6MonthsCases}</strong>
+        </span>
+        <span>
+          จำหน่ายแล้ว: <strong style={{ color: '#722ed1' }}>{stats.closedCases}</strong>
+        </span>
+      </div>
+
       <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>คดีอาญาในความรับผิดชอบ</h1>
         <Button type="primary" icon={<PlusOutlined />} onClick={handleAddNew}>
