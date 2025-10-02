@@ -40,7 +40,7 @@ export default function SuspectFormModal({
   }
 
   // แกะข้อมูลจากไฟล์ PDF ทร.14
-  const parsePDFData = async (file: File): Promise<{name: string, idCard: string, address: string} | null> => {
+  const parsePDFData = async (file: File): Promise<{name: string, idCard: string, address: string, addressValid: boolean, message: string} | null> => {
     try {
       setUploading(true)
       
@@ -60,7 +60,9 @@ export default function SuspectFormModal({
         return {
           name: data?.name || '',
           idCard: data?.idCard || '',
-          address: data?.address || ''
+          address: data?.address || '',
+          addressValid: data?.addressValid !== false,
+          message: response.data.message || 'แกะข้อมูลจากไฟล์ PDF สำเร็จ'
         }
       }
       
@@ -88,12 +90,18 @@ export default function SuspectFormModal({
       const formData = {
         suspect_name: pdfData.name,
         suspect_id_card: pdfData.idCard,
-        suspect_address: pdfData.address
+        // ถ้าที่อยู่ไม่ถูกต้อง ให้ปล่อยเป็นค่าว่าง
+        suspect_address: pdfData.addressValid ? pdfData.address : ''
       }
       
       form.setFieldsValue(formData)
       
-      message.success('แกะข้อมูลจากไฟล์ PDF สำเร็จ')
+      // แสดงข้อความแจ้งเตือนตามสถานะ
+      if (pdfData.addressValid) {
+        message.success(pdfData.message)
+      } else {
+        message.warning(pdfData.message)
+      }
     } else {
       message.warning('ไม่พบข้อมูลในไฟล์ PDF')
     }

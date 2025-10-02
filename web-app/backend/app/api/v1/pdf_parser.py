@@ -54,15 +54,24 @@ async def parse_pdf_thor14(file: UploadFile = File(...)):
                 }
             )
         
+        # ตรวจสอบความถูกต้องของที่อยู่
+        address_valid = extracted_data.get('address_valid', True)
+        
+        # สร้างข้อความแจ้งเตือน
+        message = "แกะข้อมูลจากไฟล์ PDF สำเร็จ"
+        if not address_valid:
+            message = "แกะข้อมูลจากไฟล์ PDF สำเร็จ แต่ระบบไม่สามารถแกะข้อมูลที่อยู่ของผู้ต้องหาจากไฟล์ได้ กรุณาระบุด้วยตนเอง"
+        
         return JSONResponse(
             status_code=200,
             content={
                 "success": True,
-                "message": "แกะข้อมูลจากไฟล์ PDF สำเร็จ",
+                "message": message,
                 "data": {
                     "name": extracted_data.get('name', ''),
                     "idCard": extracted_data.get('id_card', ''),
-                    "address": extracted_data.get('address', '')
+                    "address": extracted_data.get('address', ''),
+                    "addressValid": address_valid
                 }
             }
         )
