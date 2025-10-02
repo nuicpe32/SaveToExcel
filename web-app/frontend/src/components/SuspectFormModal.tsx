@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Modal, Form, Input, DatePicker, Switch, Row, Col, message, AutoComplete, Upload, Button } from 'antd'
-import { UploadOutlined, FileTextOutlined } from '@ant-design/icons'
+import { UploadOutlined, FileTextOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import api from '../services/api'
+import PoliceStationSearchModal from './PoliceStationSearchModal'
 
 const { TextArea } = Input
 
@@ -22,6 +23,7 @@ export default function SuspectFormModal({
   const [form] = Form.useForm()
   const [bankAccountNames, setBankAccountNames] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
+  const [policeStationModalVisible, setPoliceStationModalVisible] = useState(false)
   const isEdit = !!editingRecord
 
   // ดึงข้อมูลชื่อเจ้าของบัญชีธนาคารจากคดีนี้
@@ -107,6 +109,17 @@ export default function SuspectFormModal({
     }
     
     return false // ป้องกันการอัปโหลดไฟล์จริง
+  }
+
+  // จัดการการเลือกสถานีตำรวจ
+  const handleSelectPoliceStation = (station: any) => {
+    // กรอกข้อมูลสถานีตำรวจลงในฟอร์ม
+    form.setFieldsValue({
+      police_station_name: station.name,
+      police_station_address: station.address,
+    })
+    
+    message.success(`เลือกสถานีตำรวจ: ${station.name}`)
   }
 
   useEffect(() => {
@@ -309,6 +322,19 @@ export default function SuspectFormModal({
             </Form.Item>
           </Col>
 
+          <Col span={24}>
+            <div style={{ marginBottom: 16, textAlign: 'right' }}>
+              <Button
+                type="default"
+                icon={<SearchOutlined />}
+                onClick={() => setPoliceStationModalVisible(true)}
+                disabled={!form.getFieldValue('suspect_address')?.trim()}
+              >
+                ค้นหาสถานีตำรวจ
+              </Button>
+            </div>
+          </Col>
+
           {/* ข้อมูลสถานีตำรวจ */}
           <Col span={24}>
             <h4 style={{ marginTop: 16, marginBottom: 12, color: '#1890ff' }}>
@@ -384,6 +410,14 @@ export default function SuspectFormModal({
           </Col>
         </Row>
       </Form>
+
+      {/* Modal ค้นหาสถานีตำรวจ */}
+      <PoliceStationSearchModal
+        visible={policeStationModalVisible}
+        onCancel={() => setPoliceStationModalVisible(false)}
+        onSelect={handleSelectPoliceStation}
+        suspectAddress={form.getFieldValue('suspect_address') || ''}
+      />
     </Modal>
   )
 }
