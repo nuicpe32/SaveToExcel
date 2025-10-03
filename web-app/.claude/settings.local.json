@@ -27,7 +27,11 @@
       "Bash(PGPASSWORD=password123 psql -h localhost -p 5432 -U user -d criminal_case_db -c \"SELECT COUNT(*) as total_cases FROM criminal_cases;\")",
       "Bash(PGPASSWORD=password123 psql -h localhost -p 5432 -U user -d criminal_case_db -c \"SELECT COUNT(*) as total_suspects FROM suspects;\")",
       "Bash(PGPASSWORD=password123 psql -h localhost -p 5432 -U user -d criminal_case_db -c \"SELECT COUNT(*) as total_bank_accounts FROM bank_accounts;\")",
-      "Read(//mnt/c/SaveToExcel/**)"
+      "Read(//mnt/c/SaveToExcel/**)",
+      "Read(//mnt/c/Users/nui_c/Downloads/**)",
+      "Bash(awk:*)",
+      "Bash(xargs -r docker volume rm)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

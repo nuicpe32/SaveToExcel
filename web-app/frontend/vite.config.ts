@@ -10,7 +10,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,  // Vite dev server port (changed from 3000)
+    port: 3000,  // Vite dev server port
     host: '0.0.0.0',  // Allow access from outside container
     proxy: {
       '/api': {

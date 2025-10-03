@@ -1,169 +1,122 @@
-# Changelog - ระบบจัดการคดีอาญา Web Application
+# Changelog
 
-## [v3.0.1] - 2025-10-01 - Bank Account Management Improvements ✅
+All notable changes to this project will be documented in this file.
 
-### 🎯 Checkpoint: Stable Version
-**Git Tag:** `v3.0.1-bank-improvements`  
-**Commit:** `d50b48d`
+## [3.1.1] - 2025-10-03
 
----
+### Added
+- **Suspect Summons Generation**: 4!L+!2"@#5"9II-+2 (HTML format)
+- **Suspect Envelope Generation**: 4!L-+!2"@#5"9II-+2 (HTML format)
+- Print buttons for suspect summons in:
+  - DashboardPage.tsx (Modal view)
+  - CriminalCaseDetailPage.tsx (Detail view)
 
-### ✅ Bug Fixes
+### Changed
+- **Document Number Format**: -1@#9A@%5H+1*7-@G "
+.0039.52/xxxx" 1I+!
+- **Suspect Summons Template**: C
+IB#*#I2 HTML A LibreOffice (table-based layout)
+- **Envelope Template**: #1#9A2#A*5H-"9H*253#' (A"@G+%2"##1)
+- **Column Width**: @4H!'2!'I2-%1! "*20-%1" @G 130px (DashboardPage)
+- **Column Width**: @4H!'2!'I2-%1! "*20%+!2"@#5"" @G 160px (CriminalCaseDetailPage)
 
-#### 1. แก้ไขปัญหาการเพิ่มบัญชีธนาคาร
-- **ปัญหา:** `TypeError: got multiple values for keyword argument 'document_number'`
-- **แก้ไข:** ปรับ logic ใน `bank_accounts.py` ไม่ให้ส่ง document_number ซ้ำซ้อน
-- **ไฟล์:** `backend/app/api/v1/bank_accounts.py`
+### Fixed
+- **NaN Display Issue**: % `parseInt()` --22#A* document_number 85H
+  - DashboardPage.tsx: 2#2 suspects (line 993)
+  - DashboardPage.tsx: Modal #2"%0@-5" (line 1107)
+  - CriminalCaseDetailPage.tsx: @4H! render function (line 330)
+- **Field Name Mismatch**: AID
+7H- field C+I#1 database schema
+  - `police_station_name` � `police_station`
+  - `police_station_address` � `police_address`
+- **Hardcoded Appointment Time**: 1IH2@'%21+!2"@G "09.00 ." (4%L appointment_time D!H!5C2I-!9%)
 
-#### 2. แก้ไขการแสดง "NaN" ในเลขหนังสือ
-- **ปัญหา:** เลขหนังสือแสดงเป็น "NaN" เมื่อไม่มีข้อมูล
-- **แก้ไข:** แสดง "-" แทน NaN
-- **ไฟล์:** 
-  - `frontend/src/pages/CriminalCaseDetailPage.tsx`
-  - `frontend/src/pages/DashboardPage.tsx`
+### Database Changes
+- -1@I-!9% `document_number` 1I+! (13 records) C+I@G#9A "
+.0039.52/xxxx"
+- AID
+H-'H2C document_number (
+. � 
+.)
 
----
+### Documentation
+- -1@ README.md C+!H1I+! (comprehensive version)
+- %@-*2#5H%I2*!1":
+  - DEV_MODE_SETUP.md
+  - DEV_MODE_GUIDE.md
+  - QUICK_DEV_GUIDE.md
+  - DEVELOPMENT_WORKFLOW.md
+  - DEVELOPMENT_STATUS.md
+  - RUN_WITHOUT_DOCKER.md
+  - 2#AID-Dev-Server.md
 
-### ✨ Features
-
-#### 1. ลบคอลัมน์ "ธนาคารสาขา" (bank_branch)
-- เนื่องจากระบบส่งไปที่สำนักงานใหญ่เท่านั้น ไม่ต้องแสดงสาขา
-- **ไฟล์:**
-  - `frontend/src/pages/CriminalCaseDetailPage.tsx` - ลบคอลัมน์สาขา
-  - `frontend/src/pages/DashboardPage.tsx` - ลบคอลัมน์ธนาคารสาขา
-
-#### 2. การแปลงวันที่เป็นภาษาไทยอัตโนมัติ
-- **ฟีเจอร์:** ระบบแปลง `document_date` เป็น `document_date_thai` อัตโนมัติ
-- **รูปแบบ:** "1 ตุลาคม 2568", "15 มกราคม 2568"
-- **ทำงาน:** ทั้งตอน CREATE และ UPDATE
-- **ไฟล์:** `backend/app/api/v1/bank_accounts.py`
-- **Utility:** `backend/app/utils/thai_date_utils.py`
-
-#### 3. ยกเลิกการ Auto-generate เลขหนังสือ
-- **เหตุผล:** ผู้ใช้ต้องการกรอกเลขเอง หรือเขียนด้วยปากกาภายหลัง
-- **ก่อน:** ระบบสร้าง "BA-2568-0001" อัตโนมัติ ❌
-- **หลัง:** ให้ผู้ใช้กรอกเอง หรือเว้นว่างไว้ได้ ✅
-
----
-
-### 🔧 Database Updates
-
-#### 1. อัพเดตรูปแบบเลขหนังสือมาตรฐาน
-- **จำนวน:** 397 รายการ
-- **รูปแบบใหม่:** `ตช. 0039.52/<เลขหนังสือ>`
-- **ตัวอย่าง:**
-  - "4218" → "ตช. 0039.52/4218"
-  - "4406" → "ตช. 0039.52/4406"
-  - "99877" → "ตช. 0039.52/99877"
-
-#### 2. อัพเดต document_date_thai
-- **จำนวน:** 1 รายการ
-- **ตัวอย่าง:** 
-  - document_date: 2025-10-01
-  - document_date_thai: "1 ตุลาคม 2568" ✅
+### Removed
+- Duplicate API endpoint `/suspect-summons/{suspect_id}` (Word file version)
 
 ---
 
-### 📁 ไฟล์ที่แก้ไข
+## [3.1.0] - 2025-10-01
 
-#### Backend (5 ไฟล์)
-```
-✅ backend/app/api/v1/bank_accounts.py
-   - ลบ auto-generate document_number
-   - เพิ่มการแปลง document_date_thai อัตโนมัติ
-   - แก้ไข CREATE endpoint
-   - แก้ไข UPDATE endpoint
-```
+### Added
+- Dark Mode support
+- Sidebar collapse feature
+- Date range picker for case filtering
+- Police station search functionality
+- PDF parsing improvements for #.14 files
+- Bank code addition feature
 
-#### Frontend (3 ไฟล์)
-```
-✅ frontend/src/pages/CriminalCaseDetailPage.tsx
-   - ลบคอลัมน์ bank_branch
-   - แก้ไข render document_number
-   - ลบ bank_branch จาก interface
+### Changed
+- Improved suspect form UI/UX
+- Enhanced bank account form
+- Updated suspect status workflow
 
-✅ frontend/src/pages/DashboardPage.tsx
-   - ลบคอลัมน์ bank_branch
-   - แก้ไข render เลขหนังสือ (ไม่ parseInt)
-
-✅ frontend/src/components/BankAccountFormModal.tsx
-   - ไม่แก้ไขในเวอร์ชันนี้ (ยังแสดงฟิลด์ document_number ปกติ)
-```
-
-#### Infrastructure
-```
-✅ web-app/.gitignore - สร้างใหม่เพื่อไม่ให้ commit node_modules
-```
+### Fixed
+- PDF parsing bugs
+- Dark mode modal issues
+- Address extraction accuracy
+- ID card extraction from PDF
 
 ---
 
-### 🎯 การใช้งาน
+## [3.0.1] - 2025-09-30
 
-#### เพิ่มบัญชีธนาคาร:
-```
-1. กดปุ่ม "เพิ่มบัญชีธนาคาร"
-2. กรอกเลขหนังสือ (หรือเว้นว่าง)
-3. เลือกวันที่ → ระบบแปลงเป็นไทยอัตโนมัติ
-4. กรอกข้อมูลธนาคาร (ชื่อธนาคาร, เลขบัญชี, ชื่อบัญชี)
-5. กดบันทึก ✅
-```
+### Added
+- Bank summons document generation
+- Bank account management improvements
 
-#### แก้ไขบัญชีธนาคาร:
-```
-1. กดปุ่ม "แก้ไข"
-2. เห็นข้อมูลเดิม (เช่น เลขหนังสือ "ตช. 0039.52/4406")
-3. แก้ไขตามต้องการ
-4. กดบันทึก ✅
-```
+### Fixed
+- Form validation issues
+- Database connection stability
 
 ---
 
-### 📊 สถิติ
+## [3.0.0] - 2025-09-15
 
-- **Files Changed:** 128 files
-- **Insertions:** 23,428 lines
-- **Database Records Updated:** 397 bank accounts
-- **Migration Time:** ~5 seconds
-
----
-
-### 🔄 วิธีย้อนกลับ (Rollback)
-
-หากเกิดปัญหาและต้องการย้อนกลับมาเวอร์ชันนี้:
-
-```bash
-# ดู tags ทั้งหมด
-git tag
-
-# ย้อนกลับมาเวอร์ชันนี้
-git checkout v3.0.1-bank-improvements
-
-# หรือสร้าง branch ใหม่จากเวอร์ชันนี้
-git checkout -b rollback-to-v3.0.1 v3.0.1-bank-improvements
-```
+### Added
+- Complete web application rewrite
+- React + TypeScript frontend
+- FastAPI backend
+- PostgreSQL database
+- Docker containerization
+- User authentication system
+- Criminal case management
+- Suspect management
+- Bank account management
+- Document generation system
 
 ---
 
-### 📝 หมายเหตุ
+## [2.9.0] - 2025-08-01
 
-- ✅ **Stable:** เวอร์ชันนี้ผ่านการทดสอบและพร้อมใช้งาน
-- ✅ **Safe Point:** จุดที่ปลอดภัยสำหรับการพัฒนาต่อ
-- ✅ **Database:** ข้อมูลอัพเดตครบถ้วน (397 records)
-- ✅ **No Breaking Changes:** ไม่มีการเปลี่ยนแปลงที่ทำลาย API
+### Note
+Last version of desktop application (Python + tkinter)
 
 ---
 
-### 🚀 Next Development
-
-เวอร์ชันนี้เป็นจุดเริ่มต้นสำหรับ:
-- การเพิ่มฟีเจอร์ใหญ่ต่อไป
-- การทดสอบระบบ
-- การพัฒนาโมดูลใหม่
-
-**สามารถพัฒนาต่อได้อย่างมั่นใจ มี checkpoint ไว้ย้อนกลับ!** ✅
-
----
-
-**Created:** 1 ตุลาคม 2568  
-**Status:** ✅ Stable & Production Ready
-
+**Legend:**
+- `Added`: 5@-#LC+!H
+- `Changed`: 2#@%5H"A%5@-#L@4!
+- `Fixed`: 2#AID1J
+- `Removed`: 5@-#L+#7-BI5H9%--
+- `Database Changes`: 2#@%5H"A%B#*#I22I-!9%
+- `Documentation`: 2#-1@@-*2#

@@ -8,18 +8,15 @@ import {
   Table,
   Tabs,
   message,
-  Spin,
-  Typography,
   Tag,
+  Spin,
   Popconfirm
 } from 'antd'
 import {
-  PlusOutlined,
   EditOutlined,
   DeleteOutlined,
   BankOutlined,
   UserOutlined,
-  FileTextOutlined,
   ArrowLeftOutlined,
   PrinterOutlined
 } from '@ant-design/icons'
@@ -27,102 +24,21 @@ import type { ColumnsType } from 'antd/es/table'
 import api from '../services/api'
 import BankAccountFormModal from '../components/BankAccountFormModal'
 import SuspectFormModal from '../components/SuspectFormModal'
+import { CriminalCase, BankAccount, Suspect } from '../types'
 
-const { Title } = Typography
 const { TabPane } = Tabs
 
-interface CriminalCase {
-  id: number
-  case_number: string
-  case_id: string
-  status: string
-  complainant: string
-  victim_name?: string
-  suspect?: string
-  charge?: string
-  case_scene?: string
-  damage_amount?: string
-  complaint_date?: string
-  incident_date?: string
-  court_name?: string
-  prosecutor_name?: string
-  officer_in_charge?: string
-  notes?: string
-  bank_accounts_count?: string
-  suspects_count?: string
-}
-
-interface BankAccount {
-  id: number
-  document_number: string
-  document_date?: string
-  bank_name: string
-  account_number: string
-  account_name: string
-  reply_status: boolean
-  response_date?: string
-  status: string
-  notes?: string
-}
-
-interface Suspect {
-  id: number
-  document_number?: string
-  document_date?: string
-  suspect_name: string
-  suspect_id_card?: string
-  police_station?: string
-  appointment_date?: string
-  reply_status: boolean
-  status: string
-  notes?: string
-}
-
-export default function CriminalCaseDetailPage() {
+const CriminalCaseDetailPage = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-
-  const [loading, setLoading] = useState(false)
   const [criminalCase, setCriminalCase] = useState<CriminalCase | null>(null)
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [suspects, setSuspects] = useState<Suspect[]>([])
-
-  // Modal states
+  const [loading, setLoading] = useState(true)
   const [bankModalVisible, setBankModalVisible] = useState(false)
   const [suspectModalVisible, setSuspectModalVisible] = useState(false)
-  const [editingBank, setEditingBank] = useState<BankAccount | null>(null)
+  const [editingBankAccount, setEditingBankAccount] = useState<BankAccount | null>(null)
   const [editingSuspect, setEditingSuspect] = useState<Suspect | null>(null)
-
-  const fetchCriminalCase = async () => {
-    try {
-      setLoading(true)
-      const res = await api.get<CriminalCase>(`/criminal-cases/${id}`)
-      setCriminalCase(res.data)
-    } catch (err) {
-      message.error('ไม่สามารถดึงข้อมูลคดีได้')
-      navigate('/dashboard')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchBankAccounts = async () => {
-    try {
-      const res = await api.get<BankAccount[]>(`/bank-accounts/?criminal_case_id=${id}`)
-      setBankAccounts(res.data)
-    } catch (err) {
-      message.error('ไม่สามารถดึงข้อมูลบัญชีธนาคารได้')
-    }
-  }
-
-  const fetchSuspects = async () => {
-    try {
-      const res = await api.get<Suspect[]>(`/suspects/?criminal_case_id=${id}`)
-      setSuspects(res.data)
-    } catch (err) {
-      message.error('ไม่สามารถดึงข้อมูลผู้ต้องหาได้')
-    }
-  }
 
   useEffect(() => {
     if (id) {
@@ -132,55 +48,82 @@ export default function CriminalCaseDetailPage() {
     }
   }, [id])
 
-  // Bank Account Handlers
-  const handleAddBank = () => {
-    setEditingBank(null)
-    setBankModalVisible(true)
-  }
-
-  const handleEditBank = (record: BankAccount) => {
-    setEditingBank(record)
-    setBankModalVisible(true)
-  }
-
-  const handleDeleteBank = async (bankId: number) => {
+  const fetchCriminalCase = async () => {
     try {
-      await api.delete(`/bank-accounts/${bankId}`)
-      message.success('ลบบัญชีธนาคารสำเร็จ')
+      const response = await api.get(`/criminal-cases/${id}`)
+      setCriminalCase(response.data)
+    } catch (error) {
+      message.error('ไม่สามารถโหลดข้อมูลคดีได้')
+    }
+  }
+
+  const fetchBankAccounts = async () => {
+    try {
+      const response = await api.get(`/criminal-cases/${id}/bank-accounts`)
+      setBankAccounts(response.data)
+    } catch (error) {
+      message.error('ไม่สามารถโหลดข้อมูลบัญชีธนาคารได้')
+    }
+  }
+
+  const fetchSuspects = async () => {
+    try {
+      const response = await api.get(`/criminal-cases/${id}/suspects`)
+      setSuspects(response.data)
+    } catch (error) {
+      message.error('ไม่สามารถโหลดข้อมูลผู้ต้องหาได้')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAddBankAccount = () => {
+    setEditingBankAccount(null)
+    setBankModalVisible(true)
+  }
+
+  const handleEditBankAccount = (bankAccount: BankAccount) => {
+    setEditingBankAccount(bankAccount)
+    setBankModalVisible(true)
+  }
+
+  const handleDeleteBankAccount = async (bankAccountId: number) => {
+    try {
+      await api.delete(`/bank-accounts/${bankAccountId}`)
+      message.success('ลบบัญชีธนาคารเรียบร้อยแล้ว')
       fetchBankAccounts()
       fetchCriminalCase() // Refresh counts
-    } catch (err) {
+    } catch (error) {
       message.error('ไม่สามารถลบบัญชีธนาคารได้')
     }
   }
 
   const handleBankModalClose = (success?: boolean) => {
     setBankModalVisible(false)
-    setEditingBank(null)
+    setEditingBankAccount(null)
     if (success) {
       fetchBankAccounts()
       fetchCriminalCase() // Refresh counts
     }
   }
 
-  // Suspect Handlers
   const handleAddSuspect = () => {
     setEditingSuspect(null)
     setSuspectModalVisible(true)
   }
 
-  const handleEditSuspect = (record: Suspect) => {
-    setEditingSuspect(record)
+  const handleEditSuspect = (suspect: Suspect) => {
+    setEditingSuspect(suspect)
     setSuspectModalVisible(true)
   }
 
   const handleDeleteSuspect = async (suspectId: number) => {
     try {
       await api.delete(`/suspects/${suspectId}`)
-      message.success('ลบผู้ต้องหาสำเร็จ')
+      message.success('ลบผู้ต้องหาเรียบร้อยแล้ว')
       fetchSuspects()
       fetchCriminalCase() // Refresh counts
-    } catch (err) {
+    } catch (error) {
       message.error('ไม่สามารถลบผู้ต้องหาได้')
     }
   }
@@ -191,32 +134,6 @@ export default function CriminalCaseDetailPage() {
     if (success) {
       fetchSuspects()
       fetchCriminalCase() // Refresh counts
-    }
-  }
-
-  // Print Bank Summons
-  const handlePrintBankSummons = async (bankAccountId: number) => {
-    try {
-      const response = await api.get(`/documents/bank-summons/${bankAccountId}`, {
-        responseType: 'blob'
-      })
-      
-      // สร้าง Blob URL และเปิดหน้าต่างใหม่
-      const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
-      const url = window.URL.createObjectURL(blob)
-      const printWindow = window.open(url, '_blank')
-      
-      if (printWindow) {
-        printWindow.onload = () => {
-          setTimeout(() => {
-            printWindow.print()
-          }, 500)
-        }
-      }
-      
-      message.success('กำลังเปิดหน้าต่างพิมพ์หมายเรียก')
-    } catch (err) {
-      message.error('ไม่สามารถสร้างหมายเรียกได้')
     }
   }
 
@@ -272,6 +189,32 @@ export default function CriminalCaseDetailPage() {
     }
   }
 
+  // Print Bank Summons
+  const handlePrintBankSummons = async (bankAccountId: number) => {
+    try {
+      const response = await api.get(`/documents/bank-summons/${bankAccountId}`, {
+        responseType: 'blob'
+      })
+      
+      // สร้าง Blob URL และเปิดหน้าต่างใหม่
+      const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
+      const url = window.URL.createObjectURL(blob)
+      const printWindow = window.open(url, '_blank')
+      
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print()
+          }, 500)
+        }
+      }
+      
+      message.success('กำลังเปิดหน้าต่างพิมพ์หมายเรียก')
+    } catch (err) {
+      message.error('ไม่สามารถสร้างหมายเรียกได้')
+    }
+  }
+
   // Print Bank Envelope
   const handlePrintBankEnvelope = async (bankAccountId: number) => {
     try {
@@ -298,21 +241,7 @@ export default function CriminalCaseDetailPage() {
     }
   }
 
-  // Table Columns
   const bankColumns: ColumnsType<BankAccount> = [
-    {
-      title: 'เลขที่เอกสาร',
-      dataIndex: 'document_number',
-      key: 'document_number',
-      width: 150,
-      render: (text: string) => text || '-',
-    },
-    {
-      title: 'ธนาคาร',
-      dataIndex: 'bank_name',
-      key: 'bank_name',
-      width: 200,
-    },
     {
       title: 'เลขที่บัญชี',
       dataIndex: 'account_number',
@@ -326,39 +255,46 @@ export default function CriminalCaseDetailPage() {
       width: 200,
     },
     {
-      title: 'สถานะตอบกลับ',
-      dataIndex: 'reply_status',
-      key: 'reply_status',
+      title: 'ธนาคาร',
+      dataIndex: 'bank_name',
+      key: 'bank_name',
+      width: 150,
+    },
+    {
+      title: 'สาขา',
+      dataIndex: 'branch_name',
+      key: 'branch_name',
+      width: 150,
+    },
+    {
+      title: 'ยอดเงิน',
+      dataIndex: 'balance',
+      key: 'balance',
       width: 120,
-      render: (status: boolean) => (
-        <Tag color={status ? 'green' : 'orange'}>
-          {status ? 'ตอบแล้ว' : 'รอตอบกลับ'}
-        </Tag>
-      ),
+      render: (balance: number) => balance ? balance.toLocaleString() : '-',
     },
     {
       title: 'การดำเนินการ',
       key: 'action',
-      width: 200,
+      width: 250,
       fixed: 'right',
       render: (_, record) => (
-        <Space size="small" direction="vertical" style={{ width: '100%' }}>
+        <Space size="small" direction="vertical">
           <Space size="small">
             <Button
               type="link"
-              size="small"
               icon={<EditOutlined />}
-              onClick={() => handleEditBank(record)}
+              onClick={() => handleEditBankAccount(record)}
             >
               แก้ไข
             </Button>
             <Popconfirm
-              title="คุณแน่ใจหรือไม่ที่จะลบบัญชีนี้?"
-              onConfirm={() => handleDeleteBank(record.id)}
+              title="คุณแน่ใจหรือไม่ที่จะลบบัญชีธนาคารนี้?"
+              onConfirm={() => handleDeleteBankAccount(record.id)}
               okText="ใช่"
               cancelText="ไม่"
             >
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+              <Button type="link" danger icon={<DeleteOutlined />}>
                 ลบ
               </Button>
             </Popconfirm>
@@ -391,6 +327,7 @@ export default function CriminalCaseDetailPage() {
       dataIndex: 'document_number',
       key: 'document_number',
       width: 150,
+      render: (value) => value || '-',
     },
     {
       title: 'ชื่อผู้ต้องหา',
@@ -420,7 +357,7 @@ export default function CriminalCaseDetailPage() {
       title: 'สถานะผลหมายเรียก',
       dataIndex: 'reply_status',
       key: 'reply_status',
-      width: 120,
+      width: 160,
       render: (status: boolean) => (
         <Tag color={status ? 'green' : 'orange'}>
           {status ? 'ตอบกลับแล้ว' : 'ยังไม่ตอบกลับ'}
@@ -430,7 +367,7 @@ export default function CriminalCaseDetailPage() {
     {
       title: 'การดำเนินการ',
       key: 'action',
-      width: 200,
+      width: 250,
       fixed: 'right',
       render: (_, record) => (
         <Space size="small" direction="vertical">
@@ -485,61 +422,44 @@ export default function CriminalCaseDetailPage() {
 
   return (
     <div style={{ padding: '24px' }}>
-      {/* Header */}
-      <Space style={{ marginBottom: 16 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/dashboard')}>
-          กลับ
-        </Button>
-      </Space>
-
       <Card>
-        <Title level={3}>
-          <FileTextOutlined /> คดีหมายเลข {criminalCase.case_number}
-        </Title>
+        <Space style={{ marginBottom: '16px' }}>
+          <Button
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate('/dashboard')}
+          >
+            กลับ
+          </Button>
+        </Space>
 
-        {/* Case Details */}
-        <Descriptions bordered column={2} style={{ marginBottom: 24 }}>
-          <Descriptions.Item label="เลขคดี">{criminalCase.case_number}</Descriptions.Item>
-          <Descriptions.Item label="Case ID">{criminalCase.case_id}</Descriptions.Item>
-          <Descriptions.Item label="สถานะ">
+        <Descriptions title="รายละเอียดคดี" bordered column={2}>
+          <Descriptions.Item label="เลขที่คดี">
+            {criminalCase.case_number}
+          </Descriptions.Item>
+          <Descriptions.Item label="สถานะคดี">
             <Tag color="blue">{criminalCase.status}</Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="วันที่รับคำกล่าวหา">
-            {criminalCase.complaint_date}
-          </Descriptions.Item>
-          <Descriptions.Item label="ผู้กล่าวหา" span={2}>
+          <Descriptions.Item label="ผู้ร้องทุกข์">
             {criminalCase.complainant}
           </Descriptions.Item>
           <Descriptions.Item label="ผู้เสียหาย">
-            {criminalCase.victim_name || '-'}
+            {criminalCase.victim_name}
           </Descriptions.Item>
-          <Descriptions.Item label="ผู้ต้องหา">
-            {criminalCase.suspect || '-'}
+          <Descriptions.Item label="วันที่ร้องทุกข์">
+            {criminalCase.complaint_date_thai || criminalCase.complaint_date}
           </Descriptions.Item>
-          <Descriptions.Item label="ข้อกล่าวหา" span={2}>
-            {criminalCase.charge || '-'}
+          <Descriptions.Item label="ศาล">
+            {criminalCase.court_name}
           </Descriptions.Item>
-          <Descriptions.Item label="มูลค่าความเสียหาย">
-            {criminalCase.damage_amount || '-'}
+          <Descriptions.Item label="จำนวนบัญชีธนาคาร">
+            {criminalCase.bank_accounts_count || 0}
           </Descriptions.Item>
-          <Descriptions.Item label="เจ้าหน้าที่รับผิดชอบ">
-            {criminalCase.officer_in_charge || '-'}
+          <Descriptions.Item label="จำนวนผู้ต้องหา">
+            {criminalCase.suspects_count || 0}
           </Descriptions.Item>
-          <Descriptions.Item label="สถานที่เกิดเหตุ" span={2}>
-            {criminalCase.case_scene || '-'}
-          </Descriptions.Item>
-          <Descriptions.Item label="เขตอำนาจศาล" span={2}>
-            {criminalCase.court_name || '-'}
-          </Descriptions.Item>
-          {criminalCase.notes && (
-            <Descriptions.Item label="หมายเหตุ" span={2}>
-              {criminalCase.notes}
-            </Descriptions.Item>
-          )}
         </Descriptions>
 
-        {/* Tabs for Bank Accounts and Suspects */}
-        <Tabs defaultActiveKey="banks">
+        <Tabs defaultActiveKey="bank-accounts" style={{ marginTop: '24px' }}>
           <TabPane
             tab={
               <span>
@@ -547,27 +467,21 @@ export default function CriminalCaseDetailPage() {
                 บัญชีธนาคาร ({bankAccounts.length})
               </span>
             }
-            key="banks"
+            key="bank-accounts"
           >
-            <Space style={{ marginBottom: 16 }}>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={handleAddBank}
-              >
+            <div style={{ marginBottom: '16px' }}>
+              <Button type="primary" onClick={handleAddBankAccount}>
                 เพิ่มบัญชีธนาคาร
               </Button>
-            </Space>
-
+            </div>
             <Table
               columns={bankColumns}
               dataSource={bankAccounts}
               rowKey="id"
-              scroll={{ x: 1200 }}
-              pagination={{ pageSize: 10 }}
+              scroll={{ x: 1000 }}
+              pagination={false}
             />
           </TabPane>
-
           <TabPane
             tab={
               <span>
@@ -577,41 +491,37 @@ export default function CriminalCaseDetailPage() {
             }
             key="suspects"
           >
-            <Space style={{ marginBottom: 16 }}>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={handleAddSuspect}
-              >
+            <div style={{ marginBottom: '16px' }}>
+              <Button type="primary" onClick={handleAddSuspect}>
                 เพิ่มผู้ต้องหา
               </Button>
-            </Space>
-
+            </div>
             <Table
               columns={suspectColumns}
               dataSource={suspects}
               rowKey="id"
-              scroll={{ x: 1200 }}
-              pagination={{ pageSize: 10 }}
+              scroll={{ x: 1000 }}
+              pagination={false}
             />
           </TabPane>
         </Tabs>
       </Card>
 
-      {/* Modals */}
       <BankAccountFormModal
         visible={bankModalVisible}
-        criminalCaseId={Number(id)}
-        editingRecord={editingBank}
         onClose={handleBankModalClose}
+        criminalCaseId={Number(id)}
+        bankAccount={editingBankAccount}
       />
 
       <SuspectFormModal
         visible={suspectModalVisible}
-        criminalCaseId={Number(id)}
-        editingRecord={editingSuspect}
         onClose={handleSuspectModalClose}
+        criminalCaseId={Number(id)}
+        suspect={editingSuspect}
       />
     </div>
   )
 }
+
+export default CriminalCaseDetailPage

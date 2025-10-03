@@ -1,515 +1,561 @@
-# ระบบจัดการคดีอาญา - Web Application v3.0.1
+# Criminal Case Management System - Web Application
 
-## ⚠️ สำคัญ: โปรเจคนี้ใช้งาน DEV MODE เป็นหลัก
+ระบบจัดการคดีอาญาออนไลน์ เวอร์ชัน 3.1.1
 
-**🔧 Development Mode เป็นโหมดหลักในการใช้งาน** (อัพเดทเมื่อ 1 ต.ค. 2025)
+## 📋 สารบัญ
 
-เนื่องจากระบบมีการพัฒนาต่อเนื่องและต้องการความยืดหยุ่นในการแก้ไข โปรเจคนี้จึงตั้งค่าให้ **ใช้งาน Development Mode เป็นหลัก** แทน Production Mode
-
-### 🚀 วิธีเริ่มต้นใช้งาน (Quick Start)
-
-```bash
-cd /mnt/c/SaveToExcel/web-app
-docker-compose -f docker-compose.dev.yml up -d
-```
-
-**URLs:**
-- Frontend: http://localhost:3001
-- Backend API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
-
-**Login:**
-- Username: `admin`
-- Password: `admin123`
-
-**หยุดระบบ:**
-```bash
-docker-compose -f docker-compose.dev.yml down
-```
-
-### 📦 Docker Volumes & Containers
-
-**⚠️ สำคัญมาก:** โปรเจคนี้ใช้ Development Volumes ต่อไปนี้เป็นหลัก:
-
-| Volume Name | Description | Status |
-|------------|-------------|--------|
-| `criminal-case-postgres-dev` | ฐานข้อมูลหลัก (DEV) | ✅ **ใช้งานอยู่** |
-| `criminal-case-uploads-dev` | ไฟล์อัพโหลด (DEV) | ✅ **ใช้งานอยู่** |
-| `web-app_postgres_data` | ฐานข้อมูลเก่า (Production) | ⚠️ ไม่ได้ใช้แล้ว |
-
-**Container Names:**
-- `criminal-case-db-dev` (PostgreSQL)
-- `criminal-case-redis-dev` (Redis)
-- `criminal-case-backend-dev` (FastAPI)
-- `criminal-case-frontend-dev` (React)
-
-### 🔄 กรณีข้อมูลหาย (Volume Recovery)
-
-หากมีการใช้ volume ผิดและข้อมูลหาย ให้ใช้ backup file:
-```bash
-# ใช้ backup ล่าสุด (อยู่ใน /mnt/c/SaveToExcel/web-app/)
-docker cp backup_database_YYYYMMDD_HHMMSS.dump criminal-case-db-dev:/tmp/restore.dump
-docker exec criminal-case-db-dev pg_restore -U user -d criminal_case_db -c -F c /tmp/restore.dump
-```
-
-📖 ดูรายละเอียดใน [BACKUP_RESTORE_GUIDE.md](./BACKUP_RESTORE_GUIDE.md)
+- [ภาพรวมระบบ](#ภาพรวมระบบ)
+- [เทคโนโลยีที่ใช้](#เทคโนโลยีที่ใช้)
+- [การติดตั้งและใช้งาน](#การติดตั้งและใช้งาน)
+- [โครงสร้างโปรเจค](#โครงสร้างโปรเจค)
+- [คู่มือการใช้งาน Docker](#คู่มือการใช้งาน-docker)
+- [การพัฒนาต่อยอด](#การพัฒนาต่อยอด)
+- [ปัญหาที่พบบ่อย](#ปัญหาที่พบบ่อย)
 
 ---
 
-## 🎯 ภาพรวมโปรเจค
+## ภาพรวมระบบ
 
-เวอร์ชัน Web Application ของระบบจัดการคดีอาญา พัฒนาจาก Desktop Application (v2.9.0) เป็น Full-Stack Web Application ที่รองรับการใช้งานแบบ Multi-user พร้อม Centralized Database
+ระบบจัดการคดีอาญาทางเทคโนโลยี สำหรับ กก.1 บก.สอท.4 ประกอบด้วย:
 
-### เทคโนโลยีที่ใช้
+### ฟีเจอร์หลัก
+- **จัดการคดีอาญา**: บันทึก แก้ไข ค้นหาคดี
+- **จัดการผู้ต้องหา**: บันทึกข้อมูลผู้ต้องหา พิมพ์หมายเรียกผู้ต้องหา และซองหมายเรียก
+- **จัดการบัญชีธนาคาร**: บันทึกบัญชีที่เกี่ยวข้อง พิมพ์หนังสือขอข้อมูลธนาคาร
+- **ออกเอกสาร**:
+  - หมายเรียกผู้ต้องหา (HTML)
+  - ซองหมายเรียกผู้ต้องหา (HTML)
+  - หนังสือขอข้อมูลธนาคาร (HTML)
+- **ค้นหาข้อมูล**: ค้นหาตามหมายเลขคดี ชื่อผู้ต้องหา ชื่อผู้เสียหาย
+- **Parse PDF**: แกะข้อมูลจากไฟล์ ทร.14 อัตโนมัติ
+- **ค้นหาสถานีตำรวจ**: ค้นหาสถานีตำรวจตามที่อยู่
 
-**Backend:**
-- FastAPI (Python Web Framework)
-- PostgreSQL (Database)
-- SQLAlchemy (ORM)
-- Redis (Cache)
-- python-docx (Document Generation)
+**ข้อมูลในระบบ (ณ 3 ต.ค. 2568):**
+- 48 คดีอาญา
+- 15 ผู้ต้องหา
+- 418 บัญชีธนาคาร
 
-**Frontend:**
-- React 18 + TypeScript
-- Ant Design (UI Framework)
-- React Router (Routing)
-- Zustand (State Management)
-- TanStack Query (Data Fetching)
+---
 
-**Infrastructure:**
-- Docker & Docker Compose
-- Nginx (Reverse Proxy)
+## เทคโนโลยีที่ใช้
 
-## 📦 โครงสร้างโปรเจค
+### Backend
+- **FastAPI** - Python Web Framework
+- **SQLAlchemy** - ORM
+- **PostgreSQL** - Database
+- **Redis** - Cache & Session
+- **Uvicorn** - ASGI Server
+- **PyPDF2** - PDF Parser
+
+### Frontend
+- **React 18** - UI Framework
+- **TypeScript** - Type Safety
+- **Vite** - Build Tool
+- **Ant Design 5** - UI Components
+- **Axios** - HTTP Client
+- **React Router** - Navigation
+
+### Infrastructure
+- **Docker** - Containerization
+- **Docker Compose** - Orchestration
+
+---
+
+## การติดตั้งและใช้งาน
+
+### ✅ วิธีที่แนะนำ: ใช้ Docker Compose
+
+#### 1. ติดตั้ง Docker
+- Windows: [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- Linux: `sudo apt install docker.io docker-compose`
+
+#### 2. เริ่มต้นใช้งาน
+
+```bash
+# เข้าโฟลเดอร์โปรเจค
+cd /mnt/c/SaveToExcel/web-app
+
+# เริ่มระบบ
+docker-compose up -d
+
+# รอประมาณ 30-60 วินาที เพื่อให้ทุก service พร้อม
+```
+
+#### 3. เข้าใช้งาน
+
+- **Frontend**: http://localhost:3001
+- **Backend API**: http://localhost:8000
+- **API Documentation**: http://localhost:8000/docs
+
+**ข้อมูลเข้าสู่ระบบ:**
+- Username: `admin`
+- Password: `admin123`
+
+#### 4. หยุดระบบ
+
+```bash
+# หยุดระบบ (เก็บข้อมูล)
+docker-compose down
+
+# หยุดและลบข้อมูลทั้งหมด (ระวัง!)
+docker-compose down -v
+```
+
+---
+
+## โครงสร้างโปรเจค
 
 ```
 web-app/
-├── backend/
+├── backend/                    # FastAPI Backend
 │   ├── app/
-│   │   ├── api/v1/          # API Endpoints
-│   │   ├── core/            # Core config, database, security
-│   │   ├── models/          # SQLAlchemy models
-│   │   ├── schemas/         # Pydantic schemas
-│   │   ├── services/        # Business logic
-│   │   └── main.py          # FastAPI app
-│   ├── requirements.txt
-│   ├── Dockerfile
-│   └── .env.example
-├── frontend/
+│   │   ├── api/v1/            # API Endpoints
+│   │   │   ├── auth.py        # Authentication
+│   │   │   ├── criminal_cases.py
+│   │   │   ├── suspects_improved.py
+│   │   │   ├── bank_accounts_improved.py
+│   │   │   ├── documents.py   # Document generation
+│   │   │   ├── pdf_parser.py  # PDF parsing
+│   │   │   └── police_stations.py
+│   │   ├── models/            # Database Models (SQLAlchemy)
+│   │   │   ├── criminal_case.py
+│   │   │   ├── suspect.py
+│   │   │   ├── bank_account.py
+│   │   │   └── user.py
+│   │   ├── schemas/           # Pydantic Schemas
+│   │   ├── services/          # Business Logic
+│   │   │   ├── bank_summons_generator.py
+│   │   │   ├── suspect_summons_generator.py
+│   │   │   ├── pdf_parser.py
+│   │   │   └── police_station_service.py
+│   │   ├── utils/             # Utilities
+│   │   │   ├── date_utils.py
+│   │   │   ├── thai_date_utils.py
+│   │   │   └── string_utils.py
+│   │   └── main.py            # FastAPI App Entry Point
+│   ├── migrations/            # SQL Migration Scripts
+│   ├── requirements.txt       # Python Dependencies
+│   └── Dockerfile            # Backend Docker Image
+│
+├── frontend/                  # React Frontend
 │   ├── src/
-│   │   ├── components/      # React components
-│   │   ├── pages/           # Page components
-│   │   ├── services/        # API services
-│   │   ├── stores/          # Zustand stores
-│   │   └── App.tsx
-│   ├── package.json
-│   ├── Dockerfile
-│   └── nginx.conf
-└── docker-compose.yml
+│   │   ├── components/        # Reusable Components
+│   │   │   ├── BankAccountForm.tsx
+│   │   │   ├── SuspectForm.tsx
+│   │   │   ├── PoliceStationSearchModal.tsx
+│   │   │   └── ...
+│   │   ├── pages/            # Page Components
+│   │   │   ├── DashboardPage.tsx          # หน้าแรก (ตาราง)
+│   │   │   ├── CriminalCaseDetailPage.tsx # รายละเอียดคดี
+│   │   │   ├── AddCriminalCasePage.tsx    # เพิ่มคดีใหม่
+│   │   │   ├── EditCriminalCasePage.tsx   # แก้ไขคดี
+│   │   │   └── LoginPage.tsx              # เข้าสู่ระบบ
+│   │   ├── contexts/         # React Contexts
+│   │   │   └── ThemeContext.tsx           # Dark/Light Mode
+│   │   ├── api.ts            # Axios Instance & API Config
+│   │   ├── App.tsx           # Main App Component
+│   │   └── main.tsx          # Entry Point
+│   ├── package.json          # NPM Dependencies
+│   ├── vite.config.ts        # Vite Configuration
+│   └── Dockerfile            # Frontend Docker Image
+│
+├── docker-compose.yml         # Docker Compose Configuration (Production)
+├── README.md                  # This file
+├── DEVELOPMENT_GUIDE.md       # Development Guide
+├── DOCKER_USAGE.md           # Docker Commands Reference
+└── BACKUP_RESTORE_GUIDE.md   # Backup/Restore Guide
 ```
-
-## 🚀 การติดตั้งและรันโปรเจค
-
-### 🎨 โหมดการใช้งาน
-
-โปรเจคนี้รองรับ 2 โหมด:
-
-| โหมด | คำอธิบาย | เหมาะสำหรับ | Port |
-|------|---------|-------------|------|
-| **🔧 Development** | Hot Reload, Debug Mode | พัฒนา/ดีบัก | 5173 |
-| **🚀 Production** | Optimized, Static Build | ใช้งานจริง | 3001 |
 
 ---
 
-### 🔧 Development Mode (สำหรับ Developer)
+## คู่มือการใช้งาน Docker
 
-**✨ แก้ไขใหม่! พร้อม Hot Reload**
+### ⚠️ สำคัญ: Container และ Volume Names
 
-```powershell
-# เข้าโฟลเดอร์
-cd web-app
+ระบบใช้ Docker Compose แบบ **Production Single Environment**
 
-# รัน Development Mode
-.\start-dev-improved.ps1
-```
+**Container Names:**
+- `criminal-case-db` - PostgreSQL Database
+- `criminal-case-redis` - Redis Cache
+- `criminal-case-backend` - FastAPI Backend
+- `criminal-case-frontend` - React Frontend (Vite Dev Server)
 
-**ฟีเจอร์:**
-- ✅ Frontend Hot Reload (Vite Dev Server)
-- ✅ Backend Auto-reload (Uvicorn)
-- ✅ เห็นผลการแก้ไขทันที
-- ✅ Debug Mode เปิดอยู่
-- ✅ Source Maps
+**Volume Names:**
+- `web-app_postgres_data` - Database storage
+- `web-app_backend_uploads` - Uploaded files
 
-**URLs:**
-- Frontend: http://localhost:5173
-- Backend: http://localhost:8000
-- API Docs: http://localhost:8000/docs
+**Database Credentials:**
+- Host: `postgres` (inside Docker) / `localhost:5432` (outside Docker)
+- Database: `criminal_case_db`
+- Username: `user`
+- Password: `password123`
 
-**หยุด Development:**
-```powershell
-# กด Ctrl+C ที่ Frontend Terminal
-.\stop-dev-improved.ps1
-```
-
-📖 **เอกสารเต็ม:** [DEV_MODE_SETUP.md](./DEV_MODE_SETUP.md)
-
----
-
-### 🚀 Production Mode
-
-### 🎯 วิธีติดตั้งแบบเร็ว (Quick Setup)
-
-**ใช้ Setup Script (แนะนำ!):**
+### คำสั่ง Docker ที่ใช้บ่อย
 
 ```bash
-cd /mnt/c/SaveToExcel/web-app
+# ดูสถานะ containers
+docker ps
 
-# รัน setup script
-./setup.sh
+# ดู logs
+docker logs criminal-case-backend -f
+docker logs criminal-case-frontend -f
+docker logs criminal-case-db
 
-# หรือถ้าไม่ work ให้ใช้:
-bash setup.sh
+# รีสตาร์ท service
+docker-compose restart backend
+docker-compose restart frontend
+docker-compose restart postgres
+
+# เข้า container
+docker exec -it criminal-case-backend bash
+docker exec -it criminal-case-frontend sh
+docker exec -it criminal-case-db psql -U user -d criminal_case_db
+
+# ดูข้อมูลในฐานข้อมูล
+docker exec criminal-case-db psql -U user -d criminal_case_db -c "SELECT COUNT(*) FROM criminal_cases;"
+docker exec criminal-case-db psql -U user -d criminal_case_db -c "SELECT COUNT(*) FROM suspects;"
+docker exec criminal-case-db psql -U user -d criminal_case_db -c "SELECT COUNT(*) FROM bank_accounts;"
+
+# ดู volumes
+docker volume ls | grep web-app
+
+# ดู networks
+docker network ls | grep web-app
 ```
 
-Script จะช่วย:
-- ✅ ตรวจสอบ prerequisites
-- ✅ สร้าง .env files
-- ✅ ติดตั้ง dependencies
-- ✅ เริ่มระบบด้วย Docker
-- ✅ สร้าง Admin user
+### การ Backup และ Restore
 
----
-
-### 📋 ข้อกำหนดเบื้องต้น
-
-**สำหรับ Docker (แนะนำ):**
-- Docker Desktop (Windows/Mac) หรือ Docker Engine (Linux)
-- Docker Compose
-- Git
-
-**สำหรับ Development Mode:**
-- Node.js 18+
-- Python 3.10+
-- PostgreSQL 15+
-- Redis 7+
-- Git
-
----
-
-### 🐳 วิธีที่ 1: รันด้วย Docker Compose (แนะนำ)
-
-#### 1. Clone โปรเจค
 ```bash
-cd /mnt/c/SaveToExcel/web-app
+# Backup database
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+docker exec criminal-case-db pg_dump -U user -d criminal_case_db -F c -f /tmp/backup_${TIMESTAMP}.dump
+docker cp criminal-case-db:/tmp/backup_${TIMESTAMP}.dump ./backup_${TIMESTAMP}.dump
+
+# Restore database
+docker cp backup_20251003_163753.dump criminal-case-db:/tmp/restore.dump
+docker exec criminal-case-db pg_restore -U user -d criminal_case_db -c -F c /tmp/restore.dump
+
+# Backup ทั้งระบบ (database + code)
+tar -czf web-app-backup-$(date +%Y%m%d_%H%M%S).tar.gz \
+  --exclude='node_modules' \
+  --exclude='__pycache__' \
+  --exclude='.git' \
+  .
 ```
 
-#### 2. ตั้งค่า Environment Variables
-```bash
-cd backend
-cp .env.example .env
+### การ Rebuild Services
 
-# แก้ไขไฟล์ .env (สำคัญ!)
-# เปลี่ยน SECRET_KEY เป็นค่าที่ปลอดภัย
-nano .env  # หรือใช้ editor ที่ชอบ
-```
-
-#### 3. รันด้วย Docker Compose
 ```bash
-cd ..
+# Rebuild เฉพาะ backend (ใช้เมื่อแก้ Python code หรือ dependencies)
+docker-compose up -d --build --no-cache backend
+
+# Rebuild เฉพาะ frontend (ใช้เมื่อแก้ package.json)
+docker-compose up -d --build --no-cache frontend
+
+# Rebuild ทั้งหมด
+docker-compose down
+docker-compose up -d --build --no-cache
+
+# ลบ images เก่าและ rebuild
+docker-compose down
+docker system prune -a -f
 docker-compose up -d --build
 ```
 
-#### 4. เข้าถึงระบบ
-- **Frontend:** http://localhost:3000
-- **Backend API:** http://localhost:8000
-- **API Docs:** http://localhost:8000/docs
-- **Alternative Docs:** http://localhost:8000/redoc
-
-#### 5. สร้าง Admin User
-```bash
-docker-compose exec backend python create_admin.py
-```
-
-Default credentials:
-- Username: `admin`
-- Password: `admin123`
-
-#### 6. Migration ข้อมูล (Optional)
-```bash
-docker-compose exec backend python migrate_data.py --init --all
-```
-
 ---
 
-### 💻 วิธีที่ 2: รันแบบ Development Mode
+## การพัฒนาต่อยอด
 
-#### Backend Setup
+### การแก้ไข Backend Code
 
-```bash
-cd backend
+1. แก้ไขไฟล์ใน `backend/app/`
+2. Backend จะ **Hot Reload อัตโนมัติ** (ไม่ต้องรีสตาร์ท)
+3. ถ้า Hot Reload ไม่ทำงาน:
+   ```bash
+   docker-compose restart backend
+   ```
 
-# สร้าง virtual environment
-python3 -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+### การแก้ไข Frontend Code
 
-# ติดตั้ง dependencies
-pip install -r requirements.txt
+1. แก้ไขไฟล์ใน `frontend/src/`
+2. **Vite จะ Hot Reload อัตโนมัติ** (ไม่ต้องรีสตาร์ท)
+3. ถ้า Hot Reload ไม่ทำงาน:
+   - รีเฟรชเบราว์เซอร์ (Ctrl+Shift+R หรือ Cmd+Shift+R)
+   - หรือรีสตาร์ท frontend:
+     ```bash
+     docker-compose restart frontend
+     ```
 
-# ตั้งค่า environment
-cp .env.example .env
-nano .env  # แก้ไข DATABASE_URL, SECRET_KEY, etc.
+### การเพิ่ม Python Package
 
-# สร้างตารางในฐานข้อมูล
-python init_db.py
+1. เพิ่มใน `backend/requirements.txt`:
+   ```
+   new-package==1.0.0
+   ```
+2. Rebuild backend:
+   ```bash
+   docker-compose up -d --build backend
+   ```
 
-# สร้าง Admin user
-python create_admin.py
-
-# รัน development server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-Backend จะรันที่: http://localhost:8000
-
-#### Frontend Setup
-
-เปิด terminal ใหม่:
-
-```bash
-cd frontend
-
-# ติดตั้ง dependencies
-npm install
-
-# รัน development server
-npm run dev
-```
-
-Frontend จะรันที่: http://localhost:5173 (Vite) หรือ http://localhost:3000
-
-**หมายเหตุ:** ต้องมี PostgreSQL และ Redis รันอยู่แล้ว หรือใช้:
-```bash
-docker-compose up -d postgres redis
-```
-
----
-
-## 📊 Data Migration จาก Excel → PostgreSQL
-
-### Migration ด้วย Docker
+### การเพิ่ม NPM Package
 
 ```bash
-# เข้าไปใน backend container
-docker-compose exec backend bash
-
-# สร้างตารางก่อน
-python migrate_data.py --init
-
-# ย้ายข้อมูลทั้งหมด
-python migrate_data.py --all
-
-# หรือย้ายทีละโมดูล
-python migrate_data.py --banks      # บัญชีธนาคาร
-python migrate_data.py --suspects   # หมายเรียกผู้ต้องหา
-python migrate_data.py --cases      # คดีอาญา
-python migrate_data.py --arrests    # หลังการจับกุม
-
-# ออกจาก container
+# วิธีที่ 1: เข้า container
+docker exec -it criminal-case-frontend sh
+npm install <package-name>
 exit
+
+# วิธีที่ 2: Rebuild
+# แก้ไข frontend/package.json ก่อน
+docker-compose up -d --build frontend
 ```
 
-### Migration แบบ Local
+### Database Migration
 
-```bash
-cd backend
-source venv/bin/activate
+1. สร้างไฟล์ migration ใหม่:
+   ```sql
+   -- backend/migrations/009_add_new_field.sql
+   ALTER TABLE criminal_cases ADD COLUMN new_field VARCHAR(255);
+   ```
 
-# ย้ายข้อมูลทั้งหมด
-python migrate_data.py --init --all
+2. รัน migration:
+   ```bash
+   docker cp backend/migrations/009_add_new_field.sql criminal-case-db:/tmp/
+   docker exec criminal-case-db psql -U user -d criminal_case_db -f /tmp/009_add_new_field.sql
+   ```
 
-# ระบุ path ของ Excel files (ถ้าอยู่คนละที่)
-python migrate_data.py --all --excel-dir /path/to/Xlsx
+### การเพิ่มฟีเจอร์ใหม่
+
+#### 1. เพิ่ม Backend API Endpoint
+
+```python
+# backend/app/api/v1/new_feature.py
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from app.models.database import get_db
+
+router = APIRouter()
+
+@router.get("/new-feature")
+async def get_new_feature(db: Session = Depends(get_db)):
+    return {"message": "New feature"}
 ```
 
-### ตัวเลือกเพิ่มเติม
+```python
+# backend/app/main.py
+from app.api.v1 import new_feature
 
-```bash
-# ดูวิธีใช้งาน
-python migrate_data.py --help
+app.include_router(new_feature.router, prefix="/api/v1", tags=["new-feature"])
+```
 
-# Migration แบบเฉพาะเจาะจง
-python migrate_data.py --banks --suspects
-python migrate_data.py --cases --arrests
+#### 2. เพิ่ม Frontend Page
+
+```typescript
+// frontend/src/pages/NewFeaturePage.tsx
+import React from 'react'
+import { Card } from 'antd'
+
+const NewFeaturePage: React.FC = () => {
+  return (
+    <Card title="New Feature">
+      <p>Content here</p>
+    </Card>
+  )
+}
+
+export default NewFeaturePage
+```
+
+```typescript
+// frontend/src/App.tsx
+import NewFeaturePage from './pages/NewFeaturePage'
+
+// ใน <Routes>
+<Route path="/new-feature" element={<NewFeaturePage />} />
+```
+
+#### 3. เพิ่ม API Call
+
+```typescript
+// frontend/src/api.ts
+export const getNewFeature = () => api.get('/api/v1/new-feature')
 ```
 
 ---
 
-## 🔐 Authentication & Users
+## ปัญหาที่พบบ่อย
 
-### สร้าง Admin User
+### 1. Frontend ไม่เชื่อม Backend (ERR_CONNECTION_REFUSED)
 
-**ด้วย Docker:**
+**สาเหตุ:** `vite.config.ts` proxy ตั้งค่าไม่ถูกต้อง
+
+**ตรวจสอบ:**
+```typescript
+// frontend/vite.config.ts
+export default defineConfig({
+  server: {
+    host: '0.0.0.0',
+    port: 3001,
+    proxy: {
+      '/api': {
+        target: 'http://backend:8000',  // ✅ ต้องใช้ Docker service name
+        changeOrigin: true,
+      },
+    },
+  },
+})
+```
+
+**แก้ไข:**
 ```bash
-docker-compose exec backend python create_admin.py
+docker-compose restart frontend
 ```
 
-**แบบ Local:**
+### 2. ข้อมูลหายหลัง Restart
+
+**สาเหตุ:** ลบ volume โดยไม่ได้ตั้งใจ (`docker-compose down -v`)
+
+**วิธีป้องกัน:**
+- ใช้ `docker-compose down` แทน `docker-compose down -v`
+- สำรอง backup เป็นประจำ
+
+**แก้ไข:**
 ```bash
-cd backend
-python create_admin.py
+# Restore จาก backup
+docker cp backup_20251003_163753.dump criminal-case-db:/tmp/restore.dump
+docker exec criminal-case-db pg_restore -U user -d criminal_case_db -c -F c /tmp/restore.dump
 ```
 
-**Default Admin:**
-- Username: `admin`
-- Password: `admin123`
-- Role: Administrator
+### 3. Port Already in Use
 
-⚠️ **สำคัญ:** เปลี่ยนรหัสผ่านทันทีหลังเข้าระบบครั้งแรก!
+**Error:** `Bind for 0.0.0.0:3001 failed: port is already allocated`
 
-### User Management
-
-ระบบใช้ **JWT-based authentication** พร้อม:
-- Password hashing (bcrypt)
-- Token expiration (30 นาที default)
-- Role-based access control
-- Refresh token support (planned)
-
-## 🎨 Features
-
-### 5 Modules หลัก
-
-1. **แดชบอร์ด** - สถิติและภาพรวมระบบ
-2. **บัญชีธนาคาร** - จัดการข้อมูลบัญชีธนาคาร + สร้างเอกสาร
-3. **หมายเรียกผู้ต้องหา** - จัดการหมายเรียก + สร้างเอกสาร
-4. **คดีอาญา** - ติดตามคดี + รายงาน
-5. **หลังจับกุม** - กระบวนการหลังจับกุม
-
-### API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | /api/v1/auth/register | ลงทะเบียนผู้ใช้ |
-| POST | /api/v1/auth/login | เข้าสู่ระบบ |
-| GET | /api/v1/auth/me | ข้อมูลผู้ใช้ปัจจุบัน |
-| GET/POST | /api/v1/bank-accounts | CRUD บัญชีธนาคาร |
-| GET/POST | /api/v1/suspects | CRUD ผู้ต้องหา |
-| GET/POST | /api/v1/criminal-cases | CRUD คดีอาญา |
-| GET/POST | /api/v1/post-arrests | CRUD หลังจับกุม |
-| GET | /api/v1/documents/* | สร้างเอกสาร Word |
-
-## 🔧 Configuration
-
-### Backend Environment Variables
-
-```env
-DATABASE_URL=postgresql://user:password@localhost:5432/criminal_case_db
-REDIS_URL=redis://localhost:6379/0
-SECRET_KEY=your-secret-key-here
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-```
-
-### Frontend Configuration
-
-แก้ไขใน `frontend/vite.config.ts` สำหรับ proxy settings
-
-## 📱 Responsive Design
-
-Frontend รองรับการใช้งานบน:
-- Desktop (1920x1080+)
-- Tablet (768x1024)
-- Mobile (375x667+)
-
-## 🔒 Security Features
-
-- JWT Authentication
-- Password Hashing (bcrypt)
-- CORS Protection
-- SQL Injection Prevention (SQLAlchemy ORM)
-- XSS Protection (React built-in)
-
-## 🚢 Deployment
-
-### Production Deployment
-
-1. **Update environment variables**
+**ตรวจสอบ:**
 ```bash
-# เปลี่ยน SECRET_KEY
-# เปลี่ยน Database credentials
-# ตั้งค่า CORS_ORIGINS
+# Windows
+netstat -ano | findstr :3001
+
+# Linux/Mac
+lsof -i :3001
 ```
 
-2. **Build & Deploy**
+**แก้ไข:**
+- ปิด process ที่ใช้ port
+- หรือเปลี่ยน port ใน `docker-compose.yml`:
+  ```yaml
+  frontend:
+    ports:
+      - "3002:3001"  # เปลี่ยนจาก 3001 เป็น 3002
+  ```
+
+### 4. Database Connection Error
+
+**Error:** `FATAL: password authentication failed for user "user"`
+
+**ตรวจสอบ:**
 ```bash
-docker-compose -f docker-compose.prod.yml up -d --build
+docker exec criminal-case-db psql -U user -d criminal_case_db -c "SELECT 1;"
 ```
 
-3. **Setup Nginx (Reverse Proxy)**
-```nginx
-server {
-    listen 80;
-    server_name yourdomain.com;
+**แก้ไข:**
+- Password ที่ถูกต้อง: `password123`
+- ถ้ายังไม่ได้ ให้ลบ volume และสร้างใหม่:
+  ```bash
+  docker-compose down -v
+  docker-compose up -d
+  ```
 
-    location / {
-        proxy_pass http://localhost:3000;
-    }
+### 5. Frontend Shows Blank Page
 
-    location /api {
-        proxy_pass http://localhost:8000;
-    }
-}
-```
+**สาเหตุ:** JavaScript error หรือ routing ผิด
 
-## 📖 API Documentation
-
-เข้าถึง Swagger UI ได้ที่: http://localhost:8000/docs
-
-## 🧪 Testing
-
+**ตรวจสอบ:**
 ```bash
-# Backend tests
-cd backend
-pytest
+# ดู logs
+docker logs criminal-case-frontend -f
 
-# Frontend tests
-cd frontend
-npm run test
+# ดู browser console (F12)
 ```
 
-## 🐛 Troubleshooting
-
-### Database Connection Failed
+**แก้ไข:**
 ```bash
-docker-compose logs postgres
-# ตรวจสอบว่า PostgreSQL รันอยู่หรือไม่
+# Hard refresh browser
+Ctrl+Shift+R  # Windows/Linux
+Cmd+Shift+R   # Mac
+
+# ล้าง cache
+docker exec -it criminal-case-frontend sh
+rm -rf node_modules/.vite
+exit
+docker-compose restart frontend
 ```
 
-### Frontend ไม่เชื่อมต่อ Backend
-- ตรวจสอบ CORS settings ใน `backend/app/core/config.py`
-- ตรวจสอบ proxy settings ใน `frontend/vite.config.ts`
+### 6. Hot Reload ไม่ทำงาน
 
-### Port Already in Use
+**Backend:**
 ```bash
-# เปลี่ยน port ใน docker-compose.yml
-ports:
-  - "3001:80"  # เปลี่ยนจาก 3000 เป็น 3001
+# ตรวจสอบว่า uvicorn มี --reload flag
+docker exec criminal-case-backend ps aux | grep uvicorn
 ```
 
-## 📞 Support
+**Frontend:**
+```bash
+# ตรวจสอบว่า Vite running
+docker logs criminal-case-frontend | grep "ready"
+```
 
-หากพบปัญหาหรือต้องการความช่วยเหลือ:
-- ดู logs: `docker-compose logs -f`
-- ตรวจสอบ API docs: http://localhost:8000/docs
+**แก้ไข:**
+```bash
+docker-compose restart backend
+docker-compose restart frontend
+```
 
-## 📝 License
+### 7. เลขที่หนังสือแสดงเป็น NaN
 
-โปรเจคนี้พัฒนาเพื่อใช้งานภายในองค์กร
+**สาเหตุ:** มีการใช้ `parseInt()` กับ document_number ที่เป็น string
 
-## 🎯 Roadmap v3.1.0
+**แก้ไข:** ลบ `parseInt()` ออก ใช้แค่ `value || '-'`
 
-- [ ] Real-time notifications (WebSocket)
-- [ ] Advanced reporting (PDF/Excel export)
-- [ ] Mobile application (React Native)
-- [ ] Role-based dashboard customization
-- [ ] Audit logging system
-- [ ] Backup & restore functionality
+ตรวจสอบว่าข้อมูลในฐานข้อมูลเป็นรูปแบบ "ตช.0039.52/xxxx"
+
+---
+
+## 📝 เอกสารเพิ่มเติม
+
+- `DEVELOPMENT_GUIDE.md` - คู่มือสำหรับนักพัฒนา
+- `DOCKER_USAGE.md` - คำสั่ง Docker ที่ใช้บ่อย
+- `BACKUP_RESTORE_GUIDE.md` - วิธี Backup/Restore ฐานข้อมูล
+- `CHANGELOG.md` - ประวัติการเปลี่ยนแปลง
+
+---
+
+## 🔒 ความปลอดภัย
+
+**⚠️ สำคัญสำหรับ Production:**
+1. เปลี่ยน database password ใน `docker-compose.yml`
+2. เปลี่ยน admin password ในระบบ
+3. ตั้งค่า CORS ให้ถูกต้อง
+4. ใช้ HTTPS
+5. ตั้งค่า SECRET_KEY ใหม่
+6. สำรองข้อมูลเป็นประจำ
+
+---
+
+## 📞 ข้อมูลโปรเจค
+
+- **พัฒนาโดย**: กก.1 บก.สอท.4
+- **Version**: 3.1.1
+- **Last Updated**: 3 ตุลาคม 2568
+- **Database Backup**: `backup_20251003_163753.dump` (76 KB)
+
+**สถิติโค้ด:**
+- Backend: Python (FastAPI)
+- Frontend: TypeScript + React
+- Database: PostgreSQL
+- Total Lines of Code: ~15,000 lines
+
+---
+
+## 📄 License
+
+Internal Use Only - สำหรับใช้ภายในหน่วยงานเท่านั้น

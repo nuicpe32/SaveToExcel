@@ -41,34 +41,6 @@ def generate_bank_account_document(
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
 
-@router.get("/suspect-summons/{suspect_id}")
-def generate_suspect_summons_document(
-    suspect_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    suspect = db.query(Suspect).filter(Suspect.id == suspect_id).first()
-    if not suspect:
-        raise HTTPException(status_code=404, detail="Suspect not found")
-
-    data = {
-        "document_number": suspect.document_number,
-        "full_name": suspect.full_name,
-        "charge": suspect.charge,
-        "case_number": suspect.case_number,
-        "summons_location": suspect.summons_location,
-        "summons_date": suspect.summons_date,
-        "summons_time": suspect.summons_time
-    }
-
-    filepath = doc_generator.generate_suspect_summons_doc(data)
-
-    return FileResponse(
-        path=filepath,
-        filename=os.path.basename(filepath),
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    )
-
 @router.get("/bank-summons/{bank_account_id}", response_class=HTMLResponse)
 def generate_bank_summons_html(
     bank_account_id: int,
@@ -182,12 +154,11 @@ def generate_suspect_summons_html(
         'suspect_name': suspect.suspect_name,
         'suspect_id_card': suspect.suspect_id_card,
         'suspect_address': suspect.suspect_address,
-        'police_station_name': suspect.police_station_name,
-        'police_station_address': suspect.police_station_address,
-        'police_station_phone': suspect.police_station_phone,
+        'police_station': suspect.police_station,
+        'police_province': suspect.police_province,
+        'police_address': suspect.police_address,
         'appointment_date': suspect.appointment_date,
         'appointment_date_thai': suspect.appointment_date_thai,
-        'appointment_time': suspect.appointment_time,
         'reply_status': suspect.reply_status,
     }
     
@@ -223,9 +194,9 @@ def generate_suspect_envelope_html(
         'id': suspect.id,
         'suspect_name': suspect.suspect_name,
         'suspect_id_card': suspect.suspect_id_card,
-        'police_station_name': suspect.police_station_name,
-        'police_station_address': suspect.police_station_address,
-        'police_station_phone': suspect.police_station_phone,
+        'police_station': suspect.police_station,
+        'police_province': suspect.police_province,
+        'police_address': suspect.police_address,
     }
     
     # สร้าง HTML

@@ -297,6 +297,54 @@ export default function DashboardPage() {
     }
   }
 
+  const handlePrintSuspectSummons = async (suspectId: number) => {
+    try {
+      const response = await api.get(`/documents/suspect-summons/${suspectId}`, {
+        responseType: 'blob'
+      })
+
+      const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
+      const url = window.URL.createObjectURL(blob)
+      const printWindow = window.open(url, '_blank')
+
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print()
+          }, 500)
+        }
+      }
+
+      message.success('กำลังเปิดหน้าต่างพิมพ์หมายเรียกผู้ต้องหา')
+    } catch (err) {
+      message.error('ไม่สามารถสร้างหมายเรียกผู้ต้องหาได้')
+    }
+  }
+
+  const handlePrintSuspectEnvelope = async (suspectId: number) => {
+    try {
+      const response = await api.get(`/documents/suspect-envelope/${suspectId}`, {
+        responseType: 'blob'
+      })
+
+      const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
+      const url = window.URL.createObjectURL(blob)
+      const printWindow = window.open(url, '_blank')
+
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print()
+          }, 500)
+        }
+      }
+
+      message.success('กำลังเปิดหน้าต่างพิมพ์ซองหมายเรียกผู้ต้องหา')
+    } catch (err) {
+      message.error('ไม่สามารถสร้างซองหมายเรียกผู้ต้องหาได้')
+    }
+  }
+
   const getStatusTextStyle = (status: string, complaintDate?: string) => {
     if (status === 'จำหน่าย') {
       return { color: 'green' }
@@ -942,7 +990,7 @@ export default function DashboardPage() {
                     title: 'เลขหนังสือ',
                     dataIndex: 'document_number',
                     key: 'document_number',
-                    render: (value) => value ? parseInt(value.toString()) : '-',
+                    render: (value) => value || '-',
                   },
                   {
                     title: 'ลงวันที่',
@@ -974,6 +1022,7 @@ export default function DashboardPage() {
                     title: 'สถานะตอบกลับ',
                     dataIndex: 'reply_status',
                     key: 'reply_status',
+                    width: 130,
                     render: (reply_status: boolean, record: Suspect) => {
                       if (reply_status) {
                         return <Tag color="green">ตอบกลับแล้ว</Tag>
@@ -992,25 +1041,45 @@ export default function DashboardPage() {
                   {
                     title: 'การดำเนินการ',
                     key: 'action',
+                    width: 250,
                     render: (_, record) => (
-                      <Space size="small">
-                        <Button
-                          type="link"
-                          icon={<EditOutlined />}
-                          onClick={() => handleEditSuspect(record)}
-                        >
-                          แก้ไข
-                        </Button>
-                        <Popconfirm
-                          title="คุณแน่ใจหรือไม่ที่จะลบผู้ต้องหานี้?"
-                          onConfirm={() => handleDeleteSuspect(record.id)}
-                          okText="ใช่"
-                          cancelText="ไม่"
-                        >
-                          <Button type="link" danger icon={<DeleteOutlined />}>
-                            ลบ
+                      <Space size="small" direction="vertical">
+                        <Space size="small">
+                          <Button
+                            type="link"
+                            icon={<EditOutlined />}
+                            onClick={() => handleEditSuspect(record)}
+                          >
+                            แก้ไข
                           </Button>
-                        </Popconfirm>
+                          <Popconfirm
+                            title="คุณแน่ใจหรือไม่ที่จะลบผู้ต้องหานี้?"
+                            onConfirm={() => handleDeleteSuspect(record.id)}
+                            okText="ใช่"
+                            cancelText="ไม่"
+                          >
+                            <Button type="link" danger icon={<DeleteOutlined />}>
+                              ลบ
+                            </Button>
+                          </Popconfirm>
+                        </Space>
+                        <Button
+                          type="primary"
+                          size="small"
+                          icon={<PrinterOutlined />}
+                          onClick={() => handlePrintSuspectSummons(record.id)}
+                          block
+                        >
+                          ปริ้นหมายเรียก
+                        </Button>
+                        <Button
+                          size="small"
+                          icon={<PrinterOutlined />}
+                          onClick={() => handlePrintSuspectEnvelope(record.id)}
+                          block
+                        >
+                          ปริ้นซองหมายเรียก
+                        </Button>
                       </Space>
                     ),
                   },
@@ -1036,7 +1105,7 @@ export default function DashboardPage() {
         {selectedSuspect && (
           <Descriptions column={1} bordered>
             <Descriptions.Item label="เลขหนังสือ">
-              {selectedSuspect.document_number ? parseInt(selectedSuspect.document_number.toString()) : '-'}
+              {selectedSuspect.document_number || '-'}
             </Descriptions.Item>
             <Descriptions.Item label="ลงวันที่">
               {selectedSuspect.document_date_thai || '-'}
