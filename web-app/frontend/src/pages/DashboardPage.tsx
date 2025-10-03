@@ -662,12 +662,6 @@ export default function DashboardPage() {
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
           />
-          <Button
-            type="text"
-            icon={<PrinterOutlined />}
-            onClick={() => window.open(`/api/v1/documents/suspect-summons/${record.id}`, '_blank')}
-            title="สร้างหมายเรียกผู้ต้องหา"
-          />
           <Popconfirm
             title="คุณแน่ใจหรือไม่ที่จะลบคดีนี้?"
             onConfirm={() => handleDelete(record)}
