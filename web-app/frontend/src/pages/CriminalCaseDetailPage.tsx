@@ -220,6 +220,58 @@ export default function CriminalCaseDetailPage() {
     }
   }
 
+  // Print Suspect Summons
+  const handlePrintSuspectSummons = async (suspectId: number) => {
+    try {
+      const response = await api.get(`/documents/suspect-summons/${suspectId}`, {
+        responseType: 'blob'
+      })
+      
+      // สร้าง Blob URL และเปิดหน้าต่างใหม่
+      const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
+      const url = window.URL.createObjectURL(blob)
+      const printWindow = window.open(url, '_blank')
+      
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print()
+          }, 500)
+        }
+      }
+      
+      message.success('กำลังเปิดหน้าต่างพิมพ์หมายเรียกผู้ต้องหา')
+    } catch (err) {
+      message.error('ไม่สามารถสร้างหมายเรียกผู้ต้องหาได้')
+    }
+  }
+
+  // Print Suspect Envelope
+  const handlePrintSuspectEnvelope = async (suspectId: number) => {
+    try {
+      const response = await api.get(`/documents/suspect-envelope/${suspectId}`, {
+        responseType: 'blob'
+      })
+      
+      // สร้าง Blob URL และเปิดหน้าต่างใหม่
+      const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
+      const url = window.URL.createObjectURL(blob)
+      const printWindow = window.open(url, '_blank')
+      
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print()
+          }, 500)
+        }
+      }
+      
+      message.success('กำลังเปิดหน้าต่างพิมพ์ซองหมายเรียกผู้ต้องหา')
+    } catch (err) {
+      message.error('ไม่สามารถสร้างซองหมายเรียกผู้ต้องหาได้')
+    }
+  }
+
   // Print Bank Envelope
   const handlePrintBankEnvelope = async (bankAccountId: number) => {
     try {
@@ -378,27 +430,46 @@ export default function CriminalCaseDetailPage() {
     {
       title: 'การดำเนินการ',
       key: 'action',
-      width: 150,
+      width: 200,
       fixed: 'right',
       render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => handleEditSuspect(record)}
-          >
-            แก้ไข
-          </Button>
-          <Popconfirm
-            title="คุณแน่ใจหรือไม่ที่จะลบผู้ต้องหานี้?"
-            onConfirm={() => handleDeleteSuspect(record.id)}
-            okText="ใช่"
-            cancelText="ไม่"
-          >
-            <Button type="link" danger icon={<DeleteOutlined />}>
-              ลบ
+        <Space size="small" direction="vertical">
+          <Space size="small">
+            <Button
+              type="link"
+              icon={<EditOutlined />}
+              onClick={() => handleEditSuspect(record)}
+            >
+              แก้ไข
             </Button>
-          </Popconfirm>
+            <Popconfirm
+              title="คุณแน่ใจหรือไม่ที่จะลบผู้ต้องหานี้?"
+              onConfirm={() => handleDeleteSuspect(record.id)}
+              okText="ใช่"
+              cancelText="ไม่"
+            >
+              <Button type="link" danger icon={<DeleteOutlined />}>
+                ลบ
+              </Button>
+            </Popconfirm>
+          </Space>
+          <Button
+            type="primary"
+            size="small"
+            icon={<PrinterOutlined />}
+            onClick={() => handlePrintSuspectSummons(record.id)}
+            block
+          >
+            ปริ้นหมายเรียก
+          </Button>
+          <Button
+            size="small"
+            icon={<PrinterOutlined />}
+            onClick={() => handlePrintSuspectEnvelope(record.id)}
+            block
+          >
+            ปริ้นซองหมายเรียก
+          </Button>
         </Space>
       ),
     },
