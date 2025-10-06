@@ -31,7 +31,9 @@
       "Read(//mnt/c/Users/nui_c/Downloads/**)",
       "Bash(awk:*)",
       "Bash(xargs -r docker volume rm)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nRelease version 3.1.1 - Suspect summons generation and documentation update\n\n### Features\n- Add suspect summons document generation (HTML format)\n- Add suspect envelope generation (HTML format)\n- Add print buttons in Dashboard and Detail pages\n\n### Fixes\n- Fix NaN display issue for document numbers\n- Update document number format to \"ตช.0039.52/xxxx\"\n- Fix field name mismatches (police_station, police_address)\n- Adjust column widths for better UI\n\n### Documentation\n- Complete README.md rewrite with comprehensive guide\n- Add CHANGELOG.md for version tracking\n- Add DEVELOPMENT_GUIDE.md and DOCKER_USAGE.md\n- Remove outdated documentation files\n\n### Database\n- Update all document numbers to standardized format (13 records)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(PGPASSWORD=password123 psql -h localhost -p 5432 -U user -d criminal_case_db -c \"\\dt\")"
     ],
     "deny": [],
     "ask": []

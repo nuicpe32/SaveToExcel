@@ -41,6 +41,36 @@ class SuspectSummonsGenerator:
             return ''
         return str(value).strip()
     
+    def _clean_suspect_name(self, name) -> str:
+        """ลบหมายเลขลำดับออกจากชื่อผู้ต้องหา (เช่น 1) นาง ชุ่ม จงใจ -> นาง ชุ่ม จงใจ)"""
+        if not name:
+            return ''
+        
+        # ลบ pattern ที่ขึ้นต้นด้วยตัวเลขและ ) เช่น "1) ", "2) ", "3) "
+        import re
+        cleaned_name = re.sub(r'^\d+\)\s*', '', str(name).strip())
+        return cleaned_name
+    
+    def _format_damage_amount(self, amount) -> str:
+        """จัดรูปแบบจำนวนความเสียหาย"""
+        if not amount or str(amount).lower() == 'nan':
+            return ''
+        
+        # แปลงเป็น string และลบ whitespace
+        amount_str = str(amount).strip()
+        
+        # ถ้าเป็นตัวเลข ให้จัดรูปแบบ
+        try:
+            # ลบ comma และ space ออก
+            clean_amount = amount_str.replace(',', '').replace(' ', '')
+            # แปลงเป็น float แล้วเป็น int
+            numeric_amount = int(float(clean_amount))
+            # จัดรูปแบบด้วย comma
+            return f"{numeric_amount:,}"
+        except (ValueError, TypeError):
+            # ถ้าแปลงไม่ได้ ให้คืนค่าเดิม
+            return amount_str
+    
     def generate_suspect_letter_html(self, suspect_data: Dict, criminal_case: Dict) -> str:
         """
         สร้าง HTML หมายเรียกผู้ต้องหา
@@ -51,8 +81,15 @@ class SuspectSummonsGenerator:
         """
 
         # แปลงวันที่
-        document_date = suspect_data.get('document_date_thai', '')
-        appointment_date = suspect_data.get('appointment_date_thai', '')
+        document_date = ''
+        if suspect_data.get('document_date'):
+            from app.utils.thai_date_utils import format_date_to_thai_buddhist_era
+            document_date = format_date_to_thai_buddhist_era(suspect_data.get('document_date'))
+        
+        appointment_date = ''
+        if suspect_data.get('appointment_date'):
+            from app.utils.thai_date_utils import format_date_to_thai_buddhist_era
+            appointment_date = format_date_to_thai_buddhist_era(suspect_data.get('appointment_date'))
 
         # สร้างหมายเลขหนังสือ
         document_no = suspect_data.get('document_number', '')
@@ -60,7 +97,7 @@ class SuspectSummonsGenerator:
             document_no = f"ตช.0039.52/{datetime.now().strftime('%Y%m%d')}"
 
         # สร้างหัวข้อ
-        html_title = f"หมายเรียกผู้ต้องหา - {suspect_data.get('suspect_name', '')}"
+        html_title = f"หมายเรียกผู้ต้องหา - {self._clean_suspect_name(suspect_data.get('suspect_name', ''))}"
 
         # สร้างเนื้อหา HTML
         html_content = f"""<!DOCTYPE html>
@@ -96,8 +133,8 @@ class SuspectSummonsGenerator:
 		<td colspan="4" width="333" valign="top" style="border: none; padding: 0in">
 			<p><span style="font-family: Sarabun, THSarabunNew, serif">{"<img src='data:image/jpeg;base64," + self.logo_base64 + "' width='80' height='80' alt='Logo'>" if self.logo_base64 else ""}
 		</td>
-		<td colspan="3" width="300" valign="top" style="border: none; padding: 0in">
-			<p><span class="memo-title">บันทึกข้อความ</span></p>
+		<td colspan="3" width="300" valign="middle" style="border: none; padding: 0in">
+			<p style="margin: 0; padding: 0;"><span class="memo-title">บันทึกข้อความ</span></p>
 		</td>
 	</tr>
 	<tr>
@@ -122,18 +159,18 @@ class SuspectSummonsGenerator:
 		</td>
 	</tr>
 </table>
-<p><font face="Sarabun, THSarabunNew, serif"><b>เรื่อง</b>&nbsp;&nbsp;&nbsp;ส่งหมายเรียกผู้ต้องหา <b>({suspect_data.get('suspect_name', '')} เลขประจำตัวประชาชน {suspect_data.get('suspect_id_card', '')})</b></font></p>
+<p><font face="Sarabun, THSarabunNew, serif"><b>เรื่อง</b>&nbsp;&nbsp;&nbsp;ส่งหมายเรียกผู้ต้องหา <b>({self._clean_suspect_name(suspect_data.get('suspect_name', ''))} เลขประจำตัวประชาชน {suspect_data.get('suspect_id_card', '')})</b></font></p>
 <p><font face="Sarabun, THSarabunNew, serif"><b>เรียน</b>&nbsp;&nbsp;&nbsp;ผกก.{suspect_data.get('police_station', '')} {suspect_data.get('police_province', '')}</font></p>
 <table width="639" cellpadding="7" cellspacing="0">
 	<col width="625"/>
 	<tr>
 		<td colspan="7" width="625" valign="top" style="border: none; padding: 0in">
 			<p align="justify" style="margin-bottom: 0in"><font face="Sarabun, THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ด้วยพนักงานสอบสวน
-			กก.1 บก.สอท.4 ได้รับคำร้องทุกข์ จาก {criminal_case.get('complainant', '')} เรื่อง {criminal_case.get('case_type', '')}
-			ได้รับความเสียหาย จำนวน {criminal_case.get('damage_amount', '')} บาท เลขรับแจ้งความออนไลน์ :
-			{criminal_case.get('case_number', '')}</font></p>
+			กก.1 บก.สอท.4 ได้รับคำร้องทุกข์ จาก {self._clean_suspect_name(criminal_case.get('complainant', ''))} เรื่อง {criminal_case.get('case_type', '')}
+			ได้รับความเสียหาย จำนวน {self._format_damage_amount(criminal_case.get('damage_amount', ''))} บาท เลขรับแจ้งความออนไลน์ :
+			{criminal_case.get('case_id', '')}</font></p>
 			<p align="justify" style="margin-bottom: 0in"><font face="Sarabun, THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;เจ้าพนักงานตำรวจ
-			กก.1 บก.สอท.4 จึงได้ทำการสืบสวนสอบสวนเรื่อยมา พบว่า {suspect_data.get('suspect_name', '')}
+			กก.1 บก.สอท.4 จึงได้ทำการสืบสวนสอบสวนเรื่อยมา พบว่า {self._clean_suspect_name(suspect_data.get('suspect_name', ''))}
 			เลขประจำตัวประชาชน {suspect_data.get('suspect_id_card', '')} ที่อยู่ {suspect_data.get('suspect_address', '')}
 			เป็นเจ้าของบัญชีธนาคารที่รับโอนเงินจากผู้เสียหาย</font></p>
 			<p align="justify" style="margin-bottom: 0in"><font face="Sarabun, THSarabunNew, serif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;เนื่องจากผู้ถูกเรียกมีภูมิลำเนาอยู่ในพื้นที่ของท่าน
@@ -143,9 +180,9 @@ class SuspectSummonsGenerator:
 			เวลา 09.00 น.</u> ที่แนบมาพร้อมหนังสือฉบับนี้ จำนวน 1 ฉบับ
 			มายังท่าน เพื่อให้ตำรวจในปกครองทำการส่งหมายแก่ผู้ต้องหา
 			และเมื่อจัดส่งหมายแล้วขอให้ส่ง ใบรับหมายตำรวจ กลับมายัง
-			"พนักงานสอบสวน พ.ต.ต.อำพล ทองอร่าม สว.(สอบสวน) กก.1
+			<b>"พนักงานสอบสวน พ.ต.ต.อำพล ทองอร่าม สว.(สอบสวน) กก.1
 			บก.สอท.4 ที่อยู่ เลขที่ 370 ม.3 ต.ดอนแก้ว อ.เเม่ริม
-			จ.เชียงใหม่ 50180" เพื่อพนักงานสอบสวนจะได้ใช้เป็นหลักฐานในการสอบสวนต่อไป</font></p>
+			จ.เชียงใหม่ 50180"</b> เพื่อพนักงานสอบสวนจะได้ใช้เป็นหลักฐานในการสอบสวนต่อไป</font></p>
 			<p><br/>
 
 			</p>
@@ -329,20 +366,37 @@ class SuspectSummonsGenerator:
         .fold-line-2 {{
             display: none;
         }}
+
+        /* ข้อความตรงกลางด้านบน */
+        #header-center {{
+            top: 0.5cm;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            font-size: 12px;
+            font-weight: bold;
+        }}
     </style>
 </head>
 <body>
+
+    <!-- ข้อความตรงกลางด้านบน -->
+    <div id="header-center" class="absolute">
+        (ใช้ในราชการสำนักงานตำรวจแห่งชาติ)
+    </div>
 
     <div id="header-left" class="absolute">
         <div style="display: flex; align-items: flex-start;">
             {"<img src='data:image/jpeg;base64," + self.logo_base64 + "' width='60' height='60' alt='Logo' style='margin-right: 10px;'>" if self.logo_base64 else ""}
             </div>
             <div style="font-size: 12px; line-height: 1.2; font-weight: bold;">
-                ใช้ในราชการสำนักงานตำรวจแห่งชาติ<br>
                 กองกำกับการ 1 กองบังคับการตำรวจสืบสวน<br>
                 สอบสวนอาชญากรรมทางเทคโนโลยี 4<br>
                 เลขที่ 370 หมู่ 3 ตำบลดอนแก้ว อำเภอแม่ริม<br>
                 จังหวัดเชียงใหม่ 50180
+            </div>
+            <div style="font-size: 10px; line-height: 1.2; font-weight: normal; margin-top: 5px;">
+                {suspect_data.get('document_number', '')} ลง {document_date}
             </div>
         </div>
     </div>

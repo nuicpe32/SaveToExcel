@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, date
 
 class BankAccountBase(BaseModel):
@@ -7,7 +7,6 @@ class BankAccountBase(BaseModel):
     order_number: Optional[int] = None
     document_number: Optional[str] = None
     document_date: Optional[date] = None
-    document_date_thai: Optional[str] = None
     
     # Bank Information
     bank_name: str
@@ -39,7 +38,6 @@ class BankAccountUpdate(BaseModel):
     order_number: Optional[int] = None
     document_number: Optional[str] = None
     document_date: Optional[date] = None
-    document_date_thai: Optional[str] = None
     
     # Bank Information
     bank_name: Optional[str] = None
@@ -65,12 +63,31 @@ class BankAccountUpdate(BaseModel):
     # Foreign Key
     criminal_case_id: Optional[int] = None
 
+class CriminalCaseInfo(BaseModel):
+    id: int
+    case_id: Optional[str] = None
+    case_number: Optional[str] = None
+    victim_name: Optional[str] = None
+    complainant: Optional[str] = None
+    damage_amount: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
 class BankAccountResponse(BankAccountBase):
     id: int
     criminal_case_id: Optional[int] = None  # Allow null for legacy data
     created_at: datetime
     updated_at: Optional[datetime] = None
     created_by: Optional[int] = None
+    criminal_case: Optional[CriminalCaseInfo] = None
 
     class Config:
         from_attributes = True
+
+class BankAccountPaginationResponse(BaseModel):
+    items: List[BankAccountResponse]
+    total: int
+    page: int
+    per_page: int
+    total_pages: int

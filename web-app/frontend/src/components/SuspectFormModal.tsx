@@ -115,11 +115,12 @@ export default function SuspectFormModal({
   const handleSelectPoliceStation = (station: any) => {
     // กรอกข้อมูลสถานีตำรวจลงในฟอร์ม
     form.setFieldsValue({
-      police_station_name: station.name,
-      police_station_address: station.address,
+      police_station: station.station_name,
+      police_province: station.province,
+      police_address: station.address,
     })
     
-    message.success(`เลือกสถานีตำรวจ: ${station.name}`)
+    message.success(`เลือกสถานีตำรวจ: ${station.station_name}`)
   }
 
   useEffect(() => {

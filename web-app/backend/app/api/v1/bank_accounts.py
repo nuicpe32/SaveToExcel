@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 from datetime import datetime
 from app.core import get_db
 from app.models import BankAccount, User, Bank
-from app.schemas import BankAccountCreate, BankAccountUpdate, BankAccountResponse
+from app.schemas import BankAccountCreate, BankAccountUpdate, BankAccountResponse, BankAccountPaginationResponse
 from app.api.v1.auth import get_current_user
 from app.utils.thai_date_utils import format_date_to_thai_buddhist_era
 
@@ -35,9 +35,6 @@ def create_bank_account(
         if bank:
             bank_data['bank_id'] = bank.id
 
-    # แปลง document_date เป็น document_date_thai อัตโนมัติ
-    if bank_data.get('document_date'):
-        bank_data['document_date_thai'] = format_date_to_thai_buddhist_era(bank_data['document_date'])
 
     # เพิ่ม created_by
     bank_data['created_by'] = current_user.id
@@ -49,15 +46,41 @@ def create_bank_account(
     db.refresh(db_bank_account)
     return db_bank_account
 
-@router.get("/", response_model=List[BankAccountResponse])
+@router.get("/", response_model=BankAccountPaginationResponse)
 def read_bank_accounts(
-    skip: int = 0,
-    limit: int = 100,
+    page: int = 1,
+    per_page: int = 50,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    bank_accounts = db.query(BankAccount).offset(skip).limit(limit).all()
-    return bank_accounts
+    # คำนวณ offset
+    skip = (page - 1) * per_page
+    
+    # สร้าง base query ที่กรองข้อมูลที่มีเลขที่หนังสือและลงวันที่
+    base_query = db.query(BankAccount).filter(
+        BankAccount.document_number.isnot(None),
+        BankAccount.document_number != '',
+        BankAccount.document_date.isnot(None)
+    )
+    
+    # นับจำนวนทั้งหมด (เฉพาะที่มีข้อมูลครบถ้วน)
+    total = base_query.count()
+    
+    # ดึงข้อมูลตาม pagination พร้อมข้อมูล criminal_case
+    bank_accounts = base_query.options(
+        joinedload(BankAccount.criminal_case)
+    ).order_by(BankAccount.document_date.desc()).offset(skip).limit(per_page).all()
+    
+    # คำนวณจำนวนหน้า
+    total_pages = (total + per_page - 1) // per_page
+    
+    return BankAccountPaginationResponse(
+        items=bank_accounts,
+        total=total,
+        page=page,
+        per_page=per_page,
+        total_pages=total_pages
+    )
 
 @router.get("/{bank_account_id}", response_model=BankAccountResponse)
 def read_bank_account(
@@ -90,8 +113,6 @@ def update_bank_account(
             update_data['bank_id'] = bank.id
 
     # แปลง document_date เป็น document_date_thai อัตโนมัติ
-    if 'document_date' in update_data and update_data['document_date']:
-        update_data['document_date_thai'] = format_date_to_thai_buddhist_era(update_data['document_date'])
 
     for key, value in update_data.items():
         setattr(db_bank_account, key, value)

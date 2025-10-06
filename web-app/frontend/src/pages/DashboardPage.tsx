@@ -7,6 +7,7 @@ import api from '../services/api'
 import { useAuthStore } from '../stores/authStore'
 import BankAccountFormModal from '../components/BankAccountFormModal'
 import SuspectFormModal from '../components/SuspectFormModal'
+import dayjs from 'dayjs'
 
 interface BankAccount {
   id: number
@@ -85,6 +86,23 @@ export default function DashboardPage() {
   const [suspectModalVisible, setSuspectModalVisible] = useState(false)
   const [editingBank, setEditingBank] = useState<BankAccount | null>(null)
   const [editingSuspect, setEditingSuspect] = useState<Suspect | null>(null)
+
+  // ฟังก์ชันแปลงวันที่เป็นรูปแบบไทย
+  const formatThaiDate = (date: string | undefined): string => {
+    if (!date) return '-'
+    
+    const thaiMonths = [
+      'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+      'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+    ]
+    
+    const dayjsDate = dayjs(date)
+    const day = dayjsDate.date()
+    const month = thaiMonths[dayjsDate.month()]
+    const year = dayjsDate.year() + 543 // แปลงเป็น พ.ศ.
+    
+    return `${day} ${month} ${year}`
+  }
   
   // Statistics state
   const [stats, setStats] = useState({
@@ -427,25 +445,6 @@ export default function DashboardPage() {
     }
   }
 
-  const formatThaiDate = (dateStr?: string) => {
-    if (!dateStr) return '-'
-    
-    try {
-      const date = new Date(dateStr)
-      const thaiMonths = [
-        'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
-        'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
-      ]
-      
-      const day = date.getDate()
-      const month = thaiMonths[date.getMonth()]
-      const year = date.getFullYear() + 543 // Convert to Buddhist Era
-      
-      return `${day} ${month} ${year}`
-    } catch {
-      return '-'
-    }
-  }
 
   const columns: ColumnsType<CriminalCase> = [
     {
@@ -847,9 +846,9 @@ export default function DashboardPage() {
                   },
                   {
                     title: 'ลงวันที่',
-                    dataIndex: 'document_date_thai',
-                    key: 'document_date_thai',
-                    render: (date) => date || '-',
+                    dataIndex: 'document_date',
+                    key: 'document_date',
+                    render: (date) => formatThaiDate(date),
                   },
                   {
                     title: 'ชื่อธนาคาร',
@@ -994,9 +993,9 @@ export default function DashboardPage() {
                   },
                   {
                     title: 'ลงวันที่',
-                    dataIndex: 'document_date_thai',
-                    key: 'document_date_thai',
-                    render: (date) => date || '-',
+                    dataIndex: 'document_date',
+                    key: 'document_date',
+                    render: (date) => formatThaiDate(date),
                   },
                   {
                     title: 'ชื่อผู้ต้องหา',

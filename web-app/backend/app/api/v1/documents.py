@@ -66,7 +66,6 @@ def generate_bank_summons_html(
         'id': bank_account.id,
         'document_number': bank_account.document_number,
         'document_date': bank_account.document_date,
-        'document_date_thai': bank_account.document_date_thai,
         'bank_name': bank_account.bank_name,
         'account_number': bank_account.account_number,
         'account_name': bank_account.account_name,
@@ -150,7 +149,6 @@ def generate_suspect_summons_html(
         'id': suspect.id,
         'document_number': suspect.document_number,
         'document_date': suspect.document_date,
-        'document_date_thai': suspect.document_date_thai,
         'suspect_name': suspect.suspect_name,
         'suspect_id_card': suspect.suspect_id_card,
         'suspect_address': suspect.suspect_address,
@@ -168,6 +166,7 @@ def generate_suspect_summons_html(
         'victim_name': criminal_case.victim_name or criminal_case.complainant,
         'complainant': criminal_case.complainant,
         'case_type': criminal_case.case_type,
+        'damage_amount': criminal_case.damage_amount,
         'court_name': criminal_case.court_name,
     }
     
@@ -192,6 +191,8 @@ def generate_suspect_envelope_html(
     # แปลงข้อมูลเป็น dict
     suspect_data = {
         'id': suspect.id,
+        'document_number': suspect.document_number,
+        'document_date': suspect.document_date,
         'suspect_name': suspect.suspect_name,
         'suspect_id_card': suspect.suspect_id_card,
         'police_station': suspect.police_station,

@@ -16,7 +16,6 @@ class BankAccount(Base):
     order_number = Column(Integer, index=True)
     document_number = Column(String, index=True)
     document_date = Column(Date)
-    document_date_thai = Column(String)  # วันที่ในรูปแบบไทย เช่น "11 เม.ย. 66"
 
     # Bank Information
     bank_name = Column(String, nullable=False, index=True)

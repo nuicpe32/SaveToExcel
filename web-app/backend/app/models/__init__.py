@@ -5,3 +5,4 @@ from .bank_account import BankAccount
 from .suspect import Suspect
 from .criminal_case import CriminalCase
 from .post_arrest import PostArrest
+from .police_station import PoliceStation

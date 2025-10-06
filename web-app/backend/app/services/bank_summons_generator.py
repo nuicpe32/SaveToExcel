@@ -60,10 +60,9 @@ class BankSummonsGenerator:
         account_name = self._format_value(bank_data.get('account_name', ''))
         time_period = self._format_value(bank_data.get('time_period', ''))
         
-        # ดึงข้อมูลวันที่ (ใช้ document_date_thai ถ้ามี)
-        date_thai = self._format_value(bank_data.get('document_date_thai', ''))
-        if not date_thai and bank_data.get('document_date'):
-            # ถ้าไม่มี document_date_thai ให้แยก วัน เดือน ปี
+        # ดึงข้อมูลวันที่ (แปลงจาก document_date)
+        date_thai = ''
+        if bank_data.get('document_date'):
             from app.utils.thai_date_utils import format_date_to_thai_buddhist_era
             date_thai = format_date_to_thai_buddhist_era(bank_data.get('document_date'))
         

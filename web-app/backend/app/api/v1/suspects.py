@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 from datetime import datetime
 from app.core import get_db
@@ -22,9 +22,15 @@ def create_suspect(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    document_number = generate_document_number(db)
+    # Generate document number if not provided
+    document_number = suspect.document_number or generate_document_number(db)
+    
+    # Create suspect data without document_number to avoid duplicate
+    suspect_data = suspect.dict()
+    suspect_data.pop('document_number', None)  # Remove document_number if exists
+    
     db_suspect = Suspect(
-        **suspect.dict(),
+        **suspect_data,
         document_number=document_number,
         created_by=current_user.id
     )
@@ -40,7 +46,7 @@ def read_suspects(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    suspects = db.query(Suspect).offset(skip).limit(limit).all()
+    suspects = db.query(Suspect).options(joinedload(Suspect.criminal_case)).offset(skip).limit(limit).all()
     return suspects
 
 @router.get("/{suspect_id}", response_model=SuspectResponse)
@@ -49,7 +55,7 @@ def read_suspect(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    suspect = db.query(Suspect).filter(Suspect.id == suspect_id).first()
+    suspect = db.query(Suspect).options(joinedload(Suspect.criminal_case)).filter(Suspect.id == suspect_id).first()
     if suspect is None:
         raise HTTPException(status_code=404, detail="Suspect not found")
     return suspect

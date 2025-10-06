@@ -14,7 +14,6 @@ class Suspect(Base):
     # Document Information
     document_number = Column(String, index=True)
     document_date = Column(Date)
-    document_date_thai = Column(String)  # วันที่ในรูปแบบไทย เช่น "26 ส.ค. 68"
 
     # Suspect Information
     suspect_name = Column(String, nullable=False, index=True)

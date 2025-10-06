@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
 import {
   Modal,
-  Input,
   Button,
   Spin,
   Alert,
   List,
   Typography,
   Space,
-  Divider,
 } from 'antd';
 import {
   SearchOutlined,
@@ -21,11 +19,18 @@ import api from '../services/api';
 const { Text, Title } = Typography;
 
 interface PoliceStation {
-  name: string;
-  address: string;
-  phone?: string;
-  district: string;
+  id: number;
+  station_name: string;
+  station_code?: string;
   province: string;
+  district?: string;
+  subdistrict?: string;
+  address?: string;
+  postal_code?: string;
+  phone?: string;
+  subdistricts_covered?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface PoliceStationSearchModalProps {
@@ -44,6 +49,7 @@ const PoliceStationSearchModal: React.FC<PoliceStationSearchModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<PoliceStation[]>([]);
   const [error, setError] = useState<string>('');
+  const [warningMessage, setWarningMessage] = useState<string>('');
 
   const handleSearch = async () => {
     if (!suspectAddress.trim()) {
@@ -53,6 +59,7 @@ const PoliceStationSearchModal: React.FC<PoliceStationSearchModalProps> = ({
 
     setLoading(true);
     setError('');
+    setWarningMessage('');
     setSearchResults([]);
 
     try {
@@ -61,13 +68,39 @@ const PoliceStationSearchModal: React.FC<PoliceStationSearchModalProps> = ({
         address: suspectAddress,
       });
 
-      if (response.data && response.data.success) {
-        setSearchResults(response.data.stations || []);
-        if (!response.data.stations || response.data.stations.length === 0) {
+      console.log('API Response:', response.data);
+
+      if (response.data) {
+        const data = response.data;
+        let stations: PoliceStation[] = [];
+
+        // ตรวจสอบ exact match ก่อน
+        if (data.exact_match) {
+          stations.push(data.exact_match);
+        }
+
+        // ตรวจสอบ district matches
+        if (data.district_matches && data.district_matches.length > 0) {
+          stations = stations.concat(data.district_matches);
+        }
+
+        // ตรวจสอบ province matches
+        if (data.province_matches && data.province_matches.length > 0) {
+          stations = stations.concat(data.province_matches);
+        }
+
+        setSearchResults(stations);
+        
+        // ตรวจสอบการแจ้งเตือนจาก backend
+        if (data.has_incomplete_address && data.warning_message) {
+          setWarningMessage(data.warning_message);
+        }
+        
+        if (stations.length === 0) {
           setError('ไม่พบสถานีตำรวจในพื้นที่นี้');
         }
       } else {
-        setError(response.data?.message || 'ไม่สามารถค้นหาสถานีตำรวจได้');
+        setError('ไม่สามารถค้นหาสถานีตำรวจได้');
       }
     } catch (err: any) {
       setError('เกิดข้อผิดพลาดในการค้นหาสถานีตำรวจ');
@@ -125,6 +158,16 @@ const PoliceStationSearchModal: React.FC<PoliceStationSearchModalProps> = ({
           />
         )}
 
+        {warningMessage && (
+          <Alert
+            message="⚠️ ข้อมูลไม่สมบูรณ์"
+            description={warningMessage}
+            type="warning"
+            showIcon
+            style={{ marginTop: 8 }}
+          />
+        )}
+
         {loading && (
           <div style={{ textAlign: 'center', padding: 20 }}>
             <Spin size="large" />
@@ -156,7 +199,7 @@ const PoliceStationSearchModal: React.FC<PoliceStationSearchModalProps> = ({
                     avatar={<EnvironmentOutlined style={{ fontSize: 24, color: '#1890ff' }} />}
                     title={
                       <Space>
-                        <Text strong>{station.name}</Text>
+                        <Text strong>{station.station_name}</Text>
                         {station.phone && (
                           <Space size="small">
                             <PhoneOutlined />
@@ -167,11 +210,19 @@ const PoliceStationSearchModal: React.FC<PoliceStationSearchModalProps> = ({
                     }
                     description={
                       <div>
-                        <Text>{station.address}</Text>
+                        <Text>{station.address || 'ไม่มีข้อมูลที่อยู่'}</Text>
                         <br />
                         <Text type="secondary">
-                          {station.district}, {station.province}
+                          {station.district && station.district + ', '}{station.province}
                         </Text>
+                        {station.subdistricts_covered && (
+                          <>
+                            <br />
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                              พื้นที่รับผิดชอบ: {station.subdistricts_covered}
+                            </Text>
+                          </>
+                        )}
                       </div>
                     }
                   />
