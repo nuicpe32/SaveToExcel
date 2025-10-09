@@ -210,8 +210,8 @@ export default function SuspectsPage() {
                       ข้อมูลผู้เสียหาย/คดี
                     </Title>
                     <Descriptions column={1} bordered size="small">
-                      <Descriptions.Item label="ผู้เสียหาย">
-                        {selected.criminal_case?.complainant || selected.criminal_case?.victim_name || selected.victim_name || '-'}
+                      <Descriptions.Item label="ผู้ร้องทุกข์/ผู้เสียหาย">
+                        {selected.criminal_case?.complainant || '-'}
                       </Descriptions.Item>
                       <Descriptions.Item label="เลขเคสไอดี">
                         {selected.criminal_case?.case_id || selected.case_id || '-'}

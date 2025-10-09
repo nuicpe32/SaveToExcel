@@ -218,6 +218,12 @@ class SuspectSummonsGenerator:
             suspect_data: ข้อมูลผู้ต้องหา (from suspects table)
         """
 
+        # แปลงวันที่
+        document_date = ''
+        if suspect_data.get('document_date'):
+            from app.utils.thai_date_utils import format_date_to_thai_buddhist_era
+            document_date = format_date_to_thai_buddhist_era(suspect_data.get('document_date'))
+
         # แยกที่อยู่ออกเป็นบรรทัด
         police_address = suspect_data.get('police_address', '')
         police_station = suspect_data.get('police_station', '')

@@ -132,6 +132,7 @@ export default function SuspectFormModal({
         // แก้ไข - ใส่ค่าเดิม
         form.setFieldsValue({
           ...editingRecord,
+          reply_status: editingRecord.reply_status || false,  // Ensure reply_status is set
           document_date: editingRecord.document_date
             ? dayjs(editingRecord.document_date)
             : null,
@@ -173,6 +174,7 @@ export default function SuspectFormModal({
         ...values,
         criminal_case_id: criminalCaseId,
         status: 'pending', // ตั้งค่า default status
+        reply_status: values.reply_status || false,  // Include reply_status
         document_date: values.document_date
           ? values.document_date.format('YYYY-MM-DD')
           : null,

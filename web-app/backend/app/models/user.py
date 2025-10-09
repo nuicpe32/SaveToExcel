@@ -1,12 +1,7 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from app.core.database import Base
-import enum
-
-class UserRole(str, enum.Enum):
-    ADMIN = "admin"
-    OFFICER = "officer"
-    VIEWER = "viewer"
 
 class User(Base):
     __tablename__ = "users"
@@ -15,8 +10,35 @@ class User(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    full_name = Column(String)
-    role = Column(Enum(UserRole), default=UserRole.VIEWER)
-    is_active = Column(Boolean, default=True)
+    
+    # Police information
+    rank_id = Column(Integer, ForeignKey("police_ranks.id"), nullable=True)
+    full_name = Column(String, nullable=False)
+    position = Column(String, nullable=True)
+    phone_number = Column(String, nullable=True)
+    line_id = Column(String, nullable=True)
+    
+    # Role and permissions
+    role_id = Column(Integer, ForeignKey("user_roles.id"), nullable=False)
+    
+    # Account status
+    is_active = Column(Boolean, default=False)  # Default to False, requires admin approval
+    is_approved = Column(Boolean, default=False)  # Admin approval status
+    
+    # Login security
+    failed_login_attempts = Column(Integer, default=0)
+    locked_until = Column(DateTime, nullable=True)
+    
+    # Metadata
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    approved_at = Column(DateTime, nullable=True)
+    approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    
+    # Relationships
+    rank = relationship("PoliceRank", back_populates="users")
+    role = relationship("UserRole", back_populates="users")
+    role_mappings = relationship("UserRoleMapping", back_populates="user", cascade="all, delete-orphan")
+    approver = relationship("User", remote_side=[id], back_populates="approved_users")
+    approved_users = relationship("User", back_populates="approver")
+    owned_criminal_cases = relationship("CriminalCase", foreign_keys="CriminalCase.owner_id", overlaps="owner")

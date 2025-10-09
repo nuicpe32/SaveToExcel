@@ -10,6 +10,7 @@ import {
   MenuUnfoldOutlined,
   SunOutlined,
   MoonOutlined,
+  SettingOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '../stores/authStore'
 import { useTheme } from '../contexts/ThemeContext'
@@ -27,9 +28,19 @@ export default function MainLayout() {
   })
 
   const menuItems = [
-    { key: '/', icon: <DashboardOutlined />, label: 'แดชบอร์ด' },
-    { key: '/bank-accounts', icon: <BankOutlined />, label: 'บัญชีธนาคาร' },
-    { key: '/suspects', icon: <UserOutlined />, label: 'หมายเรียกผู้ต้องหา' },
+    {
+      key: 'criminal-cases',
+      icon: <DashboardOutlined />,
+      label: 'คดีอาญาในความรับผิดชอบ',
+      children: [
+        { key: '/', icon: <DashboardOutlined />, label: 'ภาพรวมคดี' },
+        { key: '/bank-accounts', icon: <BankOutlined />, label: 'บัญชีธนาคาร' },
+        { key: '/suspects', icon: <UserOutlined />, label: 'หมายเรียกผู้ต้องหา' }
+      ]
+    },
+    ...(user?.role?.role_name === 'admin' ? [
+      { key: '/admin/users', icon: <SettingOutlined />, label: 'จัดการผู้ใช้' }
+    ] : [])
   ]
 
   const handleLogout = () => {

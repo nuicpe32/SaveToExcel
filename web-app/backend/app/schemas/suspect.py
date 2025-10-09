@@ -12,6 +12,9 @@ class SuspectBase(BaseModel):
     suspect_id_card: Optional[str] = None
     suspect_address: Optional[str] = None
     
+    # Charge Information
+    charge_id: Optional[int] = None  # FK to charges master data (future)
+    
     # Police Station Information
     police_station: Optional[str] = None
     police_province: Optional[str] = None
@@ -40,6 +43,9 @@ class SuspectUpdate(BaseModel):
     suspect_id_card: Optional[str] = None
     suspect_address: Optional[str] = None
     
+    # Charge Information
+    charge_id: Optional[int] = None  # FK to charges master data (future)
+    
     # Police Station Information
     police_station: Optional[str] = None
     police_province: Optional[str] = None
@@ -52,6 +58,7 @@ class SuspectUpdate(BaseModel):
     
     # Status
     status: Optional[str] = None
+    reply_status: Optional[bool] = None  # Add reply_status field
     notes: Optional[str] = None
     
     # Foreign Key
@@ -61,7 +68,6 @@ class CriminalCaseInfo(BaseModel):
     id: int
     case_id: Optional[str] = None
     case_number: Optional[str] = None
-    victim_name: Optional[str] = None
     complainant: Optional[str] = None
     damage_amount: Optional[str] = None
 

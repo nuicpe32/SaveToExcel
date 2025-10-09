@@ -44,10 +44,15 @@ def generate_bank_account_document(
 @router.get("/bank-summons/{bank_account_id}", response_class=HTMLResponse)
 def generate_bank_summons_html(
     bank_account_id: int,
+    freeze_account: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """สร้างหมายเรียกธนาคาร (HTML) สำหรับบัญชีธนาคารรายการเดียว"""
+    """สร้างหมายเรียกธนาคาร (HTML) สำหรับบัญชีธนาคารรายการเดียว
+    
+    Args:
+        freeze_account: True = อายัดบัญชี, False = ไม่อายัดบัญชี (default)
+    """
     
     # ดึงข้อมูลบัญชีธนาคาร
     bank_account = db.query(BankAccount).filter(BankAccount.id == bank_account_id).first()
@@ -72,15 +77,18 @@ def generate_bank_summons_html(
         'time_period': bank_account.time_period,
     }
     
+    # ใช้ complainant เป็นฟิลด์หลักสำหรับผู้เสียหาย/ผู้กล่าวหา
+    complainant_name = criminal_case.complainant or 'ผู้เสียหาย'
+    
     case_data = {
         'case_id': criminal_case.case_id,
         'case_number': criminal_case.case_number,
-        'victim_name': criminal_case.victim_name or criminal_case.complainant,
-        'complainant': criminal_case.complainant,
+        'victim_name': complainant_name,  # ส่งเป็น victim_name เพื่อ backward compatibility กับ template
+        'complainant': complainant_name,
     }
     
-    # สร้าง HTML
-    html_content = summons_generator.generate_bank_letter_html(bank_data, case_data)
+    # สร้าง HTML (ส่ง freeze_account parameter)
+    html_content = summons_generator.generate_bank_letter_html(bank_data, case_data, freeze_account)
     
     return HTMLResponse(content=html_content, media_type="text/html; charset=utf-8")
 
@@ -160,11 +168,14 @@ def generate_suspect_summons_html(
         'reply_status': suspect.reply_status,
     }
     
+    # ใช้ complainant เป็นฟิลด์หลักสำหรับผู้เสียหาย/ผู้กล่าวหา
+    complainant_name = criminal_case.complainant or 'ผู้เสียหาย'
+    
     case_data = {
         'case_id': criminal_case.case_id,
         'case_number': criminal_case.case_number,
-        'victim_name': criminal_case.victim_name or criminal_case.complainant,
-        'complainant': criminal_case.complainant,
+        'victim_name': complainant_name,  # ส่งเป็น victim_name เพื่อ backward compatibility กับ template
+        'complainant': complainant_name,
         'case_type': criminal_case.case_type,
         'damage_amount': criminal_case.damage_amount,
         'court_name': criminal_case.court_name,

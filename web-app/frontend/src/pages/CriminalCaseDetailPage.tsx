@@ -191,8 +191,28 @@ const CriminalCaseDetailPage = () => {
 
   // Print Bank Summons
   const handlePrintBankSummons = async (bankAccountId: number) => {
+    // แสดง Modal เลือกอายัดบัญชีหรือไม่
+    Modal.confirm({
+      title: 'เลือกประเภทหมายเรียก',
+      content: 'คุณต้องการอายัดบัญชีหรือไม่?',
+      okText: 'อายัดบัญชี',
+      cancelText: 'ไม่อายัดบัญชี',
+      onOk: async () => {
+        // เลือกอายัดบัญชี
+        await printBankSummons(bankAccountId, true)
+      },
+      onCancel: async () => {
+        // เลือกไม่อายัดบัญชี
+        await printBankSummons(bankAccountId, false)
+      }
+    })
+  }
+
+  // ฟังก์ชันพิมพ์หมายเรียกจริง
+  const printBankSummons = async (bankAccountId: number, freezeAccount: boolean) => {
     try {
       const response = await api.get(`/documents/bank-summons/${bankAccountId}`, {
+        params: { freeze_account: freezeAccount },
         responseType: 'blob'
       })
       
@@ -209,7 +229,8 @@ const CriminalCaseDetailPage = () => {
         }
       }
       
-      message.success('กำลังเปิดหน้าต่างพิมพ์หมายเรียก')
+      const freezeText = freezeAccount ? 'อายัดบัญชี' : 'ไม่อายัดบัญชี'
+      message.success(`กำลังเปิดหน้าต่างพิมพ์หมายเรียก (${freezeText})`)
     } catch (err) {
       message.error('ไม่สามารถสร้างหมายเรียกได้')
     }
@@ -439,11 +460,8 @@ const CriminalCaseDetailPage = () => {
           <Descriptions.Item label="สถานะคดี">
             <Tag color="blue">{criminalCase.status}</Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="ผู้ร้องทุกข์">
+          <Descriptions.Item label="ผู้ร้องทุกข์/ผู้เสียหาย">
             {criminalCase.complainant}
-          </Descriptions.Item>
-          <Descriptions.Item label="ผู้เสียหาย">
-            {criminalCase.victim_name}
           </Descriptions.Item>
           <Descriptions.Item label="วันที่ร้องทุกข์">
             {criminalCase.complaint_date_thai || criminalCase.complaint_date}

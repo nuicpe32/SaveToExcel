@@ -20,6 +20,9 @@ class Suspect(Base):
     suspect_id_card = Column(String, index=True)
     suspect_address = Column(Text)
 
+    # Charge Information
+    charge_id = Column(Integer, index=True)  # FK to charges master data (future)
+
     # Police Station Information
     police_station = Column(String, index=True)
     police_province = Column(String, index=True)

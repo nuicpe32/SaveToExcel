@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 from typing import List
 from datetime import datetime
 from app.core import get_db
-from app.models import Suspect, User
+from app.models import Suspect, User, CriminalCase
 from app.schemas import SuspectCreate, SuspectUpdate, SuspectResponse
 from app.api.v1.auth import get_current_user
 
@@ -46,7 +46,16 @@ def read_suspects(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    suspects = db.query(Suspect).options(joinedload(Suspect.criminal_case)).offset(skip).limit(limit).all()
+    # Build query based on user role
+    query = db.query(Suspect).options(joinedload(Suspect.criminal_case))
+    
+    # If user is not admin, filter by criminal case owner
+    if not current_user.role or current_user.role.role_name != "admin":
+        query = query.join(CriminalCase).filter(
+            CriminalCase.owner_id == current_user.id
+        )
+    
+    suspects = query.offset(skip).limit(limit).all()
     return suspects
 
 @router.get("/{suspect_id}", response_model=SuspectResponse)

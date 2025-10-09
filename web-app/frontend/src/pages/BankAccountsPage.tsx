@@ -314,7 +314,7 @@ export default function BankAccountsPage() {
                 children: (
                   <Descriptions column={1} bordered size="small">
                     <Descriptions.Item label="ผู้ร้องทุกข์/ผู้เสียหาย">
-                      {selected.criminal_case?.complainant || selected.criminal_case?.victim_name || selected.victim_name || '-'}
+                      {selected.criminal_case?.complainant || '-'}
                     </Descriptions.Item>
                     <Descriptions.Item label="เลขที่คดี">
                       {selected.criminal_case?.case_number || '-'}

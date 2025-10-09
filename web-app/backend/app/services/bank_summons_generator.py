@@ -41,13 +41,14 @@ class BankSummonsGenerator:
             return ''
         return str(value).strip()
     
-    def generate_bank_letter_html(self, bank_data: Dict, criminal_case: Dict) -> str:
+    def generate_bank_letter_html(self, bank_data: Dict, criminal_case: Dict, freeze_account: bool = False) -> str:
         """
         สร้าง HTML หมายเรียกขอข้อมูลบัญชีธนาคาร
         
         Args:
             bank_data: ข้อมูลบัญชีธนาคาร (from bank_accounts table)
             criminal_case: ข้อมูลคดี (from criminal_cases table)
+            freeze_account: True = อายัดบัญชี, False = ไม่อายัดบัญชี
         
         Returns:
             HTML content string
@@ -69,6 +70,9 @@ class BankSummonsGenerator:
         # ดึงข้อมูลจาก criminal_case
         victim_name = self._format_value(criminal_case.get('victim_name', ''))
         case_id = self._format_value(criminal_case.get('case_id', ''))
+        
+        # กำหนดเรื่องตามประเภท
+        subject_text = "ให้ทำการอายัดบัญชี,จัดส่งสำเนาคำร้องเปิดบัญชีธนาคาร,รายการเดินบัญชีและข้อมูลอื่น ๆ" if freeze_account else "ขอให้จัดส่งสำเนาคำร้องเปิดบัญชีธนาคาร รายการเดินบัญชีและข้อมูลอื่น ๆ"
         
         # สร้าง title ตามที่ต้องการ
         html_title = f"หมายเรียกพยานเอกสาร{document_no} ลงวันที่ {date_thai}"
@@ -101,14 +105,14 @@ class BankSummonsGenerator:
             width: 210mm;
             min-height: 297mm;
             margin: 0 auto;
-            padding: 10mm 20mm;
+            padding: 8mm 20mm 10mm 20mm;
             background: white;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }}
 
         .header {{
             position: relative;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }}
 
         .urgent {{
@@ -147,16 +151,16 @@ class BankSummonsGenerator:
 
         .date {{
             text-align: center;
-            margin-top: 160px;
+            margin-top: 140px;
             font-size: 16px;
         }}
 
         .content {{
-            margin-top: 20px;
+            margin-top: 15px;
         }}
 
         .subject {{
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }}
 
         .subject-label {{
@@ -165,7 +169,7 @@ class BankSummonsGenerator:
         }}
 
         .to {{
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }}
 
         .to-label {{
@@ -174,7 +178,7 @@ class BankSummonsGenerator:
         }}
 
         .paragraph {{
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             text-align: justify;
             text-indent: 2em;
         }}
@@ -182,7 +186,7 @@ class BankSummonsGenerator:
         .bank-table {{
             width: 100%;
             border-collapse: collapse;
-            margin: 20px 0;
+            margin: 15px 0;
         }}
 
         .bank-table th,
@@ -199,13 +203,13 @@ class BankSummonsGenerator:
         }}
 
         .authority {{
-            margin-top: 15px;
+            margin-top: 12px;
             text-align: justify;
             text-indent: 2em;
         }}
 
         .document-list {{
-            margin-top: 15px;
+            margin-top: 12px;
         }}
 
         .document-list ol {{
@@ -213,12 +217,12 @@ class BankSummonsGenerator:
         }}
 
         .document-list li {{
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             text-align: justify;
         }}
 
         .signature {{
-            margin-top: 30px;
+            margin-top: 20px;
             text-align: center;
         }}
 
@@ -240,12 +244,18 @@ class BankSummonsGenerator:
                 width: 210mm;
                 height: 297mm;
                 margin: 0;
-                padding: 20mm;
+                padding: 15mm 20mm;
                 box-shadow: none;
                 page-break-after: always;
             }}
             .page:last-child {{
                 page-break-after: avoid;
+            }}
+            .header {{
+                margin-bottom: 15px;
+            }}
+            .date {{
+                margin-top: 130px;
             }}
         }}
     </style>
@@ -271,7 +281,7 @@ class BankSummonsGenerator:
         <div class="content">
             <div class="subject">
                 <span class="subject-label">เรื่อง</span>
-                &nbsp;&nbsp;ขอให้จัดส่งสำเนาคำร้องเปิดบัญชีธนาคาร รายการเดินบัญชีและข้อมูลอื่น ๆ
+                &nbsp;&nbsp;{subject_text}
             </div>
 
             <div class="to">
@@ -324,10 +334,12 @@ class BankSummonsGenerator:
                         อีเมล์ ampon.th@police.go.th)</li>
 
                     <li>ข้อมูลและภาพถ่ายการยืนยันตัวตน (KYC) การทำธุรกรรมในการโอน/ชำระเงิน ที่มีมูลค่ามากกว่า 50,000
-                        บาท ตามห้วงเวลาที่แจ้งข้างต้น</li>
+                        บาท ตามห้วงเวลาที่แจ้งข้างต้น (กรณีข้อมูลจำนวนมากให้นำส่ง 10 รายการล่าสุด)</li>
 
                     <li>ภาพการธุรกรรมผ่านตู้ ATM/CDM ตามห้วงเวลาที่แจ้งข้างต้น และภาพการธุรกรรมผ่านตู้ ATM/CDM
                         การทำธุรกรรมจำนวน 5 ครั้งที่มีการทำรายการล่าสุด</li>
+                    
+                    {"<li>ให้ท่านอายัดบัญชีดังกล่าวและแจ้งผลการอายัดบัญชี พร้อมยอดเงินคงเหลือมาพร้อมกับข้อมูลข้างต้น</li>" if freeze_account else ""}
                 </ol>
             </div>
 

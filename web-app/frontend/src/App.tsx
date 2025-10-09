@@ -8,6 +8,7 @@ import SuspectsPage from './pages/SuspectsPage'
 import AddCriminalCasePage from './pages/AddCriminalCasePage'
 import EditCriminalCasePage from './pages/EditCriminalCasePage'
 import CriminalCaseDetailPage from './pages/CriminalCaseDetailPage'
+import AdminUsersPage from './pages/AdminUsersPage'
 import MainLayout from './components/MainLayout'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -15,6 +16,20 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!token) {
     return <Navigate to="/login" replace />
+  }
+
+  return <>{children}</>
+}
+
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { token, user } = useAuthStore()
+
+  if (!token) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (!user?.role || user.role.role_name !== 'admin') {
+    return <Navigate to="/" replace />
   }
 
   return <>{children}</>
@@ -39,6 +54,14 @@ function App() {
           <Route path="add-criminal-case" element={<AddCriminalCasePage />} />
           <Route path="edit-criminal-case/:id" element={<EditCriminalCasePage />} />
           <Route path="cases/:id" element={<CriminalCaseDetailPage />} />
+          <Route 
+            path="admin/users" 
+            element={
+              <AdminRoute>
+                <AdminUsersPage />
+              </AdminRoute>
+            } 
+          />
         </Route>
       </Routes>
     </Layout>

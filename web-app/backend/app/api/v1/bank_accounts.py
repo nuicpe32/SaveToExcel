@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 from typing import List
 from datetime import datetime
 from app.core import get_db
-from app.models import BankAccount, User, Bank
+from app.models import BankAccount, User, Bank, CriminalCase
 from app.schemas import BankAccountCreate, BankAccountUpdate, BankAccountResponse, BankAccountPaginationResponse
 from app.api.v1.auth import get_current_user
 from app.utils.thai_date_utils import format_date_to_thai_buddhist_era
@@ -62,6 +62,12 @@ def read_bank_accounts(
         BankAccount.document_number != '',
         BankAccount.document_date.isnot(None)
     )
+    
+    # If user is not admin, filter by criminal case owner
+    if not current_user.role or current_user.role.role_name != "admin":
+        base_query = base_query.join(CriminalCase).filter(
+            CriminalCase.owner_id == current_user.id
+        )
     
     # นับจำนวนทั้งหมด (เฉพาะที่มีข้อมูลครบถ้วน)
     total = base_query.count()

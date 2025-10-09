@@ -739,7 +739,21 @@ export default function DashboardPage() {
       {/* หัวข้อและแถบสถิติ */}
       <div style={{ marginBottom: '20px' }}>
         <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ margin: 0 }}>คดีอาญาในความรับผิดชอบ</h1>
+          <div>
+            <h1 style={{ margin: 0 }}>คดีอาญาในความรับผิดชอบ</h1>
+            {user && (
+              <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
+                <span style={{ fontWeight: '500' }}>
+                  {user.rank?.rank_short} {user.full_name}
+                </span>
+                {user.position && (
+                  <span style={{ marginLeft: '8px', color: '#999' }}>
+                    ({user.position})
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleAddNew}>
             เพิ่มคดีใหม่
           </Button>
@@ -913,23 +927,54 @@ export default function DashboardPage() {
                           type="primary"
                           size="small"
                           icon={<PrinterOutlined />}
-                          onClick={async () => {
-                            try {
-                              const response = await api.get(`/documents/bank-summons/${record.id}`, {
-                                responseType: 'blob'
-                              })
-                              const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
-                              const url = window.URL.createObjectURL(blob)
-                              const printWindow = window.open(url, '_blank')
-                              if (printWindow) {
-                                printWindow.onload = () => {
-                                  setTimeout(() => printWindow.print(), 500)
+                          onClick={() => {
+                            // แสดง Modal เลือกอายัดบัญชีหรือไม่
+                            Modal.confirm({
+                              title: 'เลือกประเภทหมายเรียก',
+                              content: 'คุณต้องการอายัดบัญชีหรือไม่?',
+                              okText: 'อายัดบัญชี',
+                              cancelText: 'ไม่อายัดบัญชี',
+                              onOk: async () => {
+                                // เลือกอายัดบัญชี
+                                try {
+                                  const response = await api.get(`/documents/bank-summons/${record.id}`, {
+                                    params: { freeze_account: true },
+                                    responseType: 'blob'
+                                  })
+                                  const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
+                                  const url = window.URL.createObjectURL(blob)
+                                  const printWindow = window.open(url, '_blank')
+                                  if (printWindow) {
+                                    printWindow.onload = () => {
+                                      setTimeout(() => printWindow.print(), 500)
+                                    }
+                                  }
+                                  message.success('กำลังเปิดหน้าต่างพิมพ์หมายเรียก (อายัดบัญชี)')
+                                } catch (err) {
+                                  message.error('ไม่สามารถสร้างหมายเรียกได้')
+                                }
+                              },
+                              onCancel: async () => {
+                                // เลือกไม่อายัดบัญชี
+                                try {
+                                  const response = await api.get(`/documents/bank-summons/${record.id}`, {
+                                    params: { freeze_account: false },
+                                    responseType: 'blob'
+                                  })
+                                  const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
+                                  const url = window.URL.createObjectURL(blob)
+                                  const printWindow = window.open(url, '_blank')
+                                  if (printWindow) {
+                                    printWindow.onload = () => {
+                                      setTimeout(() => printWindow.print(), 500)
+                                    }
+                                  }
+                                  message.success('กำลังเปิดหน้าต่างพิมพ์หมายเรียก (ไม่อายัดบัญชี)')
+                                } catch (err) {
+                                  message.error('ไม่สามารถสร้างหมายเรียกได้')
                                 }
                               }
-                              message.success('กำลังเปิดหน้าต่างพิมพ์หมายเรียก')
-                            } catch (err) {
-                              message.error('ไม่สามารถสร้างหมายเรียกได้')
-                            }
+                            })
                           }}
                           block
                         >

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
-from datetime import timedelta
+from sqlalchemy.orm import Session, joinedload
+from datetime import timedelta, datetime
 from app.core import get_db, verify_password, get_password_hash, create_access_token, settings
 from app.models import User
 from app.schemas import Token, UserCreate, UserResponse
@@ -27,9 +27,26 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if username is None:
         raise credentials_exception
 
-    user = db.query(User).filter(User.username == username).first()
+    user = db.query(User).options(
+        joinedload(User.rank),
+        joinedload(User.role)
+    ).filter(User.username == username).first()
+    
     if user is None:
         raise credentials_exception
+    
+    # Check if user is active and approved
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="บัญชีถูกปิดใช้งาน"
+        )
+    
+    if not user.is_approved:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="บัญชียังไม่ได้รับการอนุมัติ"
+        )
 
     return user
 
@@ -59,12 +76,56 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 @router.post("/login", response_model=Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+    # Check if account is locked
+    if user.locked_until and user.locked_until > datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED,
+            detail="บัญชีถูกล็อค กรุณาติดต่อผู้ดูแลระบบ"
+        )
+    
+    # Check if user is approved
+    if not user.is_approved:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="บัญชียังไม่ได้รับการอนุมัติจากผู้ดูแลระบบ"
+        )
+    
+    # Check if user is active
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="บัญชีถูกปิดใช้งาน"
+        )
+    
+    # Verify password
+    if not verify_password(form_data.password, user.hashed_password):
+        # Increment failed login attempts
+        user.failed_login_attempts += 1
+        
+        # Lock account after 5 failed attempts
+        if user.failed_login_attempts >= 5:
+            user.locked_until = datetime.utcnow() + timedelta(hours=1)  # Lock for 1 hour
+        
+        db.commit()
+        
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Reset failed login attempts on successful login
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    db.commit()
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(

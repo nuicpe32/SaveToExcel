@@ -1,16 +1,18 @@
 import { useState } from 'react'
-import { Card, Form, Input, Button, message, Space } from 'antd'
-import { UserOutlined, LockOutlined, SunOutlined, MoonOutlined } from '@ant-design/icons'
+import { Card, Form, Input, Button, message, Space, Divider } from 'antd'
+import { UserOutlined, LockOutlined, SunOutlined, MoonOutlined, UserAddOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
 import { useTheme } from '../contexts/ThemeContext'
 import api from '../services/api'
+import RegistrationModal from '../components/RegistrationModal'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const { setAuth } = useAuthStore()
   const { isDark, toggleTheme } = useTheme()
   const [loading, setLoading] = useState(false)
+  const [registrationModalOpen, setRegistrationModalOpen] = useState(false)
 
   const onFinish = async (values: any) => {
     setLoading(true)
@@ -31,7 +33,17 @@ export default function LoginPage() {
       message.success('เข้าสู่ระบบสำเร็จ')
       navigate('/')
     } catch (error: any) {
-      message.error(error.response?.data?.detail || 'เข้าสู่ระบบไม่สำเร็จ')
+      const errorMessage = error.response?.data?.detail || 'เข้าสู่ระบบไม่สำเร็จ'
+      message.error(errorMessage)
+      
+      // Show specific messages for different error types
+      if (errorMessage.includes('บัญชีถูกล็อค')) {
+        message.warning('บัญชีถูกล็อค กรุณาติดต่อผู้ดูแลระบบ')
+      } else if (errorMessage.includes('ยังไม่ได้รับการอนุมัติ')) {
+        message.warning('บัญชียังไม่ได้รับการอนุมัติจากผู้ดูแลระบบ')
+      } else if (errorMessage.includes('ถูกปิดใช้งาน')) {
+        message.warning('บัญชีถูกปิดใช้งาน')
+      }
     } finally {
       setLoading(false)
     }
@@ -76,8 +88,30 @@ export default function LoginPage() {
               เข้าสู่ระบบ
             </Button>
           </Form.Item>
+          
+          <Divider>หรือ</Divider>
+          
+          <Form.Item>
+            <Button 
+              type="default" 
+              icon={<UserAddOutlined />}
+              block 
+              size="large"
+              onClick={() => setRegistrationModalOpen(true)}
+            >
+              สมัครสมาชิก
+            </Button>
+          </Form.Item>
         </Form>
       </Card>
+      
+      <RegistrationModal
+        open={registrationModalOpen}
+        onClose={() => setRegistrationModalOpen(false)}
+        onSuccess={() => {
+          // Registration success - could show a message or redirect
+        }}
+      />
     </div>
   )
 }

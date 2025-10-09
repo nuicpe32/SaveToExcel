@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 from datetime import datetime, timedelta
 from app.core import get_db
@@ -9,6 +9,7 @@ from app.api.v1.auth import get_current_user
 from app.utils.string_utils import safe_string_conversion, name_contains, clean_name_for_matching
 from app.utils.case_styling import get_case_row_class, get_case_row_style
 from app.utils.case_number_generator import generate_case_number, validate_case_number
+from app.utils.virtual_fields import format_thai_date, get_bank_accounts_count, get_suspects_count
 
 router = APIRouter()
 
@@ -32,49 +33,44 @@ def create_criminal_case(
     db_case = CriminalCase(
         **case_data,
         last_update_date=datetime.now(),
-        created_by=current_user.id
+        created_by=current_user.id,
+        owner_id=current_user.id  # Set owner to the creator
     )
     db.add(db_case)
     db.commit()
     db.refresh(db_case)
 
-    # Add related data counts using case ID
-    db_case.bank_accounts_count = get_bank_accounts_count(db, db_case.id)
-    db_case.suspects_count = get_suspects_count(db, db_case.id)
-    # case_id field is already set from form data
+    # Compute virtual fields
+    complaint_date_thai = format_thai_date(db_case.complaint_date)
+    incident_date_thai = format_thai_date(db_case.incident_date)
+    bank_accounts_count = get_bank_accounts_count(db, db_case.id)
+    suspects_count = get_suspects_count(db, db_case.id)
 
     # Add row styling
-    complaint_date_str = db_case.complaint_date_thai or str(db_case.complaint_date) if db_case.complaint_date else ''
-    db_case.row_class = get_case_row_class(db_case.status, complaint_date_str, db_case.bank_accounts_count)
-    db_case.row_style = get_case_row_style(db_case.status, complaint_date_str, db_case.bank_accounts_count)
+    complaint_date_str = complaint_date_thai or str(db_case.complaint_date) if db_case.complaint_date else ''
+    row_class = get_case_row_class(db_case.status, complaint_date_str, bank_accounts_count)
+    row_style = get_case_row_style(db_case.status, complaint_date_str, bank_accounts_count)
 
-    return db_case
+    # Create response with virtual fields
+    response = CriminalCaseResponse.from_orm(db_case)
+    response.complaint_date_thai = complaint_date_thai
+    response.incident_date_thai = incident_date_thai
+    response.bank_accounts_count = bank_accounts_count
+    response.suspects_count = suspects_count
+    response.row_class = row_class
+    response.row_style = row_style
 
-def get_bank_accounts_count(db: Session, case_id: int) -> str:
-    """Calculate bank accounts count and replied count for a criminal case"""
-    try:
-        # Use FK relationship only
-        matching_accounts = db.query(BankAccount).filter(
-            BankAccount.criminal_case_id == case_id
-        ).all()
+    return response
 
-        if not matching_accounts:
-            return "0/0"
-
-        total_accounts = len(matching_accounts)
-        replied_accounts = sum(1 for account in matching_accounts if account.reply_status)
-
-        return f"{total_accounts}/{replied_accounts}"
-
-    except Exception as e:
-        print(f"Error calculating bank accounts count: {e}")
-        return "0/0"
+# get_bank_accounts_count() moved to app.utils.virtual_fields
 
 def get_case_id_from_related_data(db: Session, case_id: int) -> str:
     """Get CaseID from the criminal case itself"""
     try:
         # Get the case directly by ID
-        case = db.query(CriminalCase).filter(CriminalCase.id == case_id).first()
+        case = db.query(CriminalCase).options(
+        joinedload(CriminalCase.owner).joinedload(User.rank)
+    ).filter(CriminalCase.id == case_id).first()
         if case and case.case_id:
             return case.case_id
         return ""
@@ -82,26 +78,7 @@ def get_case_id_from_related_data(db: Session, case_id: int) -> str:
         print(f"Error getting CaseID: {e}")
         return ""
 
-def get_suspects_count(db: Session, case_id: int) -> str:
-    """Calculate suspects count and replied count for a criminal case"""
-    try:
-        # Use FK relationship only
-        matching_suspects = db.query(Suspect).filter(
-            Suspect.criminal_case_id == case_id
-        ).all()
-
-        if not matching_suspects:
-            return "0/0"
-
-        total_suspects = len(matching_suspects)
-        # For suspects, check reply_status field (X means replied, False/None means not replied)
-        replied_suspects = sum(1 for suspect in matching_suspects if suspect.reply_status)
-
-        return f"{total_suspects}/{replied_suspects}"
-
-    except Exception as e:
-        print(f"Error calculating suspects count: {e}")
-        return "0/0"
+# get_suspects_count() moved to app.utils.virtual_fields
 
 @router.get("/", response_model=List[CriminalCaseResponse])
 def read_criminal_cases(
@@ -110,20 +87,43 @@ def read_criminal_cases(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    cases = db.query(CriminalCase).order_by(CriminalCase.complaint_date.desc()).offset(skip).limit(limit).all()
+    # Build query based on user role
+    query = db.query(CriminalCase).options(
+        joinedload(CriminalCase.owner).joinedload(User.rank)
+    )
+    
+    # If user is not admin, filter by owner_id
+    if not current_user.role or current_user.role.role_name != "admin":
+        query = query.filter(CriminalCase.owner_id == current_user.id)
+    
+    cases = query.order_by(CriminalCase.complaint_date.desc()).offset(skip).limit(limit).all()
 
-    # Add related data counts to each case
+    # Add virtual fields to each case
+    response_cases = []
     for case in cases:
-        case.bank_accounts_count = get_bank_accounts_count(db, case.id)
-        case.suspects_count = get_suspects_count(db, case.id)
-        # case_id is already in the database
+        # Compute virtual fields
+        complaint_date_thai = format_thai_date(case.complaint_date)
+        incident_date_thai = format_thai_date(case.incident_date)
+        bank_accounts_count = get_bank_accounts_count(db, case.id)
+        suspects_count = get_suspects_count(db, case.id)
 
         # Add row styling information
-        complaint_date_str = case.complaint_date_thai or str(case.complaint_date) if case.complaint_date else ''
-        case.row_class = get_case_row_class(case.status, complaint_date_str, case.bank_accounts_count)
-        case.row_style = get_case_row_style(case.status, complaint_date_str, case.bank_accounts_count)
+        complaint_date_str = complaint_date_thai or str(case.complaint_date) if case.complaint_date else ''
+        row_class = get_case_row_class(case.status, complaint_date_str, bank_accounts_count)
+        row_style = get_case_row_style(case.status, complaint_date_str, bank_accounts_count)
 
-    return cases
+        # Create response with virtual fields
+        response = CriminalCaseResponse.from_orm(case)
+        response.complaint_date_thai = complaint_date_thai
+        response.incident_date_thai = incident_date_thai
+        response.bank_accounts_count = bank_accounts_count
+        response.suspects_count = suspects_count
+        response.row_class = row_class
+        response.row_style = row_style
+        
+        response_cases.append(response)
+
+    return response_cases
 
 @router.get("/aging", response_model=List[CriminalCaseResponse])
 def read_aging_cases(
@@ -131,10 +131,20 @@ def read_aging_cases(
     current_user: User = Depends(get_current_user)
 ):
     six_months_ago = datetime.now() - timedelta(days=180)
-    cases = db.query(CriminalCase).filter(
+    
+    # Build query based on user role
+    query = db.query(CriminalCase).options(
+        joinedload(CriminalCase.owner).joinedload(User.rank)
+    ).filter(
         CriminalCase.case_date < six_months_ago.date(),
         CriminalCase.status == "active"
-    ).all()
+    )
+    
+    # If user is not admin, filter by owner_id
+    if not current_user.role or current_user.role.role_name != "admin":
+        query = query.filter(CriminalCase.owner_id == current_user.id)
+    
+    cases = query.all()
     return cases
 
 @router.get("/{case_id}", response_model=CriminalCaseResponse)
@@ -143,21 +153,33 @@ def read_criminal_case(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    case = db.query(CriminalCase).filter(CriminalCase.id == case_id).first()
+    case = db.query(CriminalCase).options(
+        joinedload(CriminalCase.owner).joinedload(User.rank)
+    ).filter(CriminalCase.id == case_id).first()
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
 
-    # Add related data counts using case ID
-    case.bank_accounts_count = get_bank_accounts_count(db, case.id)
-    case.suspects_count = get_suspects_count(db, case.id)
-    # case_id is already in the database
+    # Compute virtual fields
+    complaint_date_thai = format_thai_date(case.complaint_date)
+    incident_date_thai = format_thai_date(case.incident_date)
+    bank_accounts_count = get_bank_accounts_count(db, case.id)
+    suspects_count = get_suspects_count(db, case.id)
 
     # Add row styling
-    complaint_date_str = case.complaint_date_thai or str(case.complaint_date) if case.complaint_date else ''
-    case.row_class = get_case_row_class(case.status, complaint_date_str, case.bank_accounts_count)
-    case.row_style = get_case_row_style(case.status, complaint_date_str, case.bank_accounts_count)
+    complaint_date_str = complaint_date_thai or str(case.complaint_date) if case.complaint_date else ''
+    row_class = get_case_row_class(case.status, complaint_date_str, bank_accounts_count)
+    row_style = get_case_row_style(case.status, complaint_date_str, bank_accounts_count)
 
-    return case
+    # Create response with virtual fields
+    response = CriminalCaseResponse.from_orm(case)
+    response.complaint_date_thai = complaint_date_thai
+    response.incident_date_thai = incident_date_thai
+    response.bank_accounts_count = bank_accounts_count
+    response.suspects_count = suspects_count
+    response.row_class = row_class
+    response.row_style = row_style
+
+    return response
 
 
 @router.get("/{case_id}/bank-accounts", response_model=List[BankAccountResponse])
@@ -168,7 +190,9 @@ def get_case_bank_accounts(
 ):
     """Get bank accounts related to a specific criminal case"""
     # Get the criminal case
-    case = db.query(CriminalCase).filter(CriminalCase.id == case_id).first()
+    case = db.query(CriminalCase).options(
+        joinedload(CriminalCase.owner).joinedload(User.rank)
+    ).filter(CriminalCase.id == case_id).first()
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
 
@@ -192,7 +216,9 @@ def get_case_suspects(
 ):
     """Get suspects related to a specific criminal case"""
     # Get the criminal case
-    case = db.query(CriminalCase).filter(CriminalCase.id == case_id).first()
+    case = db.query(CriminalCase).options(
+        joinedload(CriminalCase.owner).joinedload(User.rank)
+    ).filter(CriminalCase.id == case_id).first()
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
 
@@ -224,32 +250,31 @@ def update_criminal_case(
     for field, value in update_data.items():
         setattr(db_case, field, value)
     
-    # Update Thai date fields if complaint_date is updated
-    if 'complaint_date' in update_data and db_case.complaint_date:
-        from app.services.data_migration import DataMigration
-        migration = DataMigration()
-        db_case.complaint_date_thai = migration._format_thai_date(db_case.complaint_date)
-    
-    if 'incident_date' in update_data and db_case.incident_date:
-        from app.services.data_migration import DataMigration
-        migration = DataMigration()
-        db_case.incident_date_thai = migration._format_thai_date(db_case.incident_date)
-    
     try:
         db.commit()
         db.refresh(db_case)
 
-        # Add related data counts using case ID
-        db_case.bank_accounts_count = get_bank_accounts_count(db, db_case.id)
-        db_case.suspects_count = get_suspects_count(db, db_case.id)
-        # case_id is already in the database
+        # Compute virtual fields
+        complaint_date_thai = format_thai_date(db_case.complaint_date)
+        incident_date_thai = format_thai_date(db_case.incident_date)
+        bank_accounts_count = get_bank_accounts_count(db, db_case.id)
+        suspects_count = get_suspects_count(db, db_case.id)
 
         # Add row styling
-        complaint_date_str = db_case.complaint_date_thai or str(db_case.complaint_date) if db_case.complaint_date else ''
-        db_case.row_class = get_case_row_class(db_case.status, complaint_date_str, db_case.bank_accounts_count)
-        db_case.row_style = get_case_row_style(db_case.status, complaint_date_str, db_case.bank_accounts_count)
+        complaint_date_str = complaint_date_thai or str(db_case.complaint_date) if db_case.complaint_date else ''
+        row_class = get_case_row_class(db_case.status, complaint_date_str, bank_accounts_count)
+        row_style = get_case_row_style(db_case.status, complaint_date_str, bank_accounts_count)
 
-        return db_case
+        # Create response with virtual fields
+        response = CriminalCaseResponse.from_orm(db_case)
+        response.complaint_date_thai = complaint_date_thai
+        response.incident_date_thai = incident_date_thai
+        response.bank_accounts_count = bank_accounts_count
+        response.suspects_count = suspects_count
+        response.row_class = row_class
+        response.row_style = row_style
+
+        return response
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=f"Error updating criminal case: {str(e)}")

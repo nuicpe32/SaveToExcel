@@ -1,4 +1,7 @@
-from .user import User, UserRole
+from .user import User
+from .user_role import UserRole
+from .user_role_mapping import UserRoleMapping
+from .police_rank import PoliceRank
 from .bank import Bank
 from .court import Court
 from .bank_account import BankAccount
