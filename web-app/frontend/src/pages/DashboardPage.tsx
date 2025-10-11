@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Table, message, Tag, Space, Button, Descriptions, Drawer, Tabs, Popconfirm, Modal, Input, Upload, Card, List, Spin } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { EditOutlined, DeleteOutlined, PlusOutlined, PrinterOutlined, UploadOutlined, FileExcelOutlined } from '@ant-design/icons'
+import { EditOutlined, DeleteOutlined, PlusOutlined, PrinterOutlined, UploadOutlined, FileExcelOutlined, ApartmentOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { useAuthStore } from '../stores/authStore'
 import BankAccountFormModal from '../components/BankAccountFormModal'
 import SuspectFormModal from '../components/SuspectFormModal'
+import CfrFlowChart from '../components/CfrFlowChart'
 import dayjs from 'dayjs'
 
 interface BankAccount {
@@ -92,6 +93,7 @@ export default function DashboardPage() {
   const [loadingCfr, setLoadingCfr] = useState(false)
   const [selectedCfrAccount, setSelectedCfrAccount] = useState<any>(null)
   const [cfrDetailVisible, setCfrDetailVisible] = useState(false)
+  const [flowChartVisible, setFlowChartVisible] = useState(false)
 
   // ฟังก์ชันแปลงวันที่เป็นรูปแบบไทย
   const formatThaiDate = (date: string | undefined): string => {
@@ -262,6 +264,93 @@ export default function DashboardPage() {
   const showCfrAccountDetail = (record: any) => {
     setSelectedCfrAccount(record)
     setCfrDetailVisible(true)
+  }
+
+  // ฟังก์ชันสร้างหมายเรียกจากข้อมูล CFR
+  const handleCreateSummonsFromCfr = (cfrRecord: any) => {
+    // Parse วันที่จาก CFR
+    // ถ้าปีมากกว่า 2500 แสดงว่าเป็นปี พ.ศ. ต้องแปลงเป็น ค.ศ. ก่อน
+    let transferDateStr = cfrRecord.transfer_date
+    const year = parseInt(transferDateStr.split('-')[0])
+    
+    if (year > 2500) {
+      // แปลงจาก พ.ศ. เป็น ค.ศ.
+      const adYear = year - 543
+      transferDateStr = transferDateStr.replace(year.toString(), adYear.toString())
+    }
+    
+    // คำนวณช่วงเวลาทำธุรกรรม (1 วันก่อน - 1 วันหลัง)
+    const transferDate = dayjs(transferDateStr)
+    const startDate = transferDate.subtract(1, 'day')
+    const endDate = transferDate.add(1, 'day')
+
+    // หาธนาคารจาก bank_short_name
+    const bankName = cfrRecord.to_bank_short_name
+    let selectedBankName = ''
+    
+    // สร้าง mapping ของ bank_short_name กับ bank_name
+    if (bankName) {
+      const bankMapping: { [key: string]: string } = {
+        'BBL': 'ธนาคารกรุงเทพ',
+        'KBANK': 'ธนาคารกสิกรไทย',
+        'KBNK': 'ธนาคารกสิกรไทย',  // เพิ่ม KBNK (รูปแบบอื่นของกสิกร)
+        'KTB': 'ธนาคารกรุงไทย',
+        'TTB': 'ธนาคารทหารไทยธนชาต',
+        'SCB': 'ธนาคารไทยพาณิชย์',
+        'BAY': 'ธนาคารกรุงศรีอยุธยา',
+        'CIMBT': 'ธนาคารซีไอเอ็มบี ไทย',
+        'UOBT': 'ธนาคารยูโอบี',
+        'KKP': 'ธนาคารเกียรตินาคินภัทร',
+        'GSB': 'ธนาคารออมสิน',
+        'GHB': 'ธนาคารอาคารสงเคราะห์',
+        'BAAC': 'ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร',
+        'LH': 'ธนาคารแลนด์ แอนด์ เฮ้าส์'
+      }
+      
+      selectedBankName = bankMapping[bankName] || bankName
+    }
+
+    // แปลงเดือนเป็นภาษาไทยแบบย่อ
+    const formatThaiMonth = (month: number): string => {
+      const thaiMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 
+                          'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
+      return thaiMonths[month]
+    }
+
+    // แปลง date range เป็น text ไทย
+    const formatDateRangeToThai = (start: dayjs.Dayjs, end: dayjs.Dayjs): string => {
+      // แปลงเป็น พ.ศ.
+      const startDay = start.date()
+      const startMonth = formatThaiMonth(start.month())
+      const startYear = (start.year() + 543).toString().slice(-2) // เอา 2 หลักหลัง
+      
+      const endDay = end.date()
+      const endMonth = formatThaiMonth(end.month())
+      const endYear = (end.year() + 543).toString().slice(-2)
+      
+      return `${startDay} ${startMonth} ${startYear} - ${endDay} ${endMonth} ${endYear}`
+    }
+
+    // สร้างข้อมูลสำหรับฟอร์ม
+    const bankFormData = {
+      bank_name: selectedBankName,
+      account_number: cfrRecord.to_account_no || '',
+      account_name: cfrRecord.to_account_name || '',
+      // กรอก time_period โดยคำนวณจากวันที่ทำธุรกรรม (1 วันก่อน - 1 วันหลัง)
+      time_period: formatDateRangeToThai(startDate, endDate),
+      document_date: dayjs(), // วันที่ลงวันที่ = วันนี้
+      delivery_date: dayjs().add(14, 'day'), // กำหนดส่ง = วันนี้ + 14 วัน
+      is_frozen: false,
+      // เพิ่มข้อมูลสำหรับ date range
+      _date_range_start: startDate,
+      _date_range_end: endDate,
+      // Flag พิเศษเพื่อบอกว่านี่เป็นการสร้างใหม่ไม่ใช่การแก้ไข
+      _is_new_from_cfr: true
+    }
+
+    // เปิดฟอร์มสร้างหมายเรียกพร้อมข้อมูลที่กรอกไว้
+    setEditingBank(bankFormData as any)
+    setBankModalVisible(true)
   }
 
   // ฟังก์ชันตรวจสอบว่าบัญชีมีในรายการหมายเรียกหรือไม่
@@ -1038,7 +1127,18 @@ export default function DashboardPage() {
 
                   {/* แสดงข้อมูล CFR แยกตาราง 1 ตารางต่อ 1 bank_case_id */}
                   <div style={{ marginTop: 32 }}>
-                    <h3>ข้อมูลเส้นทางการเงิน</h3>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                      <h3 style={{ margin: 0 }}>ข้อมูลเส้นทางการเงิน</h3>
+                      {cfrRecords.length > 0 && (
+                        <Button 
+                          type="primary"
+                          icon={<ApartmentOutlined />}
+                          onClick={() => setFlowChartVisible(true)}
+                        >
+                          แสดงแผนผังเส้นทางการเงิน
+                        </Button>
+                      )}
+                    </div>
                     {loadingCfr ? (
                       <Spin />
                     ) : cfrRecords.length === 0 ? (
@@ -1141,6 +1241,19 @@ export default function DashboardPage() {
                                                 {summons.reply_status ? '✓ ได้รับข้อมูลแล้ว' : `✗ ยังไม่ตอบกลับ (ส่งไปแล้ว ${calculateDaysSinceSent(summons.document_date)})`}
                                               </div>
                                             )}
+                                            {!summons && !isVictim && (
+                                              <Button 
+                                                type="primary" 
+                                                size="small" 
+                                                style={{ marginTop: 4, fontSize: '10px', height: '20px' }}
+                                                onClick={(e) => {
+                                                  e.stopPropagation()
+                                                  handleCreateSummonsFromCfr(record)
+                                                }}
+                                              >
+                                                สร้างหมายเรียก
+                                              </Button>
+                                            )}
                                           </div>
                                         </Button>
                                       )
@@ -1182,7 +1295,7 @@ export default function DashboardPage() {
               </Card>
             </Tabs.TabPane>
 
-            <Tabs.TabPane tab="บัญชีธนาคารที่เกี่ยวข้อง" key="bank-accounts">
+            <Tabs.TabPane tab={`บัญชีธนาคารที่เกี่ยวข้อง (${bankAccounts.length})`} key="bank-accounts">
               <Space style={{ marginBottom: 16 }}>
                 <Button
                   type="primary"
@@ -1360,7 +1473,7 @@ export default function DashboardPage() {
               />
             </Tabs.TabPane>
 
-            <Tabs.TabPane tab="ผู้ต้องหาที่เกี่ยวข้อง" key="suspects">
+            <Tabs.TabPane tab={`ผู้ต้องหาที่เกี่ยวข้อง (${suspects.length})`} key="suspects">
               <Space style={{ marginBottom: 16 }}>
                 <Button
                   type="primary"
@@ -1594,6 +1707,20 @@ export default function DashboardPage() {
             </Descriptions.Item>
           </Descriptions>
         )}
+      </Modal>
+
+      <Modal
+        title={`แผนผังเส้นทางการเงิน - ${selected?.case_number || ''}`}
+        open={flowChartVisible}
+        onCancel={() => setFlowChartVisible(false)}
+        footer={null}
+        width="90%"
+        style={{ top: 20 }}
+      >
+        <CfrFlowChart 
+          records={cfrRecords}
+          victimName={selected?.complainant}
+        />
       </Modal>
 
       <BankAccountFormModal

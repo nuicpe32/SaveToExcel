@@ -70,8 +70,11 @@ export default function BankAccountFormModal({
   onClose,
 }: BankAccountFormModalProps) {
   const [form] = Form.useForm()
-  const isEdit = !!editingRecord
+  // ตรวจสอบว่าเป็นการแก้ไขจริงหรือเป็นการสร้างใหม่จาก CFR
+  const isEdit = !!editingRecord && !editingRecord._is_new_from_cfr
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null)
+  // ตรวจสอบว่ามาจาก CFR หรือไม่
+  const isFromCfr = !!editingRecord && editingRecord._is_new_from_cfr
 
   useEffect(() => {
     if (visible) {
@@ -86,7 +89,17 @@ export default function BankAccountFormModal({
             ? dayjs(editingRecord.delivery_date)
             : null,
         })
-        setDateRange(null) // reset date range
+        
+        // ถ้ามีข้อมูล date range จาก CFR
+        if (editingRecord._date_range_start && editingRecord._date_range_end) {
+          const dateRangeValue: [dayjs.Dayjs, dayjs.Dayjs] = [
+            editingRecord._date_range_start,
+            editingRecord._date_range_end
+          ]
+          setDateRange(dateRangeValue)
+        } else {
+          setDateRange(null)
+        }
       } else {
         // เพิ่มใหม่ - reset form
         form.resetFields()
@@ -254,8 +267,9 @@ export default function BankAccountFormModal({
                 <Input type="hidden" />
               </Form.Item>
               {dateRange && (
-                <div style={{ marginTop: 8, color: '#1890ff', fontSize: '13px' }}>
+                <div style={{ marginTop: 8, color: isFromCfr ? '#ff4d4f' : '#1890ff', fontSize: '13px', fontWeight: isFromCfr ? 'bold' : 'normal' }}>
                   จะบันทึกเป็น: {formatDateRangeToThai(dateRange)}
+                  {isFromCfr && <span style={{ marginLeft: 8 }}>(ตามข้อมูลจาก CFR)</span>}
                 </div>
               )}
             </Form.Item>
