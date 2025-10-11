@@ -29,7 +29,10 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
     user = db.query(User).options(
         joinedload(User.rank),
-        joinedload(User.role)
+        joinedload(User.role),
+        joinedload(User.bureau),
+        joinedload(User.division),
+        joinedload(User.supervision)
     ).filter(User.username == username).first()
     
     if user is None:
@@ -47,6 +50,26 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="บัญชียังไม่ได้รับการอนุมัติ"
         )
+    
+    # ตรวจสอบสิทธิ์หน่วยงาน (ยกเว้น Admin)
+    if user.role and user.role.role_name != 'admin':
+        if user.supervision and not user.supervision.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="ไม่มีสิทธิ์เข้าใช้งาน กรุณาติดต่อผู้ดูแลระบบ"
+            )
+        
+        if user.division and not user.division.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="ไม่มีสิทธิ์เข้าใช้งาน กรุณาติดต่อผู้ดูแลระบบ"
+            )
+        
+        if user.bureau and not user.bureau.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="ไม่มีสิทธิ์เข้าใช้งาน กรุณาติดต่อผู้ดูแลระบบ"
+            )
 
     return user
 
@@ -75,7 +98,12 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == form_data.username).first()
+    # Load user with organization data
+    user = db.query(User).options(
+        joinedload(User.bureau),
+        joinedload(User.division),
+        joinedload(User.supervision)
+    ).filter(User.username == form_data.username).first()
     
     if not user:
         raise HTTPException(
@@ -104,6 +132,29 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             status_code=status.HTTP_403_FORBIDDEN,
             detail="บัญชีถูกปิดใช้งาน"
         )
+    
+    # ตรวจสอบสิทธิ์หน่วยงาน (ยกเว้น Admin)
+    # Load user role to check if admin
+    user_with_role = db.query(User).options(joinedload(User.role)).filter(User.id == user.id).first()
+    
+    if user_with_role and user_with_role.role and user_with_role.role.role_name != 'admin':
+        if user.supervision and not user.supervision.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="ไม่มีสิทธิ์เข้าใช้งาน กรุณาติดต่อผู้ดูแลระบบ"
+            )
+        
+        if user.division and not user.division.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="ไม่มีสิทธิ์เข้าใช้งาน กรุณาติดต่อผู้ดูแลระบบ"
+            )
+        
+        if user.bureau and not user.bureau.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="ไม่มีสิทธิ์เข้าใช้งาน กรุณาติดต่อผู้ดูแลระบบ"
+            )
     
     # Verify password
     if not verify_password(form_data.password, user.hashed_password):

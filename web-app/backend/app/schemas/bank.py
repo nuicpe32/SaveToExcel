@@ -5,6 +5,8 @@ from datetime import datetime
 
 class BankBase(BaseModel):
     bank_name: str
+    bank_code: Optional[str] = None
+    bank_short_name: Optional[str] = None
     bank_address: Optional[str] = None
     soi: Optional[str] = None
     moo: Optional[str] = None
@@ -21,6 +23,8 @@ class BankCreate(BankBase):
 
 class BankUpdate(BaseModel):
     bank_name: Optional[str] = None
+    bank_code: Optional[str] = None
+    bank_short_name: Optional[str] = None
     bank_address: Optional[str] = None
     soi: Optional[str] = None
     moo: Optional[str] = None

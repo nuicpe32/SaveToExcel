@@ -11,6 +11,7 @@ import {
   SunOutlined,
   MoonOutlined,
   SettingOutlined,
+  ApartmentOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '../stores/authStore'
 import { useTheme } from '../contexts/ThemeContext'
@@ -39,7 +40,15 @@ export default function MainLayout() {
       ]
     },
     ...(user?.role?.role_name === 'admin' ? [
-      { key: '/admin/users', icon: <SettingOutlined />, label: 'จัดการผู้ใช้' }
+      {
+        key: 'admin',
+        icon: <SettingOutlined />,
+        label: 'ระบบผู้ดูแล',
+        children: [
+          { key: '/admin/users', icon: <UserOutlined />, label: 'จัดการผู้ใช้' },
+          { key: '/admin/organizations', icon: <ApartmentOutlined />, label: 'จัดการหน่วยงาน' }
+        ]
+      }
     ] : [])
   ]
 

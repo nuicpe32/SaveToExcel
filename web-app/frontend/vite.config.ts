@@ -12,6 +12,9 @@ export default defineConfig({
   server: {
     port: 3000,  // Vite dev server port
     host: '0.0.0.0',  // Allow access from outside container
+    watch: {
+      usePolling: true,  // Enable polling for Docker on Windows
+    },
     proxy: {
       '/api': {
         target: 'http://criminal-case-backend:8000',  // Use Docker service name

@@ -18,6 +18,11 @@ class User(Base):
     phone_number = Column(String, nullable=True)
     line_id = Column(String, nullable=True)
     
+    # Organization (Required)
+    bureau_id = Column(Integer, ForeignKey("bureaus.id"), nullable=False, index=True)
+    division_id = Column(Integer, ForeignKey("divisions.id"), nullable=False, index=True)
+    supervision_id = Column(Integer, ForeignKey("supervisions.id"), nullable=False, index=True)
+    
     # Role and permissions
     role_id = Column(Integer, ForeignKey("user_roles.id"), nullable=False)
     
@@ -42,3 +47,8 @@ class User(Base):
     approver = relationship("User", remote_side=[id], back_populates="approved_users")
     approved_users = relationship("User", back_populates="approver")
     owned_criminal_cases = relationship("CriminalCase", foreign_keys="CriminalCase.owner_id", overlaps="owner")
+    
+    # Organization Relationships
+    bureau = relationship("Bureau", back_populates="users")
+    division = relationship("Division", back_populates="users")
+    supervision = relationship("Supervision", back_populates="users")

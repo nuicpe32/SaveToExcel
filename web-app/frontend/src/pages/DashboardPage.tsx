@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Table, message, Tag, Space, Button, Descriptions, Drawer, Tabs, Popconfirm, Modal, Input } from 'antd'
+import { Table, message, Tag, Space, Button, Descriptions, Drawer, Tabs, Popconfirm, Modal, Input, Upload, Card, List, Spin } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { EditOutlined, DeleteOutlined, PlusOutlined, PrinterOutlined } from '@ant-design/icons'
+import { EditOutlined, DeleteOutlined, PlusOutlined, PrinterOutlined, UploadOutlined, FileExcelOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { useAuthStore } from '../stores/authStore'
@@ -86,6 +86,12 @@ export default function DashboardPage() {
   const [suspectModalVisible, setSuspectModalVisible] = useState(false)
   const [editingBank, setEditingBank] = useState<BankAccount | null>(null)
   const [editingSuspect, setEditingSuspect] = useState<Suspect | null>(null)
+  const [cfrFiles, setCfrFiles] = useState<any[]>([])
+  const [uploadingCfr, setUploadingCfr] = useState(false)
+  const [cfrRecords, setCfrRecords] = useState<any[]>([])
+  const [loadingCfr, setLoadingCfr] = useState(false)
+  const [selectedCfrAccount, setSelectedCfrAccount] = useState<any>(null)
+  const [cfrDetailVisible, setCfrDetailVisible] = useState(false)
 
   // ฟังก์ชันแปลงวันที่เป็นรูปแบบไทย
   const formatThaiDate = (date: string | undefined): string => {
@@ -224,6 +230,135 @@ export default function DashboardPage() {
     setSelected(record)
     setOpen(true)
     fetchCaseDetails(record.id)
+    fetchCfrFiles(record.id)
+  }
+
+  const fetchCfrFiles = async (caseId: number) => {
+    try {
+      const response = await api.get(`/cfr/${caseId}/files`)
+      setCfrFiles(response.data)
+      // โหลดข้อมูล records ด้วย
+      fetchCfrRecords(caseId)
+    } catch (error) {
+      console.error('ไม่สามารถโหลดข้อมูลไฟล์ CFR ได้')
+    }
+  }
+
+  const fetchCfrRecords = async (caseId: number) => {
+    setLoadingCfr(true)
+    try {
+      const response = await api.get(`/cfr/${caseId}/records`, {
+        params: { limit: 1000 } // โหลดสูงสุด 1000 records
+      })
+      setCfrRecords(response.data.records || [])
+    } catch (error) {
+      console.error('ไม่สามารถโหลดข้อมูล CFR records ได้')
+      setCfrRecords([])
+    } finally {
+      setLoadingCfr(false)
+    }
+  }
+
+  const showCfrAccountDetail = (record: any) => {
+    setSelectedCfrAccount(record)
+    setCfrDetailVisible(true)
+  }
+
+  // ฟังก์ชันตรวจสอบว่าบัญชีมีในรายการหมายเรียกหรือไม่
+  const findBankAccountSummons = (accountNo: string) => {
+    if (!accountNo || !bankAccounts) return null
+    
+    // ลบช่องว่างและ - ออก
+    const cleanAccountNo = accountNo.replace(/[\s-]/g, '')
+    
+    return bankAccounts.find(ba => {
+      if (!ba.account_number) return false
+      const cleanBankAccount = ba.account_number.replace(/[\s-]/g, '')
+      return cleanBankAccount === cleanAccountNo
+    })
+  }
+
+  // ฟังก์ชันตรวจสอบว่าชื่อบัญชีตรงกับผู้เสียหายหรือไม่
+  const isVictimAccount = (accountName: string): boolean => {
+    if (!accountName || !selected?.complainant) return false
+    
+    const complainant = selected.complainant.trim()
+    const account = accountName.trim()
+    
+    // ลบคำนำหน้า (นาย, นาง, นางสาว, น.ส., Mr., Mrs., Miss)
+    const removeTitle = (name: string): string => {
+      return name
+        .replace(/^(นาย|นาง|นางสาว|น\.ส\.|Mr\.|Mrs\.|Miss|Ms\.)\s*/gi, '')
+        .trim()
+    }
+    
+    const cleanComplainant = removeTitle(complainant)
+    const cleanAccount = removeTitle(account)
+    
+    // ตรวจสอบแบบต่างๆ
+    // 1. ตรงกันทุกตัวอักษร
+    if (cleanAccount === cleanComplainant) return true
+    
+    // 2. ตรงกันโดยไม่สนใจตัวพิมพ์ใหญ่/เล็ก
+    if (cleanAccount.toLowerCase() === cleanComplainant.toLowerCase()) return true
+    
+    // 3. ตรงกันโดยไม่สนใจช่องว่าง
+    if (cleanAccount.replace(/\s+/g, '') === cleanComplainant.replace(/\s+/g, '')) return true
+    
+    // 4. ผู้เสียหายเป็นส่วนหนึ่งของชื่อบัญชี
+    if (cleanAccount.includes(cleanComplainant)) return true
+    
+    // 5. ชื่อบัญชีเป็นส่วนหนึ่งของผู้เสียหาย
+    if (cleanComplainant.includes(cleanAccount)) return true
+    
+    // 6. ตรวจสอบแบบ fuzzy (คำแรกและคำสุดท้ายตรงกัน)
+    const complainantWords = cleanComplainant.split(/\s+/).filter(w => w.length > 0)
+    const accountWords = cleanAccount.split(/\s+/).filter(w => w.length > 0)
+    
+    if (complainantWords.length >= 2 && accountWords.length >= 2) {
+      const firstMatch = complainantWords[0] === accountWords[0]
+      const lastMatch = complainantWords[complainantWords.length - 1] === accountWords[accountWords.length - 1]
+      if (firstMatch && lastMatch) return true
+    }
+    
+    return false
+  }
+
+  const handleCfrUpload = async (file: File) => {
+    if (!selected) return false
+    
+    setUploadingCfr(true)
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const response = await api.post(`/cfr/upload/${selected.id}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+      message.success(`${response.data.message} (เพิ่ม ${response.data.records_inserted} รายการ)`)
+      fetchCfrFiles(selected.id)
+      fetchCfrRecords(selected.id)
+    } catch (error: any) {
+      message.error(error.response?.data?.detail || 'ไม่สามารถอัพโหลดไฟล์ได้')
+    } finally {
+      setUploadingCfr(false)
+    }
+    return false
+  }
+
+  const handleDeleteCfrFile = async (filename: string) => {
+    if (!selected) return
+    
+    try {
+      await api.delete(`/cfr/${selected.id}/file/${encodeURIComponent(filename)}`)
+      message.success('ลบไฟล์ CFR สำเร็จ')
+      fetchCfrFiles(selected.id)
+      fetchCfrRecords(selected.id)
+    } catch (error) {
+      message.error('ไม่สามารถลบไฟล์ได้')
+    }
   }
 
   const showSuspectDetail = (suspect: Suspect) => {
@@ -835,6 +970,218 @@ export default function DashboardPage() {
               </Descriptions>
             </Tabs.TabPane>
 
+            <Tabs.TabPane tab={<span><FileExcelOutlined /> ข้อมูล CFR ({cfrFiles.length})</span>} key="cfr">
+              <Card>
+                <Space direction="vertical" style={{ width: '100%' }} size="large">
+                  <div>
+                    <h3>อัพโหลดไฟล์ CFR (Central Fraud Registry)</h3>
+                    <p style={{ color: '#666' }}>
+                      อัพโหลดไฟล์ข้อมูลเส้นทางการเงิน (.xlsx) จาก CFR System
+                      <br />
+                      หากชื่อไฟล์ซ้ำกับที่มีอยู่แล้ว ระบบจะลบข้อมูลเดิมและนำเข้าข้อมูลใหม่แทน
+                    </p>
+                  </div>
+                  <Upload
+                    accept=".xlsx"
+                    beforeUpload={handleCfrUpload}
+                    showUploadList={false}
+                    disabled={uploadingCfr}
+                  >
+                    <Button 
+                      type="primary" 
+                      icon={<UploadOutlined />}
+                      loading={uploadingCfr}
+                    >
+                      {uploadingCfr ? 'กำลังอัพโหลด...' : 'อัพโหลดไฟล์ CFR'}
+                    </Button>
+                  </Upload>
+
+                  <div>
+                    <h4>ไฟล์ที่อัพโหลดแล้ว</h4>
+                    {cfrFiles.length === 0 ? (
+                      <p style={{ color: '#999' }}>ยังไม่มีไฟล์ CFR</p>
+                    ) : (
+                      <List
+                        bordered
+                        dataSource={cfrFiles}
+                        renderItem={(item: any) => (
+                          <List.Item
+                            actions={[
+                              <Popconfirm
+                                title="คุณแน่ใจหรือไม่ที่จะลบไฟล์นี้?"
+                                description={`จะลบข้อมูล ${item.record_count} รายการ`}
+                                onConfirm={() => handleDeleteCfrFile(item.filename)}
+                                okText="ใช่"
+                                cancelText="ไม่"
+                              >
+                                <Button type="link" danger icon={<DeleteOutlined />}>
+                                  ลบ
+                                </Button>
+                              </Popconfirm>
+                            ]}
+                          >
+                            <List.Item.Meta
+                              avatar={<FileExcelOutlined style={{ fontSize: 24, color: '#52c41a' }} />}
+                              title={item.filename}
+                              description={
+                                <Space direction="vertical" size={0}>
+                                  <span>จำนวนรายการ: {item.record_count} รายการ</span>
+                                  <span>อัพโหลดล่าสุด: {new Date(item.last_upload).toLocaleString('th-TH')}</span>
+                                </Space>
+                              }
+                            />
+                          </List.Item>
+                        )}
+                      />
+                    )}
+                  </div>
+
+                  {/* แสดงข้อมูล CFR แยกตาราง 1 ตารางต่อ 1 bank_case_id */}
+                  <div style={{ marginTop: 32 }}>
+                    <h3>ข้อมูลเส้นทางการเงิน</h3>
+                    {loadingCfr ? (
+                      <Spin />
+                    ) : cfrRecords.length === 0 ? (
+                      <p style={{ color: '#999' }}>ยังไม่มีข้อมูล CFR</p>
+                    ) : (
+                      <>
+                        {/* แยกข้อมูลตาม bank_case_id */}
+                        {Array.from(new Set(cfrRecords.map(r => r.bank_case_id))).map((bankCaseId) => {
+                          const records = cfrRecords
+                            .filter(r => r.bank_case_id === bankCaseId)
+                            .sort((a, b) => {
+                              // เรียงตาม transfer_date ก่อน
+                              const dateCompare = (a.transfer_date || '').localeCompare(b.transfer_date || '')
+                              if (dateCompare !== 0) return dateCompare
+                              // ถ้าวันเดียวกัน เรียงตาม transfer_time
+                              return (a.transfer_time || '').localeCompare(b.transfer_time || '')
+                            })
+                          return (
+                            <Card 
+                              key={bankCaseId} 
+                              style={{ marginBottom: 16 }}
+                              title={`Bank Case ID: ${bankCaseId} (${records.length} รายการ)`}
+                              size="small"
+                            >
+                              <Table
+                                dataSource={records}
+                                rowKey="id"
+                                size="small"
+                                pagination={{ pageSize: 10 }}
+                                scroll={{ x: 900 }}
+                                columns={[
+                                  {
+                                    title: 'บัญชีต้นทาง',
+                                    key: 'from_account',
+                                    width: 250,
+                                    render: (_, record) => {
+                                      const isVictim = isVictimAccount(record.from_account_name)
+                                      const summons = findBankAccountSummons(record.from_account_no)
+                                      return (
+                                        <div>
+                                          <div>
+                                            <strong>{record.from_bank_short_name || '-'}</strong>
+                                            {isVictim && (
+                                              <Tag color="green" style={{ marginLeft: 4, fontSize: '10px' }}>
+                                                ผู้เสียหาย
+                                              </Tag>
+                                            )}
+                                            {summons && (
+                                              <Tag color="purple" style={{ marginLeft: 4, fontSize: '10px' }}>
+                                                ส่งหมายเรียกแล้ว
+                                              </Tag>
+                                            )}
+                                          </div>
+                                          <div>{record.from_account_no || '-'}</div>
+                                          <div style={{ color: '#666', fontSize: '11px' }}>
+                                            {record.from_account_name || '-'}
+                                          </div>
+                                          {summons && (
+                                            <div style={{ fontSize: '10px', color: '#722ed1', marginTop: 2 }}>
+                                              {summons.reply_status ? '✓ ได้รับข้อมูลแล้ว' : `✗ ยังไม่ตอบกลับ (ส่งไปแล้ว ${calculateDaysSinceSent(summons.document_date)})`}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )
+                                    },
+                                  },
+                                  {
+                                    title: 'บัญชีปลายทาง',
+                                    key: 'to_account',
+                                    width: 250,
+                                    render: (_, record) => {
+                                      const isVictim = isVictimAccount(record.to_account_name)
+                                      const summons = findBankAccountSummons(record.to_account_no)
+                                      return (
+                                        <Button 
+                                          type="link" 
+                                          onClick={() => showCfrAccountDetail(record)}
+                                          style={{ padding: 0, height: 'auto', textAlign: 'left' }}
+                                        >
+                                          <div>
+                                            <div>
+                                              <strong>{record.to_bank_short_name || '-'}</strong>
+                                              {isVictim && (
+                                                <Tag color="green" style={{ marginLeft: 4, fontSize: '10px' }}>
+                                                  ผู้เสียหาย
+                                                </Tag>
+                                              )}
+                                              {summons && (
+                                                <Tag color="purple" style={{ marginLeft: 4, fontSize: '10px' }}>
+                                                  ส่งหมายเรียกแล้ว
+                                                </Tag>
+                                              )}
+                                            </div>
+                                            <div>{record.to_account_no || '-'}</div>
+                                            <div style={{ color: '#666', fontSize: '11px' }}>
+                                              {record.to_account_name || '-'}
+                                            </div>
+                                            {summons && (
+                                              <div style={{ fontSize: '10px', color: '#722ed1', marginTop: 2 }}>
+                                                {summons.reply_status ? '✓ ได้รับข้อมูลแล้ว' : `✗ ยังไม่ตอบกลับ (ส่งไปแล้ว ${calculateDaysSinceSent(summons.document_date)})`}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </Button>
+                                      )
+                                    },
+                                  },
+                                  {
+                                    title: 'วันเวลาที่โอน',
+                                    key: 'transfer_datetime',
+                                    width: 150,
+                                    render: (_, record) => (
+                                      <div>
+                                        <div>{record.transfer_date || '-'}</div>
+                                        <div style={{ color: '#666', fontSize: '11px' }}>
+                                          {record.transfer_time || '-'}
+                                        </div>
+                                      </div>
+                                    ),
+                                  },
+                                  {
+                                    title: 'ยอดเงินที่โอน',
+                                    dataIndex: 'transfer_amount',
+                                    key: 'transfer_amount',
+                                    width: 150,
+                                    align: 'right',
+                                    render: (amount) => amount ? Number(amount).toLocaleString('th-TH', {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2
+                                    }) + ' ฿' : '-',
+                                  },
+                                ]}
+                              />
+                            </Card>
+                          )
+                        })}
+                      </>
+                    )}
+                  </div>
+                </Space>
+              </Card>
+            </Tabs.TabPane>
+
             <Tabs.TabPane tab="บัญชีธนาคารที่เกี่ยวข้อง" key="bank-accounts">
               <Space style={{ marginBottom: 16 }}>
                 <Button
@@ -1181,6 +1528,69 @@ export default function DashboardPage() {
               ) : (
                 <Tag color="red">ยังไม่ตอบกลับ</Tag>
               )}
+            </Descriptions.Item>
+          </Descriptions>
+        )}
+      </Modal>
+
+      <Modal
+        title="รายละเอียดบัญชีปลายทาง"
+        open={cfrDetailVisible}
+        onCancel={() => setCfrDetailVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setCfrDetailVisible(false)}>
+            ปิด
+          </Button>
+        ]}
+        width={600}
+      >
+        {selectedCfrAccount && (
+          <Descriptions column={1} bordered>
+            <Descriptions.Item label="ธนาคาร">
+              {selectedCfrAccount.to_bank_short_name || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="เลขบัญชี">
+              {selectedCfrAccount.to_account_no || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="ชื่อบัญชี">
+              {selectedCfrAccount.to_account_name || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="ประเภทบัตร (to_id_type)">
+              {selectedCfrAccount.to_id_type || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="เลขบัตร (to_id)">
+              {selectedCfrAccount.to_id || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="ชื่อ-นามสกุล">
+              {selectedCfrAccount.first_name && selectedCfrAccount.last_name 
+                ? `${selectedCfrAccount.first_name} ${selectedCfrAccount.last_name}`
+                : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="เบอร์โทรศัพท์ (phone_number)">
+              {selectedCfrAccount.phone_number || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="ประเภท PromptPay (promptpay_type)">
+              {selectedCfrAccount.promptpay_type || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="รหัส PromptPay (promptpay_id)">
+              {selectedCfrAccount.promptpay_id || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="สถานะบัญชี">
+              {selectedCfrAccount.to_account_status || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="วันเปิดบัญชี">
+              {selectedCfrAccount.to_open_date || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="วันปิดบัญชี">
+              {selectedCfrAccount.to_close_date || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="ยอดเงินคงเหลือ">
+              {selectedCfrAccount.to_balance 
+                ? Number(selectedCfrAccount.to_balance).toLocaleString('th-TH', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  }) + ' ฿'
+                : '-'}
             </Descriptions.Item>
           </Descriptions>
         )}

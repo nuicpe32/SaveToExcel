@@ -10,6 +10,8 @@ class Bank(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     bank_name = Column(String(255), unique=True, nullable=False, index=True)
+    bank_code = Column(String(10), index=True)
+    bank_short_name = Column(String(20), index=True)
     bank_address = Column(String(500))
     soi = Column(String(100))
     moo = Column(String(50))

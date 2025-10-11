@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState  } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Button,
@@ -10,7 +10,8 @@ import {
   message,
   Tag,
   Spin,
-  Popconfirm
+  Popconfirm,
+  Modal
 } from 'antd'
 import {
   EditOutlined,
@@ -543,3 +544,6 @@ const CriminalCaseDetailPage = () => {
 }
 
 export default CriminalCaseDetailPage
+
+
+
