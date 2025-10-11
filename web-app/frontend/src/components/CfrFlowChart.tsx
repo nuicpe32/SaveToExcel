@@ -38,6 +38,25 @@ const CfrFlowChart: React.FC<CfrFlowChartProps> = ({ records, victimName }) => {
       return cleanAccount.includes(cleanVictim) || cleanVictim.includes(cleanAccount)
     }
 
+    // เรียงลำดับ records ตามเวลาก่อนเพื่อคำนวณลำดับการโอนของผู้เสียหาย
+    const sortedRecords = [...records].sort((a, b) => {
+      const dateTimeA = `${a.transfer_date} ${a.transfer_time || '00:00:00'}`
+      const dateTimeB = `${b.transfer_date} ${b.transfer_time || '00:00:00'}`
+      return dateTimeA.localeCompare(dateTimeB)
+    })
+    
+    // คำนวณลำดับการโอนของผู้เสียหาย
+    let victimTransferCount = 0
+    const victimTransferSequence = new Map<number, number>()
+    
+    sortedRecords.forEach((record, idx) => {
+      const isFromVictim = checkIsVictim(record.from_account_name)
+      if (isFromVictim) {
+        victimTransferCount++
+        victimTransferSequence.set(idx, victimTransferCount)
+      }
+    })
+    
     // สร้าง unique accounts และนับ connections
     records.forEach((record, index) => {
       // From Account
@@ -84,8 +103,24 @@ const CfrFlowChart: React.FC<CfrFlowChartProps> = ({ records, victimName }) => {
         time: record.transfer_time,
         amount: record.transfer_amount
       })
+      
+      // เก็บลำดับการโอนของผู้เสียหายไว้ในบัญชีปลายทาง
+      const isFromVictim = checkIsVictim(record.from_account_name)
+      if (isFromVictim) {
+        const sortedIndex = sortedRecords.findIndex(r => 
+          r.transfer_date === record.transfer_date &&
+          r.transfer_time === record.transfer_time &&
+          r.from_account_no === record.from_account_no &&
+          r.to_account_no === record.to_account_no &&
+          r.transfer_amount === record.transfer_amount
+        )
+        const sequence = victimTransferSequence.get(sortedIndex)
+        if (sequence) {
+          accountMap.get(toKey).victimTransferSequence = sequence
+        }
+      }
 
-      // สร้าง Edge
+      // สร้าง Edge (ลบ label ออกจากเส้น)
       const fromNode = accountMap.get(fromKey)
       const toNode = accountMap.get(toKey)
       
@@ -93,8 +128,8 @@ const CfrFlowChart: React.FC<CfrFlowChartProps> = ({ records, victimName }) => {
         id: `edge-${index}`,
         source: fromNode.id,
         target: toNode.id,
-        type: 'smoothstep', // กลับไปใช้ smoothstep
-        animated: true, // เปิด animation กลับมา
+        type: 'smoothstep',
+        animated: true,
         markerEnd: {
           type: MarkerType.ArrowClosed,
           color: '#1890ff',
@@ -175,19 +210,59 @@ const CfrFlowChart: React.FC<CfrFlowChartProps> = ({ records, victimName }) => {
       }
       accountsByLevel.get(account.level)!.push(account)
     })
+    
+    // เรียงลำดับบัญชีในแต่ละ level ตามเวลาที่โอนเข้า (ซ้ายไปขวา = เก่าไปใหม่)
+    accountsByLevel.forEach((accounts) => {
+      accounts.sort((a, b) => {
+        // ถ้ามีข้อมูลการโอนเข้า ให้เรียงตามเวลา
+        if (a.transfers.length > 0 && b.transfers.length > 0) {
+          const dateTimeA = `${a.transfers[0].date} ${a.transfers[0].time || '00:00:00'}`
+          const dateTimeB = `${b.transfers[0].date} ${b.transfers[0].time || '00:00:00'}`
+          return dateTimeA.localeCompare(dateTimeB)
+        }
+        // ถ้าไม่มีข้อมูลการโอนเข้า ให้เรียงตามชื่อบัญชี
+        return (a.accountNo || '').localeCompare(b.accountNo || '')
+      })
+    })
 
     const nodesList: Node[] = []
+    const nodePositions = new Map<string, { x: number, y: number }>() // เก็บตำแหน่ง node
+    
     accountsByLevel.forEach((accounts, level) => {
       accounts.forEach((account, indexInLevel) => {
         const totalInLevel = accounts.length
-        const spacing = 280 // ลดขนาดจาก 350
-        const levelHeight = 180 // ระยะห่างระหว่างชั้น
+        const spacing = 280
+        const levelHeight = 180
         
-        // คำนวณ x เพื่อให้อยู่กึ่งกลาง
-        const totalWidth = (totalInLevel - 1) * spacing
-        const startX = -totalWidth / 2
-        const x = startX + (indexInLevel * spacing)
-        const y = level * levelHeight
+        let x: number
+        let y = level * levelHeight
+        
+        if (level <= 1) {
+          // Level 0-1: อยู่กึ่งกลาง
+          const totalWidth = (totalInLevel - 1) * spacing
+          const startX = -totalWidth / 2
+          x = startX + (indexInLevel * spacing)
+        } else {
+          // Level 2+: วางตรงแนวกับบัญชีต้นทาง
+          // หาบัญชีต้นทางที่โอนมา
+          const incomingEdge = edgesList.find(edge => edge.target === account.id)
+          if (incomingEdge) {
+            const sourcePos = nodePositions.get(incomingEdge.source)
+            if (sourcePos) {
+              // วางตรงแนวกับบัญชีต้นทาง
+              x = sourcePos.x
+            } else {
+              // fallback: วางเรียงจากซ้ายไปขวา
+              x = -600 + (indexInLevel * spacing)
+            }
+          } else {
+            // ไม่มี incoming edge: วางเรียงจากซ้ายไปขวา
+            x = -600 + (indexInLevel * spacing)
+          }
+        }
+        
+        // เก็บตำแหน่ง
+        nodePositions.set(account.id, { x, y })
 
         // คำนวณยอดรวมที่โอนเข้า
         const totalReceived = account.transfers.reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0)
@@ -229,7 +304,23 @@ const CfrFlowChart: React.FC<CfrFlowChartProps> = ({ records, victimName }) => {
                 
                 {/* เนื้อหา */}
                 <div style={{ position: 'relative', zIndex: 1 }}>
-                  {/* แสดงวันเวลาและจำนวนเงินที่รับเข้า (ด้านบน) */}
+                  {/* แสดงลำดับการโอนของผู้เสียหาย (ด้านบนสุด) */}
+                  {account.victimTransferSequence && (
+                    <div style={{ 
+                      fontSize: '10px', 
+                      color: '#fa8c16',
+                      background: '#fff7e6',
+                      padding: '4px 8px',
+                      borderRadius: 4,
+                      marginBottom: 4,
+                      fontWeight: 'bold',
+                      border: '1px solid #ffa940'
+                    }}>
+                      ผู้เสียหายโอนครั้งที่ {account.victimTransferSequence}
+                    </div>
+                  )}
+                  
+                  {/* แสดงวันเวลาและจำนวนเงินที่รับเข้า */}
                   {hasTransfers && (
                     <div style={{ 
                       fontSize: '9px', 

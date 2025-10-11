@@ -407,6 +407,37 @@ export default function DashboardPage() {
     return ''
   }
 
+  // ฟังก์ชันคำนวณครั้งที่ผู้เสียหายโอน
+  const getVictimTransferSequence = (currentRecord: any, allRecords: any[]): number | null => {
+    if (!currentRecord || !allRecords || !selected?.complainant) return null
+    
+    // ตรวจสอบว่า record นี้เป็นการโอนของผู้เสียหายหรือไม่
+    const isCurrentVictim = isVictimAccount(currentRecord.from_account_name)
+    if (!isCurrentVictim) return null
+    
+    // หาธุรกรรมทั้งหมดที่ผู้เสียหายโอนออก
+    const victimTransfers = allRecords.filter(record => {
+      return isVictimAccount(record.from_account_name)
+    })
+    
+    // เรียงตามวันเวลา (เก่าสุดไปใหม่สุด)
+    const sortedTransfers = victimTransfers.sort((a, b) => {
+      const dateTimeA = `${a.transfer_date} ${a.transfer_time || '00:00:00'}`
+      const dateTimeB = `${b.transfer_date} ${b.transfer_time || '00:00:00'}`
+      return dateTimeA.localeCompare(dateTimeB)
+    })
+    
+    // หาลำดับของ record นี้
+    const index = sortedTransfers.findIndex(t => 
+      t.transfer_date === currentRecord.transfer_date &&
+      t.transfer_time === currentRecord.transfer_time &&
+      t.to_account_no === currentRecord.to_account_no &&
+      t.transfer_amount === currentRecord.transfer_amount
+    )
+    
+    return index >= 0 ? index + 1 : null
+  }
+
   // ฟังก์ชันตรวจสอบว่าชื่อบัญชีตรงกับผู้เสียหายหรือไม่
   const isVictimAccount = (accountName: string): boolean => {
     if (!accountName || !selected?.complainant) return false
@@ -1379,6 +1410,22 @@ export default function DashboardPage() {
                                       minimumFractionDigits: 2,
                                       maximumFractionDigits: 2
                                     }) + ' ฿' : '-',
+                                  },
+                                  {
+                                    title: 'หมายเหตุ',
+                                    key: 'note',
+                                    width: 180,
+                                    render: (_, record) => {
+                                      const sequence = getVictimTransferSequence(record, records)
+                                      if (sequence) {
+                                        return (
+                                          <Tag color="orange" style={{ fontSize: '11px', fontWeight: 'bold' }}>
+                                            ผู้เสียหายโอนครั้งที่ {sequence}
+                                          </Tag>
+                                        )
+                                      }
+                                      return '-'
+                                    },
                                   },
                                 ]}
                               />
