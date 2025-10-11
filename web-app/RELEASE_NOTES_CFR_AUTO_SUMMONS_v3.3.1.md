@@ -200,7 +200,7 @@ const endDate = transferDate.add(1, 'day')
 
 ## 🙏 Acknowledgments
 
-**Developed by:** CCIB Development Team  
+**Developed by:** Ampon.Th  
 **Tested by:** User Acceptance Testing  
 **Approved by:** Project Manager
 

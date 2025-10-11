@@ -219,7 +219,7 @@ if (year > 2500) {
 
 ## 🙏 Acknowledgments
 
-**Developed by:** CCIB Development Team  
+**Developed by:** Ampon.Th  
 **User Feedback:** Continuous improvements based on real usage  
 **Quality:** Tested and verified
 
