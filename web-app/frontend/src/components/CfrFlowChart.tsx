@@ -9,7 +9,6 @@ import ReactFlow, {
   useEdgesState,
   MarkerType,
   Position,
-  useReactFlow,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 
@@ -194,63 +193,100 @@ const CfrFlowChart: React.FC<CfrFlowChartProps> = ({ records, victimName }) => {
         const totalReceived = account.transfers.reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0)
         const hasTransfers = account.transfers.length > 0
 
+        const logoUrl = account.bank ? `/Bank-icons/${account.bank}.png` : ''
+        
         nodesList.push({
           id: account.id,
           type: 'default',
           position: { x, y },
           data: {
             label: (
-              <div style={{ padding: '6px', textAlign: 'center' }}>
-                {/* แสดงวันเวลาและจำนวนเงินที่รับเข้า (ด้านบน) */}
-                {hasTransfers && (
-                  <div style={{ 
-                    fontSize: '9px', 
-                    color: account.isVictim ? '#fff' : '#1890ff',
-                    background: account.isVictim ? '#389e0d' : '#bae7ff',
-                    padding: '3px 6px',
-                    borderRadius: 3,
-                    marginBottom: 4,
-                    fontWeight: 'bold'
-                  }}>
-                    {account.transfers[0].date} {account.transfers[0].time}
-                    {account.transfers.length > 1 && ` (+${account.transfers.length - 1})`}
-                    <div>{totalReceived.toLocaleString('th-TH', { maximumFractionDigits: 0 })} ฿</div>
-                  </div>
+              <div style={{ 
+                padding: '6px', 
+                textAlign: 'center',
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                {/* Logo พื้นหลัง */}
+                {logoUrl && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: '100%',
+                      height: '100%',
+                      backgroundImage: `url(${logoUrl})`,
+                      backgroundSize: 'cover',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'center',
+                      opacity: account.isVictim ? 0.15 : 0.08,
+                      zIndex: 0,
+                    }}
+                  />
                 )}
                 
-                {/* ข้อมูลบัญชี */}
-                <div style={{ 
-                  fontWeight: 'bold', 
-                  fontSize: '13px',
-                  color: account.isVictim ? '#fff' : '#1890ff',
-                  marginBottom: 3
-                }}>
-                  {account.bank || '-'}
-                  {account.isVictim && (
+                {/* เนื้อหา */}
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                  {/* แสดงวันเวลาและจำนวนเงินที่รับเข้า (ด้านบน) */}
+                  {hasTransfers && (
                     <div style={{ 
                       fontSize: '9px', 
-                      background: '#389e0d',
-                      color: 'white',
-                      padding: '2px 6px',
+                      color: account.isVictim ? '#fff' : '#1890ff',
+                      background: account.isVictim ? '#389e0d' : '#bae7ff',
+                      padding: '3px 6px',
                       borderRadius: 3,
-                      marginTop: 2
+                      marginBottom: 4,
+                      fontWeight: 'bold'
                     }}>
-                      ผู้เสียหาย
+                      {account.transfers[0].date} {account.transfers[0].time}
+                      {account.transfers.length > 1 && ` (+${account.transfers.length - 1})`}
+                      <div>{totalReceived.toLocaleString('th-TH', { maximumFractionDigits: 0 })} ฿</div>
                     </div>
                   )}
-                </div>
-                <div style={{ fontSize: '11px', fontWeight: '500', marginBottom: 2 }}>
-                  {account.accountNo || '-'}
-                </div>
-                <div style={{ 
-                  fontSize: '10px', 
-                  color: account.isVictim ? '#fff' : '#666',
-                  maxWidth: 160,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}>
-                  {account.accountName || '-'}
+                  
+                  {/* ข้อมูลบัญชี */}
+                  <div style={{ 
+                    fontWeight: 'bold', 
+                    fontSize: '13px',
+                    color: account.isVictim ? '#fff' : '#1890ff',
+                    marginBottom: 3,
+                    textShadow: account.isVictim ? '0 0 3px rgba(0,0,0,0.3)' : '0 0 3px white'
+                  }}>
+                    {account.bank || '-'}
+                    {account.isVictim && (
+                      <div style={{ 
+                        fontSize: '9px', 
+                        background: '#389e0d',
+                        color: 'white',
+                        padding: '2px 6px',
+                        borderRadius: 3,
+                        marginTop: 2
+                      }}>
+                        ผู้เสียหาย
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ 
+                    fontSize: '11px', 
+                    fontWeight: '500', 
+                    marginBottom: 2,
+                    textShadow: account.isVictim ? '0 0 2px rgba(0,0,0,0.2)' : 'none'
+                  }}>
+                    {account.accountNo || '-'}
+                  </div>
+                  <div style={{ 
+                    fontSize: '10px', 
+                    color: account.isVictim ? '#fff' : '#666',
+                    maxWidth: 160,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    textShadow: account.isVictim ? '0 0 2px rgba(0,0,0,0.2)' : 'none'
+                  }}>
+                    {account.accountName || '-'}
+                  </div>
                 </div>
               </div>
             ),

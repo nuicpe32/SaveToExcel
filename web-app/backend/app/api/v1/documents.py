@@ -113,6 +113,7 @@ def generate_bank_envelope_html(
     
     # ดึงข้อมูลที่อยู่ธนาคาร (ถ้ามี bank_id)
     bank_address = None
+    
     if bank_account.bank_id:
         bank = db.query(Bank).filter(Bank.id == bank_account.bank_id).first()
         if bank:
@@ -126,6 +127,33 @@ def generate_bank_envelope_html(
                 'province': bank.province,
                 'postal_code': bank.postal_code,
             }
+    else:
+        # Fallback: ลอง lookup จาก bank_name (กรณี bank_id ไม่มีค่า)
+        if bank_account.bank_name:
+            # ลองหาแบบตรงทั้งหมดก่อน
+            bank = db.query(Bank).filter(Bank.bank_name == bank_account.bank_name).first()
+            
+            # ถ้าไม่เจอ ลองตัดคำว่า "ธนาคาร" ออก
+            if not bank:
+                bank_name_without_prefix = bank_account.bank_name.replace('ธนาคาร', '').strip()
+                bank = db.query(Bank).filter(Bank.bank_name == bank_name_without_prefix).first()
+            
+            # ถ้ายังไม่เจอ ลองหาแบบ LIKE
+            if not bank:
+                bank_name_search = f"%{bank_account.bank_name.replace('ธนาคาร', '').strip()}%"
+                bank = db.query(Bank).filter(Bank.bank_name.like(bank_name_search)).first()
+            
+            if bank:
+                bank_address = {
+                    'bank_address': bank.bank_address,
+                    'soi': bank.soi,
+                    'moo': bank.moo,
+                    'road': bank.road,
+                    'sub_district': bank.sub_district,
+                    'district': bank.district,
+                    'province': bank.province,
+                    'postal_code': bank.postal_code,
+                }
     
     # สร้าง HTML
     html_content = summons_generator.generate_envelope_html(bank_data, bank_address)

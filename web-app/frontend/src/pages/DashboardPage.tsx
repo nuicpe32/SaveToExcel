@@ -367,6 +367,46 @@ export default function DashboardPage() {
     })
   }
 
+  // ฟังก์ชันแปลง bank_name เป็น bank_short_name สำหรับ logo
+  const getBankShortName = (bankName: string): string => {
+    if (!bankName) return ''
+    
+    const bankNameMap: { [key: string]: string } = {
+      'ธนาคารกรุงเทพ': 'BBL',
+      'ธนาคารกสิกรไทย': 'KBANK',
+      'ธนาคารกรุงไทย': 'KTB',
+      'ธนาคารทหารไทยธนชาต': 'TTB',
+      'ธนาคารไทยพาณิชย์': 'SCB',
+      'ธนาคารกรุงศรีอยุธยา': 'BAY',
+      'ธนาคารซีไอเอ็มบี ไทย': 'CIMBT',
+      'ธนาคารซีไอเอ็มบีไทย': 'CIMBT',
+      'ธนาคารยูโอบี': 'UOBT',
+      'ธนาคารเกียรตินาคินภัทร': 'KKP',
+      'ธนาคารออมสิน': 'GSB',
+      'ธนาคารอาคารสงเคราะห์': 'GHB',
+      'ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร': 'BAAC',
+      'ธนาคารแลนด์ แอนด์ เฮ้าส์': 'LH',
+      'ธนาคารทิสโก้': 'TISCO',
+      'ธนาคารธนชาต': 'TCRB',
+      'ธนาคารไอซีบีซี (ไทย)': 'ICBC',
+      'ธนาคารอิสลามแห่งประเทศไทย': 'IBANK'
+    }
+    
+    // หาจากชื่อเต็ม
+    if (bankNameMap[bankName]) {
+      return bankNameMap[bankName]
+    }
+    
+    // หาจากคำบางส่วน
+    for (const [fullName, shortName] of Object.entries(bankNameMap)) {
+      if (bankName.includes(fullName) || fullName.includes(bankName)) {
+        return shortName
+      }
+    }
+    
+    return ''
+  }
+
   // ฟังก์ชันตรวจสอบว่าชื่อบัญชีตรงกับผู้เสียหายหรือไม่
   const isVictimAccount = (accountName: string): boolean => {
     if (!accountName || !selected?.complainant) return false
@@ -1177,50 +1217,39 @@ export default function DashboardPage() {
                                     render: (_, record) => {
                                       const isVictim = isVictimAccount(record.from_account_name)
                                       const summons = findBankAccountSummons(record.from_account_no)
+                                      const shortName = record.from_bank_short_name
+                                      const logoUrl = shortName ? `/Bank-icons/${shortName}.png` : ''
+                                      
                                       return (
-                                        <div>
-                                          <div>
-                                            <strong>{record.from_bank_short_name || '-'}</strong>
-                                            {isVictim && (
-                                              <Tag color="green" style={{ marginLeft: 4, fontSize: '10px' }}>
-                                                ผู้เสียหาย
-                                              </Tag>
-                                            )}
-                                            {summons && (
-                                              <Tag color="purple" style={{ marginLeft: 4, fontSize: '10px' }}>
-                                                ส่งหมายเรียกแล้ว
-                                              </Tag>
-                                            )}
-                                          </div>
-                                          <div>{record.from_account_no || '-'}</div>
-                                          <div style={{ color: '#666', fontSize: '11px' }}>
-                                            {record.from_account_name || '-'}
-                                          </div>
-                                          {summons && (
-                                            <div style={{ fontSize: '10px', color: '#722ed1', marginTop: 2 }}>
-                                              {summons.reply_status ? '✓ ได้รับข้อมูลแล้ว' : `✗ ยังไม่ตอบกลับ (ส่งไปแล้ว ${calculateDaysSinceSent(summons.document_date)})`}
-                                            </div>
-                                          )}
-                                        </div>
-                                      )
-                                    },
-                                  },
-                                  {
-                                    title: 'บัญชีปลายทาง',
-                                    key: 'to_account',
-                                    width: 250,
-                                    render: (_, record) => {
-                                      const isVictim = isVictimAccount(record.to_account_name)
-                                      const summons = findBankAccountSummons(record.to_account_no)
-                                      return (
-                                        <Button 
-                                          type="link" 
-                                          onClick={() => showCfrAccountDetail(record)}
-                                          style={{ padding: 0, height: 'auto', textAlign: 'left' }}
+                                        <div
+                                          style={{
+                                            position: 'relative',
+                                            padding: '12px 16px',
+                                            minHeight: '60px',
+                                            overflow: 'hidden',
+                                          }}
                                         >
-                                          <div>
+                                          {logoUrl && (
+                                            <div
+                                              style={{
+                                                position: 'absolute',
+                                                top: '50%',
+                                                left: '50%',
+                                                transform: 'translate(-50%, -50%)',
+                                                width: '100%',
+                                                height: '100%',
+                                                backgroundImage: `url(${logoUrl})`,
+                                                backgroundSize: 'cover',
+                                                backgroundRepeat: 'no-repeat',
+                                                backgroundPosition: 'center',
+                                                opacity: 0.05,
+                                                zIndex: 0,
+                                              }}
+                                            />
+                                          )}
+                                          <div style={{ position: 'relative', zIndex: 1 }}>
                                             <div>
-                                              <strong>{record.to_bank_short_name || '-'}</strong>
+                                              <strong>{record.from_bank_short_name || '-'}</strong>
                                               {isVictim && (
                                                 <Tag color="green" style={{ marginLeft: 4, fontSize: '10px' }}>
                                                   ผู้เสียหาย
@@ -1232,7 +1261,75 @@ export default function DashboardPage() {
                                                 </Tag>
                                               )}
                                             </div>
-                                            <div>{record.to_account_no || '-'}</div>
+                                            <div>{record.from_account_no || '-'}</div>
+                                            <div style={{ color: '#666', fontSize: '11px' }}>
+                                              {record.from_account_name || '-'}
+                                            </div>
+                                            {summons && (
+                                              <div style={{ fontSize: '10px', color: '#722ed1', marginTop: 2 }}>
+                                                {summons.reply_status ? '✓ ได้รับข้อมูลแล้ว' : `✗ ยังไม่ตอบกลับ (ส่งไปแล้ว ${calculateDaysSinceSent(summons.document_date)})`}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )
+                                    },
+                                  },
+                                  {
+                                    title: 'บัญชีปลายทาง',
+                                    key: 'to_account',
+                                    width: 250,
+                                    render: (_, record) => {
+                                      const isVictim = isVictimAccount(record.to_account_name)
+                                      const summons = findBankAccountSummons(record.to_account_no)
+                                      const shortName = record.to_bank_short_name
+                                      const logoUrl = shortName ? `/Bank-icons/${shortName}.png` : ''
+                                      
+                                      return (
+                                        <div
+                                          style={{
+                                            position: 'relative',
+                                            padding: '12px 16px',
+                                            minHeight: '60px',
+                                            overflow: 'hidden',
+                                            width: '100%',
+                                            cursor: 'pointer',
+                                          }}
+                                          onClick={() => showCfrAccountDetail(record)}
+                                        >
+                                          {logoUrl && (
+                                            <div
+                                              style={{
+                                                position: 'absolute',
+                                                top: '50%',
+                                                left: '50%',
+                                                transform: 'translate(-50%, -50%)',
+                                                width: '100%',
+                                                height: '100%',
+                                                backgroundImage: `url(${logoUrl})`,
+                                                backgroundSize: 'cover',
+                                                backgroundRepeat: 'no-repeat',
+                                                backgroundPosition: 'center',
+                                                opacity: 0.05,
+                                                zIndex: 0,
+                                              }}
+                                            />
+                                          )}
+                                          <div style={{ position: 'relative', zIndex: 1 }}>
+                                            <div>
+                                              <strong style={{ color: '#1890ff' }}>{record.to_bank_short_name || '-'}</strong>
+                                              {isVictim && (
+                                                <Tag color="green" style={{ marginLeft: 4, fontSize: '10px' }}>
+                                                  ผู้เสียหาย
+                                                </Tag>
+                                              )}
+                                              {summons && (
+                                                <Tag color="purple" style={{ marginLeft: 4, fontSize: '10px' }}>
+                                                  ส่งหมายเรียกแล้ว
+                                                </Tag>
+                                              )}
+                                            </div>
+                                            <div style={{ color: '#1890ff', textDecoration: 'underline' }}>{record.to_account_no || '-'}</div>
                                             <div style={{ color: '#666', fontSize: '11px' }}>
                                               {record.to_account_name || '-'}
                                             </div>
@@ -1255,7 +1352,7 @@ export default function DashboardPage() {
                                               </Button>
                                             )}
                                           </div>
-                                        </Button>
+                                        </div>
                                       )
                                     },
                                   },
@@ -1328,6 +1425,56 @@ export default function DashboardPage() {
                     title: 'ชื่อธนาคาร',
                     dataIndex: 'bank_name',
                     key: 'bank_name',
+                    width: 250,
+                    render: (bankName: string) => {
+                      const shortName = getBankShortName(bankName)
+                      const logoUrl = shortName ? `/Bank-icons/${shortName}.png` : ''
+                      
+                      return (
+                        <div
+                          style={{
+                            position: 'relative',
+                            padding: '12px 16px',
+                            minHeight: '60px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {logoUrl && (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                width: '100%',
+                                height: '100%',
+                                backgroundImage: `url(${logoUrl})`,
+                                backgroundSize: 'cover',
+                                backgroundRepeat: 'no-repeat',
+                                backgroundPosition: 'center',
+                                opacity: 0.05,
+                                zIndex: 0,
+                              }}
+                            />
+                          )}
+                          <span
+                            style={{
+                              position: 'relative',
+                              zIndex: 1,
+                              fontWeight: 600,
+                              fontSize: '14px',
+                              color: '#000',
+                              textShadow: '0 0 4px white, 0 0 4px white, 0 0 4px white',
+                              width: '100%',
+                            }}
+                          >
+                            {bankName || '-'}
+                          </span>
+                        </div>
+                      )
+                    },
                   },
                   {
                     title: 'เลขบัญชี',

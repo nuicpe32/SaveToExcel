@@ -31,7 +31,19 @@ def create_bank_account(
 
     # Auto-lookup bank_id from bank_name
     if bank_data.get('bank_name'):
+        # ลองหาแบบตรงทั้งหมดก่อน
         bank = db.query(Bank).filter(Bank.bank_name == bank_data['bank_name']).first()
+        
+        # ถ้าไม่เจอ ลองตัดคำว่า "ธนาคาร" ออก
+        if not bank:
+            bank_name_without_prefix = bank_data['bank_name'].replace('ธนาคาร', '').strip()
+            bank = db.query(Bank).filter(Bank.bank_name == bank_name_without_prefix).first()
+        
+        # ถ้ายังไม่เจอ ลองหาแบบ LIKE
+        if not bank:
+            bank_name_search = f"%{bank_data['bank_name'].replace('ธนาคาร', '').strip()}%"
+            bank = db.query(Bank).filter(Bank.bank_name.like(bank_name_search)).first()
+        
         if bank:
             bank_data['bank_id'] = bank.id
 
@@ -114,7 +126,19 @@ def update_bank_account(
 
     # Auto-lookup bank_id from bank_name if bank_name is being updated
     if 'bank_name' in update_data and update_data['bank_name']:
+        # ลองหาแบบตรงทั้งหมดก่อน
         bank = db.query(Bank).filter(Bank.bank_name == update_data['bank_name']).first()
+        
+        # ถ้าไม่เจอ ลองตัดคำว่า "ธนาคาร" ออก
+        if not bank:
+            bank_name_without_prefix = update_data['bank_name'].replace('ธนาคาร', '').strip()
+            bank = db.query(Bank).filter(Bank.bank_name == bank_name_without_prefix).first()
+        
+        # ถ้ายังไม่เจอ ลองหาแบบ LIKE
+        if not bank:
+            bank_name_search = f"%{update_data['bank_name'].replace('ธนาคาร', '').strip()}%"
+            bank = db.query(Bank).filter(Bank.bank_name.like(bank_name_search)).first()
+        
         if bank:
             update_data['bank_id'] = bank.id
 
