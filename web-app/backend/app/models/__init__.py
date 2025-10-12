@@ -12,6 +12,7 @@ from .telco_internet import TelcoInternet
 from .exchange import Exchange
 from .court import Court
 from .bank_account import BankAccount
+from .non_bank_account import NonBankAccount
 from .suspect import Suspect
 from .cfr import CFR
 from .criminal_case import CriminalCase
