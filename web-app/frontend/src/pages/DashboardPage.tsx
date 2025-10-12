@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { useAuthStore } from '../stores/authStore'
 import BankAccountFormModal from '../components/BankAccountFormModal'
+import NonBankAccountFormModal from '../components/NonBankAccountFormModal'
 import SuspectFormModal from '../components/SuspectFormModal'
 import CfrFlowChart from '../components/CfrFlowChart'
 import dayjs from 'dayjs'
@@ -30,6 +31,27 @@ interface BankAccount {
   reply_status: boolean
   status: string
   // Note: bank_branch and bank_address removed - use headquarters address from banks table
+}
+
+interface NonBankAccount {
+  id: number
+  order_number?: number
+  document_number?: string
+  document_date?: string
+  document_date_thai?: string
+  provider_name: string
+  account_number: string
+  account_name: string
+  account_owner?: string
+  complainant?: string
+  victim_name?: string
+  case_id?: string
+  time_period?: string
+  delivery_date?: string
+  delivery_month?: string
+  delivery_time?: string
+  reply_status: boolean
+  status: string
 }
 
 interface Suspect {
@@ -79,6 +101,7 @@ export default function DashboardPage() {
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<CriminalCase | null>(null)
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
+  const [nonBankAccounts, setNonBankAccounts] = useState<NonBankAccount[]>([])
   const [suspects, setSuspects] = useState<Suspect[]>([])
   const [loadingDetails, setLoadingDetails] = useState(false)
   const [suspectDetailOpen, setSuspectDetailOpen] = useState(false)
@@ -86,6 +109,8 @@ export default function DashboardPage() {
   const [bankModalVisible, setBankModalVisible] = useState(false)
   const [suspectModalVisible, setSuspectModalVisible] = useState(false)
   const [editingBank, setEditingBank] = useState<BankAccount | null>(null)
+  const [editingNonBank, setEditingNonBank] = useState<NonBankAccount | null>(null)
+  const [nonBankModalVisible, setNonBankModalVisible] = useState(false)
   const [editingSuspect, setEditingSuspect] = useState<Suspect | null>(null)
   const [cfrFiles, setCfrFiles] = useState<any[]>([])
   const [uploadingCfr, setUploadingCfr] = useState(false)
@@ -215,11 +240,13 @@ export default function DashboardPage() {
   const fetchCaseDetails = useCallback(async (caseId: number) => {
     try {
       setLoadingDetails(true)
-      const [bankRes, suspectsRes] = await Promise.all([
+      const [bankRes, nonBankRes, suspectsRes] = await Promise.all([
         api.get<BankAccount[]>(`/criminal-cases/${caseId}/bank-accounts`),
+        api.get<NonBankAccount[]>(`/non-bank-accounts/by-case/${caseId}`),
         api.get<Suspect[]>(`/criminal-cases/${caseId}/suspects`)
       ])
       setBankAccounts(bankRes.data)
+      setNonBankAccounts(nonBankRes.data)
       setSuspects(suspectsRes.data)
     } catch (err) {
       message.error('ไม่สามารถดึงข้อมูลรายละเอียดคดีได้')
@@ -571,6 +598,39 @@ export default function DashboardPage() {
   const handleBankModalClose = (success?: boolean) => {
     setBankModalVisible(false)
     setEditingBank(null)
+    if (success && selected) {
+      fetchCaseDetails(selected.id)
+      fetchData() // Refresh counts
+    }
+  }
+
+  // Non-Bank Handlers
+  const handleAddNonBank = () => {
+    setEditingNonBank(null)
+    setNonBankModalVisible(true)
+  }
+
+  const handleEditNonBank = (record: NonBankAccount) => {
+    setEditingNonBank(record)
+    setNonBankModalVisible(true)
+  }
+
+  const handleDeleteNonBank = async (id: number) => {
+    try {
+      await api.delete(`/non-bank-accounts/${id}`)
+      message.success('ลบบัญชีผู้ให้บริการสำเร็จ')
+      if (selected) {
+        fetchCaseDetails(selected.id)
+        fetchData() // Refresh counts
+      }
+    } catch (err) {
+      message.error('ไม่สามารถลบบัญชีผู้ให้บริการได้')
+    }
+  }
+
+  const handleNonBankModalClose = (success?: boolean) => {
+    setNonBankModalVisible(false)
+    setEditingNonBank(null)
     if (success && selected) {
       fetchCaseDetails(selected.id)
       fetchData() // Refresh counts
@@ -1667,6 +1727,142 @@ export default function DashboardPage() {
               />
             </Tabs.TabPane>
 
+            <Tabs.TabPane tab={`Non-Bank (${nonBankAccounts.length})`} key="non-bank-accounts">
+              <Space style={{ marginBottom: 16 }}>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={handleAddNonBank}
+                >
+                  เพิ่มบัญชีผู้ให้บริการ
+                </Button>
+              </Space>
+              <Table
+                dataSource={nonBankAccounts}
+                loading={loadingDetails}
+                rowKey="id"
+                size="small"
+                rowClassName={(record) => record.reply_status ? 'row-green' : ''}
+                columns={[
+                  {
+                    title: 'เลขหนังสือ',
+                    dataIndex: 'document_number',
+                    key: 'document_number',
+                    render: (value) => value || '-',
+                  },
+                  {
+                    title: 'ลงวันที่',
+                    dataIndex: 'document_date',
+                    key: 'document_date',
+                    render: (date) => formatThaiDate(date),
+                  },
+                  {
+                    title: 'ชื่อผู้ให้บริการ',
+                    dataIndex: 'provider_name',
+                    key: 'provider_name',
+                    width: 250,
+                    render: (providerName: string) => {
+                      return (
+                        <div
+                          style={{
+                            position: 'relative',
+                            padding: '12px 16px',
+                            minHeight: '60px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <span
+                            style={{
+                              position: 'relative',
+                              zIndex: 1,
+                              fontWeight: 600,
+                              fontSize: '14px',
+                              color: '#000',
+                              width: '100%',
+                            }}
+                          >
+                            {providerName || '-'}
+                          </span>
+                        </div>
+                      )
+                    },
+                  },
+                  {
+                    title: 'เลขบัญชี',
+                    dataIndex: 'account_number',
+                    key: 'account_number',
+                  },
+                  {
+                    title: 'ชื่อบัญชี',
+                    dataIndex: 'account_name',
+                    key: 'account_name',
+                  },
+                  {
+                    title: 'สถานะตอบกลับ',
+                    dataIndex: 'reply_status',
+                    key: 'reply_status',
+                    render: (reply_status: boolean, record: NonBankAccount) => {
+                      if (reply_status) {
+                        return <Tag color="green">ตอบกลับแล้ว</Tag>
+                      } else {
+                        const daysSince = calculateDaysSinceSent(record.document_date)
+                        return (
+                          <div>
+                            <Tag color="red">ยังไม่ตอบกลับ</Tag>
+                            <br />
+                            <small>ส่งไปแล้ว {daysSince}</small>
+                          </div>
+                        )
+                      }
+                    },
+                  },
+                  {
+                    title: 'การจัดการ',
+                    key: 'action',
+                    width: 200,
+                    render: (_, record) => (
+                      <Space>
+                        <Button
+                          icon={<EditOutlined />}
+                          size="small"
+                          onClick={() => handleEditNonBank(record)}
+                        >
+                          แก้ไข
+                        </Button>
+                        <Popconfirm
+                          title="ยืนยันการลบบัญชีผู้ให้บริการ?"
+                          onConfirm={() => handleDeleteNonBank(record.id)}
+                          okText="ยืนยัน"
+                          cancelText="ยกเลิก"
+                        >
+                          <Button danger icon={<DeleteOutlined />} size="small">
+                            ลบ
+                          </Button>
+                        </Popconfirm>
+                        <Button
+                          icon={<PrinterOutlined />}
+                          size="small"
+                          onClick={() => window.open(`/api/v1/documents/non-bank-summons/${record.id}`, '_blank')}
+                        >
+                          ปริ้นหมายเรียก
+                        </Button>
+                        <Button
+                          icon={<PrinterOutlined />}
+                          size="small"
+                          onClick={() => window.open(`/api/v1/documents/non-bank-envelope/${record.id}`, '_blank')}
+                        >
+                          ปริ้นซองหมายเรียก
+                        </Button>
+                      </Space>
+                    ),
+                  },
+                ]}
+                pagination={false}
+              />
+            </Tabs.TabPane>
+
             <Tabs.TabPane tab={`ผู้ต้องหาที่เกี่ยวข้อง (${suspects.length})`} key="suspects">
               <Space style={{ marginBottom: 16 }}>
                 <Button
@@ -1922,6 +2118,13 @@ export default function DashboardPage() {
         criminalCaseId={selected?.id || 0}
         editingRecord={editingBank}
         onClose={handleBankModalClose}
+      />
+
+      <NonBankAccountFormModal
+        visible={nonBankModalVisible}
+        criminalCaseId={selected?.id || 0}
+        editingRecord={editingNonBank}
+        onClose={handleNonBankModalClose}
       />
 
       <SuspectFormModal

@@ -35,6 +35,6 @@ class NonBank(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships (for future non_bank_accounts table)
-    # non_bank_accounts = relationship("NonBankAccount", back_populates="non_bank")
+    # Relationships
+    non_bank_accounts = relationship("NonBankAccount", back_populates="non_bank")
 
