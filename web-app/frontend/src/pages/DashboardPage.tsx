@@ -7,6 +7,7 @@ import api from '../services/api'
 import { useAuthStore } from '../stores/authStore'
 import BankAccountFormModal from '../components/BankAccountFormModal'
 import NonBankAccountFormModal from '../components/NonBankAccountFormModal'
+import PaymentGatewayAccountFormModal from '../components/PaymentGatewayAccountFormModal'
 import SuspectFormModal from '../components/SuspectFormModal'
 import CfrFlowChart from '../components/CfrFlowChart'
 import dayjs from 'dayjs'
@@ -35,23 +36,34 @@ interface BankAccount {
 
 interface NonBankAccount {
   id: number
-  order_number?: number
+  non_bank_id?: number
   document_number?: string
   document_date?: string
-  document_date_thai?: string
-  provider_name: string
   account_number: string
   account_name: string
-  account_owner?: string
-  complainant?: string
-  victim_name?: string
-  case_id?: string
   time_period?: string
   delivery_date?: string
-  delivery_month?: string
-  delivery_time?: string
   reply_status: boolean
   status: string
+  // Virtual fields from backend
+  provider_name?: string
+}
+
+interface PaymentGatewayAccount {
+  id: number
+  payment_gateway_id?: number
+  bank_id?: number
+  document_number?: string
+  document_date?: string
+  account_number: string
+  account_name: string
+  time_period?: string
+  delivery_date?: string
+  reply_status: boolean
+  status: string
+  // Virtual fields from backend
+  provider_name?: string
+  bank_name?: string
 }
 
 interface Suspect {
@@ -102,14 +114,17 @@ export default function DashboardPage() {
   const [selected, setSelected] = useState<CriminalCase | null>(null)
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [nonBankAccounts, setNonBankAccounts] = useState<NonBankAccount[]>([])
+  const [paymentGatewayAccounts, setPaymentGatewayAccounts] = useState<PaymentGatewayAccount[]>([])
   const [suspects, setSuspects] = useState<Suspect[]>([])
   const [loadingDetails, setLoadingDetails] = useState(false)
   const [suspectDetailOpen, setSuspectDetailOpen] = useState(false)
   const [selectedSuspect, setSelectedSuspect] = useState<Suspect | null>(null)
   const [bankModalVisible, setBankModalVisible] = useState(false)
+  const [paymentGatewayModalVisible, setPaymentGatewayModalVisible] = useState(false)
   const [suspectModalVisible, setSuspectModalVisible] = useState(false)
   const [editingBank, setEditingBank] = useState<BankAccount | null>(null)
   const [editingNonBank, setEditingNonBank] = useState<NonBankAccount | null>(null)
+  const [editingPaymentGateway, setEditingPaymentGateway] = useState<PaymentGatewayAccount | null>(null)
   const [nonBankModalVisible, setNonBankModalVisible] = useState(false)
   const [editingSuspect, setEditingSuspect] = useState<Suspect | null>(null)
   const [cfrFiles, setCfrFiles] = useState<any[]>([])
@@ -240,13 +255,15 @@ export default function DashboardPage() {
   const fetchCaseDetails = useCallback(async (caseId: number) => {
     try {
       setLoadingDetails(true)
-      const [bankRes, nonBankRes, suspectsRes] = await Promise.all([
+      const [bankRes, nonBankRes, paymentGatewayRes, suspectsRes] = await Promise.all([
         api.get<BankAccount[]>(`/criminal-cases/${caseId}/bank-accounts`),
         api.get<NonBankAccount[]>(`/non-bank-accounts/by-case/${caseId}`),
+        api.get<PaymentGatewayAccount[]>(`/payment-gateway-accounts/by-case/${caseId}`),
         api.get<Suspect[]>(`/criminal-cases/${caseId}/suspects`)
       ])
       setBankAccounts(bankRes.data)
       setNonBankAccounts(nonBankRes.data)
+      setPaymentGatewayAccounts(paymentGatewayRes.data)
       setSuspects(suspectsRes.data)
     } catch (err) {
       message.error('ไม่สามารถดึงข้อมูลรายละเอียดคดีได้')
@@ -395,6 +412,37 @@ export default function DashboardPage() {
   }
 
   // ฟังก์ชันแปลง bank_name เป็น bank_short_name สำหรับ logo
+  const getNonBankShortName = (providerName: string): string => {
+    if (!providerName) return ''
+    
+    const nonBankNameMap: { [key: string]: string } = {
+      'บริษัท โอมิเซะ จำกัด': 'Omise',
+      'โอมิเซะ': 'Omise',
+      'Omise': 'Omise',
+      'บริษัท โกลบอล ไพร์ม คอร์ปอเรชั่น จำกัด': 'GB',
+      'GB Prime Pay': 'GB',
+      'บริษัท ทูซีทูพี (ประเทศไทย) จำกัด': '2C2P',
+      '2C2P': '2C2P',
+      'บริษัท ทรู มันนี่ จำกัด': 'TrueMoney',
+      'ทรู มันนี่': 'TrueMoney',
+      'TrueMoney': 'TrueMoney',
+    }
+    
+    // หาจากชื่อเต็ม
+    if (nonBankNameMap[providerName]) {
+      return nonBankNameMap[providerName]
+    }
+    
+    // หาจากคำบางส่วน
+    for (const [fullName, shortName] of Object.entries(nonBankNameMap)) {
+      if (providerName.includes(fullName) || fullName.includes(providerName)) {
+        return shortName
+      }
+    }
+    
+    return ''
+  }
+
   const getBankShortName = (bankName: string): string => {
     if (!bankName) return ''
     
@@ -715,6 +763,161 @@ export default function DashboardPage() {
       message.success('กำลังเปิดหน้าต่างพิมพ์ซองหมายเรียกผู้ต้องหา')
     } catch (err) {
       message.error('ไม่สามารถสร้างซองหมายเรียกผู้ต้องหาได้')
+    }
+  }
+
+  // Non-Bank Print Handlers
+  const handlePrintNonBankSummons = async (nonBankAccountId: number) => {
+    // แสดง Modal เลือกอายัดบัญชีหรือไม่
+    Modal.confirm({
+      title: 'เลือกประเภทหมายเรียก',
+      content: 'คุณต้องการอายัดบัญชีหรือไม่?',
+      okText: 'อายัดบัญชี',
+      cancelText: 'ไม่อายัดบัญชี',
+      onOk: async () => {
+        // เลือกอายัดบัญชี
+        try {
+          const response = await api.get(`/documents/non-bank-summons/${nonBankAccountId}`, {
+            params: { freeze_account: true },
+            responseType: 'blob'
+          })
+          const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
+          const url = window.URL.createObjectURL(blob)
+          const printWindow = window.open(url, '_blank')
+          if (printWindow) {
+            printWindow.onload = () => {
+              setTimeout(() => printWindow.print(), 500)
+            }
+          }
+          message.success('กำลังเปิดหน้าต่างพิมพ์หมายเรียก (อายัดบัญชี)')
+        } catch (err) {
+          message.error('ไม่สามารถสร้างหมายเรียก Non-Bank ได้')
+          console.error(err)
+        }
+      },
+      onCancel: async () => {
+        // เลือกไม่อายัดบัญชี
+        try {
+          const response = await api.get(`/documents/non-bank-summons/${nonBankAccountId}`, {
+            params: { freeze_account: false },
+            responseType: 'blob'
+          })
+          const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
+          const url = window.URL.createObjectURL(blob)
+          const printWindow = window.open(url, '_blank')
+          if (printWindow) {
+            printWindow.onload = () => {
+              setTimeout(() => printWindow.print(), 500)
+            }
+          }
+          message.success('กำลังเปิดหน้าต่างพิมพ์หมายเรียก (ไม่อายัดบัญชี)')
+        } catch (err) {
+          message.error('ไม่สามารถสร้างหมายเรียก Non-Bank ได้')
+          console.error(err)
+        }
+      }
+    })
+  }
+
+  const handlePrintNonBankEnvelope = async (nonBankAccountId: number) => {
+    try {
+      const response = await api.get(`/documents/non-bank-envelope/${nonBankAccountId}`, {
+        responseType: 'blob'
+      })
+
+      const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
+      const url = window.URL.createObjectURL(blob)
+      const printWindow = window.open(url, '_blank')
+
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print()
+          }, 500)
+        }
+      }
+
+      message.success('กำลังเปิดหน้าต่างพิมพ์ซองหมายเรียก Non-Bank')
+    } catch (err) {
+      message.error('ไม่สามารถสร้างซองหมายเรียก Non-Bank ได้')
+      console.error(err)
+    }
+  }
+
+  // ==================== Payment Gateway Handlers ====================
+
+  const handleAddPaymentGateway = () => {
+    setEditingPaymentGateway(null)
+    setPaymentGatewayModalVisible(true)
+  }
+
+  const handleEditPaymentGateway = (record: PaymentGatewayAccount) => {
+    setEditingPaymentGateway(record)
+    setPaymentGatewayModalVisible(true)
+  }
+
+  const handleDeletePaymentGateway = async (id: number) => {
+    try {
+      await api.delete(`/payment-gateway-accounts/${id}`)
+      message.success('ลบบัญชี Payment Gateway สำเร็จ')
+      if (selected) {
+        fetchCaseDetails(selected.id)
+      }
+    } catch (err) {
+      message.error('ไม่สามารถลบบัญชี Payment Gateway ได้')
+    }
+  }
+
+  const handlePaymentGatewayModalClose = (success?: boolean) => {
+    setPaymentGatewayModalVisible(false)
+    setEditingPaymentGateway(null)
+    if (success && selected) {
+      fetchCaseDetails(selected.id)
+    }
+  }
+
+  const handlePrintPaymentGatewaySummons = async (paymentGatewayAccountId: number) => {
+    try {
+      const response = await api.get(`/documents/payment-gateway-summons/${paymentGatewayAccountId}`, {
+        responseType: 'blob'
+      })
+      const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
+      const url = window.URL.createObjectURL(blob)
+      const printWindow = window.open(url, '_blank')
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => printWindow.print(), 500)
+        }
+      }
+      message.success('กำลังเปิดหน้าต่างพิมพ์หมายเรียก Payment Gateway')
+    } catch (err) {
+      message.error('ไม่สามารถสร้างหมายเรียก Payment Gateway ได้')
+      console.error(err)
+    }
+  }
+
+  const handlePrintPaymentGatewayEnvelope = async (paymentGatewayAccountId: number) => {
+    try {
+      const response = await api.get(`/documents/payment-gateway-envelope/${paymentGatewayAccountId}`, {
+        responseType: 'blob'
+      })
+
+      const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
+      const url = window.URL.createObjectURL(blob)
+      const printWindow = window.open(url, '_blank')
+
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print()
+          }, 500)
+        }
+      }
+
+      message.success('กำลังเปิดหน้าต่างพิมพ์ซองหมายเรียก Payment Gateway')
+    } catch (err) {
+      message.error('ไม่สามารถสร้างซองหมายเรียก Payment Gateway ได้')
+      console.error(err)
     }
   }
 
@@ -1762,6 +1965,9 @@ export default function DashboardPage() {
                     key: 'provider_name',
                     width: 250,
                     render: (providerName: string) => {
+                      const shortName = getNonBankShortName(providerName)
+                      const logoUrl = shortName ? `/Bank-icons/${shortName}.png` : ''
+                      
                       return (
                         <div
                           style={{
@@ -1773,6 +1979,24 @@ export default function DashboardPage() {
                             overflow: 'hidden',
                           }}
                         >
+                          {logoUrl && (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                width: '100%',
+                                height: '100%',
+                                backgroundImage: `url(${logoUrl})`,
+                                backgroundSize: 'cover',
+                                backgroundRepeat: 'no-repeat',
+                                backgroundPosition: 'center',
+                                opacity: 0.05,
+                                zIndex: 0,
+                              }}
+                            />
+                          )}
                           <span
                             style={{
                               position: 'relative',
@@ -1780,6 +2004,7 @@ export default function DashboardPage() {
                               fontWeight: 600,
                               fontSize: '14px',
                               color: '#000',
+                              textShadow: '0 0 4px white, 0 0 4px white, 0 0 4px white',
                               width: '100%',
                             }}
                           >
@@ -1821,37 +2046,304 @@ export default function DashboardPage() {
                   {
                     title: 'การจัดการ',
                     key: 'action',
-                    width: 200,
                     render: (_, record) => (
-                      <Space>
-                        <Button
-                          icon={<EditOutlined />}
-                          size="small"
-                          onClick={() => handleEditNonBank(record)}
-                        >
-                          แก้ไข
-                        </Button>
-                        <Popconfirm
-                          title="ยืนยันการลบบัญชีผู้ให้บริการ?"
-                          onConfirm={() => handleDeleteNonBank(record.id)}
-                          okText="ยืนยัน"
-                          cancelText="ยกเลิก"
-                        >
-                          <Button danger icon={<DeleteOutlined />} size="small">
-                            ลบ
+                      <Space size="small" direction="vertical">
+                        <Space size="small">
+                          <Button
+                            type="link"
+                            size="small"
+                            icon={<EditOutlined />}
+                            onClick={() => handleEditNonBank(record)}
+                          >
+                            แก้ไข
                           </Button>
-                        </Popconfirm>
+                          <Popconfirm
+                            title="ยืนยันการลบบัญชีผู้ให้บริการ?"
+                            onConfirm={() => handleDeleteNonBank(record.id)}
+                            okText="ยืนยัน"
+                            cancelText="ยกเลิก"
+                          >
+                            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                              ลบ
+                            </Button>
+                          </Popconfirm>
+                        </Space>
                         <Button
-                          icon={<PrinterOutlined />}
+                          type="primary"
                           size="small"
-                          onClick={() => window.open(`/api/v1/documents/non-bank-summons/${record.id}`, '_blank')}
+                          icon={<PrinterOutlined />}
+                          onClick={() => handlePrintNonBankSummons(record.id)}
+                          block
                         >
                           ปริ้นหมายเรียก
                         </Button>
                         <Button
-                          icon={<PrinterOutlined />}
                           size="small"
-                          onClick={() => window.open(`/api/v1/documents/non-bank-envelope/${record.id}`, '_blank')}
+                          icon={<PrinterOutlined />}
+                          onClick={() => handlePrintNonBankEnvelope(record.id)}
+                          block
+                        >
+                          ปริ้นซองหมายเรียก
+                        </Button>
+                      </Space>
+                    ),
+                  },
+                ]}
+                pagination={false}
+              />
+            </Tabs.TabPane>
+
+            <Tabs.TabPane tab={`Payment Gateway (${paymentGatewayAccounts.length})`} key="payment-gateway-accounts">
+              <Space style={{ marginBottom: 16 }}>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={handleAddPaymentGateway}
+                >
+                  เพิ่มบัญชี Payment Gateway
+                </Button>
+              </Space>
+              <Table
+                dataSource={paymentGatewayAccounts}
+                loading={loadingDetails}
+                rowKey="id"
+                size="small"
+                rowClassName={(record) => record.reply_status ? 'row-green' : ''}
+                columns={[
+                  {
+                    title: 'เลขหนังสือ',
+                    dataIndex: 'document_number',
+                    key: 'document_number',
+                    render: (value) => value || '-',
+                  },
+                  {
+                    title: 'ลงวันที่',
+                    dataIndex: 'document_date',
+                    key: 'document_date',
+                    render: (date) => formatThaiDate(date),
+                  },
+                  {
+                    title: 'Payment Gateway',
+                    dataIndex: 'provider_name',
+                    key: 'provider_name',
+                    width: 200,
+                    render: (providerName: string) => {
+                      const shortName = getNonBankShortName(providerName)
+                      const logoUrl = shortName ? `/Bank-icons/${shortName}.png` : ''
+                      
+                      return (
+                        <div
+                          style={{
+                            position: 'relative',
+                            padding: '12px 16px',
+                            minHeight: '60px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {logoUrl && (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                width: '100%',
+                                height: '100%',
+                                backgroundImage: `url(${logoUrl})`,
+                                backgroundSize: 'cover',
+                                backgroundRepeat: 'no-repeat',
+                                backgroundPosition: 'center',
+                                opacity: 0.05,
+                                zIndex: 0,
+                              }}
+                            />
+                          )}
+                          <span
+                            style={{
+                              position: 'relative',
+                              zIndex: 1,
+                              fontWeight: 600,
+                              fontSize: '14px',
+                              color: '#000',
+                              textShadow: '0 0 4px white, 0 0 4px white, 0 0 4px white',
+                              width: '100%',
+                            }}
+                          >
+                            {providerName || '-'}
+                          </span>
+                        </div>
+                      )
+                    },
+                  },
+                  {
+                    title: 'ธนาคาร',
+                    dataIndex: 'bank_name',
+                    key: 'bank_name',
+                    width: 200,
+                    render: (bankName: string) => {
+                      // หา bank_short_name จาก bank_name
+                      const getBankShortName = (name: string): string => {
+                        if (!name) return ''
+                        const bankMap: { [key: string]: string } = {
+                          'กรุงเทพ': 'BBL',
+                          'BBL': 'BBL',
+                          'กสิกรไทย': 'KBANK',
+                          'KBANK': 'KBANK',
+                          'กรุงไทย': 'KTB',
+                          'KTB': 'KTB',
+                          'ทหารไทย': 'TMB',
+                          'TMB': 'TMB',
+                          'ไทยพาณิชย์': 'SCB',
+                          'SCB': 'SCB',
+                          'กรุงศรีอยุธยา': 'BAY',
+                          'BAY': 'BAY',
+                          'ธนชาต': 'TBANK',
+                          'TBANK': 'TBANK',
+                          'ทิสโก้': 'TISCO',
+                          'TISCO': 'TISCO',
+                          'เกียรตินาคิน': 'KKP',
+                          'KKP': 'KKP',
+                          'ซีไอเอ็มบี': 'CIMB',
+                          'CIMB': 'CIMB',
+                          'ยูโอบี': 'UOB',
+                          'UOB': 'UOB',
+                          'ธ.ก.ส.': 'BAAC',
+                          'BAAC': 'BAAC',
+                          'ออมสิน': 'GSB',
+                          'GSB': 'GSB',
+                          'อาคารสงเคราะห์': 'GHB',
+                          'GHB': 'GHB',
+                          'อิสลาม': 'ISBT',
+                          'ISBT': 'ISBT',
+                        }
+                        
+                        for (const [fullName, shortName] of Object.entries(bankMap)) {
+                          if (name.includes(fullName) || fullName.includes(name)) {
+                            return shortName
+                          }
+                        }
+                        return ''
+                      }
+                      
+                      const shortName = getBankShortName(bankName)
+                      const logoUrl = shortName ? `/Bank-icons/${shortName}.png` : ''
+                      
+                      return (
+                        <div
+                          style={{
+                            position: 'relative',
+                            padding: '12px 16px',
+                            minHeight: '60px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {logoUrl && (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                width: '100%',
+                                height: '100%',
+                                backgroundImage: `url(${logoUrl})`,
+                                backgroundSize: 'cover',
+                                backgroundRepeat: 'no-repeat',
+                                backgroundPosition: 'center',
+                                opacity: 0.05,
+                                zIndex: 0,
+                              }}
+                            />
+                          )}
+                          <span
+                            style={{
+                              position: 'relative',
+                              zIndex: 1,
+                              fontWeight: 600,
+                              fontSize: '14px',
+                              color: '#000',
+                              textShadow: '0 0 4px white, 0 0 4px white, 0 0 4px white',
+                              width: '100%',
+                            }}
+                          >
+                            {bankName || '-'}
+                          </span>
+                        </div>
+                      )
+                    },
+                  },
+                  {
+                    title: 'เลขบัญชี',
+                    dataIndex: 'account_number',
+                    key: 'account_number',
+                  },
+                  {
+                    title: 'ชื่อบัญชี',
+                    dataIndex: 'account_name',
+                    key: 'account_name',
+                  },
+                  {
+                    title: 'สถานะตอบกลับ',
+                    dataIndex: 'reply_status',
+                    key: 'reply_status',
+                    render: (reply_status: boolean, record: PaymentGatewayAccount) => {
+                      if (reply_status) {
+                        return <Tag color="green">ตอบกลับแล้ว</Tag>
+                      } else {
+                        const daysSince = calculateDaysSinceSent(record.document_date)
+                        return (
+                          <div>
+                            <Tag color="red">ยังไม่ตอบกลับ</Tag>
+                            <br />
+                            <small>ส่งไปแล้ว {daysSince}</small>
+                          </div>
+                        )
+                      }
+                    },
+                  },
+                  {
+                    title: 'การจัดการ',
+                    key: 'action',
+                    render: (_, record) => (
+                      <Space size="small" direction="vertical">
+                        <Space size="small">
+                          <Button
+                            type="link"
+                            size="small"
+                            icon={<EditOutlined />}
+                            onClick={() => handleEditPaymentGateway(record)}
+                          >
+                            แก้ไข
+                          </Button>
+                          <Popconfirm
+                            title="ยืนยันการลบบัญชี Payment Gateway?"
+                            onConfirm={() => handleDeletePaymentGateway(record.id)}
+                            okText="ยืนยัน"
+                            cancelText="ยกเลิก"
+                          >
+                            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                              ลบ
+                            </Button>
+                          </Popconfirm>
+                        </Space>
+                        <Button
+                          type="primary"
+                          size="small"
+                          icon={<PrinterOutlined />}
+                          onClick={() => handlePrintPaymentGatewaySummons(record.id)}
+                          block
+                        >
+                          ปริ้นหมายเรียก
+                        </Button>
+                        <Button
+                          size="small"
+                          icon={<PrinterOutlined />}
+                          onClick={() => handlePrintPaymentGatewayEnvelope(record.id)}
+                          block
                         >
                           ปริ้นซองหมายเรียก
                         </Button>
@@ -1864,6 +2356,7 @@ export default function DashboardPage() {
             </Tabs.TabPane>
 
             <Tabs.TabPane tab={`ผู้ต้องหาที่เกี่ยวข้อง (${suspects.length})`} key="suspects">
+
               <Space style={{ marginBottom: 16 }}>
                 <Button
                   type="primary"
@@ -2125,6 +2618,13 @@ export default function DashboardPage() {
         criminalCaseId={selected?.id || 0}
         editingRecord={editingNonBank}
         onClose={handleNonBankModalClose}
+      />
+
+      <PaymentGatewayAccountFormModal
+        visible={paymentGatewayModalVisible}
+        criminalCaseId={selected?.id || 0}
+        editingRecord={editingPaymentGateway}
+        onClose={handlePaymentGatewayModalClose}
       />
 
       <SuspectFormModal

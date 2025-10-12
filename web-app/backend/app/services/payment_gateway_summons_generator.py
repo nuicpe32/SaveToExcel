@@ -9,8 +9,8 @@ import base64
 from datetime import datetime
 from typing import Dict, Optional
 
-class NonBankSummonsGenerator:
-    """Generator สำหรับสร้างหมายเรียกผู้ให้บริการ Non-Bank"""
+class PaymentGatewaySummonsGenerator:
+    """Generator สำหรับสร้างหมายเรียกผู้ให้บริการ Payment Gateway"""
     
     def __init__(self, logo_path: str = "Crut.jpg"):
         self.logo_path = logo_path
@@ -109,8 +109,8 @@ class NonBankSummonsGenerator:
         victim_name = self._format_value(criminal_case.get('victim_name', ''))
         case_id = self._format_value(criminal_case.get('case_id', ''))
         
-        # กำหนดเรื่องตามประเภท (ใช้ชื่อที่ทำความสะอาดแล้ว)
-        subject_text = f"ให้ทำการอายัดบัญชี,จัดส่งสำเนาคำร้องเปิดบัญชี {provider_name_clean} รายการเดินบัญชีและข้อมูลอื่น ๆ" if freeze_account else f"ขอให้จัดส่งสำเนาคำร้องเปิดบัญชี {provider_name_clean} รายการเดินบัญชีและข้อมูลอื่น ๆ"
+        # กำหนดเรื่อง (Payment Gateway ไม่มีการอายัด)
+        subject_text = "ขอให้จัดรายละเอียดการโอนเงิน"
         
         # สร้าง title ตามที่ต้องการ
         html_title = f"หมายเรียกพยานเอกสาร{document_no} ลงวันที่ {date_thai}"
@@ -324,34 +324,15 @@ class NonBankSummonsGenerator:
 
             <div class="to">
                 <span class="to-label">เรียน</span>
-                &nbsp;&nbsp;กรรมการผู้จัดการ {provider_name_full} สำนักงานใหญ่
+                &nbsp;&nbsp;กรรมการผู้จัดการ {provider_name_full}
             </div>
 
             <div class="paragraph">
                 ด้วยเหตุ {victim_name} (case id : {case_id}) ได้แจ้งความร้องทุกข์ต่อพนักงานสอบสวน ให้
-                ดำเนินคดีกับ {account_name} ที่มีส่วนเกี่ยวข้องในกระทำความผิดอาญา และมีการใช้บัญชี {provider_name_clean} ที่อยู่ในความ
-                ดูแลของท่านเกี่ยวข้องกับการกระทำความผิดตามกฎหมาย จึงขอให้ท่านดำเนินการจัดส่งสำเนาคำร้องเปิดบัญชี
-                ธนาคาร รายการเดินบัญชีและข้อมูลอื่น ๆ ดังนี้
+                ดำเนินคดีกับคนร้ายที่มีส่วนเกี่ยวข้องในกระทำความผิดอาญา และมีการโอนเงินไปยังบัญชีธนาคารที่อยู่ในความ
+                ดูแลของท่านเกี่ยวข้องกับการกระทำความผิดตามกฎหมาย จึงขอให้ท่านดำเนินการจัดส่งรายละเอียดการโอนเงินหรือการชำระเงิน
+                ดังนี้
             </div>
-
-            <table class="bank-table">
-                <thead>
-                    <tr>
-                        <th>ผู้ให้บริการ</th>
-                        <th>เลขบัญชี</th>
-                        <th>ชื่อบัญชี</th>
-                        <th>ช่วงเวลาขอข้อมูลรายการเดินบัญชี</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>{provider_name_full}</td>
-                        <td>{account_no}</td>
-                        <td>{account_name}</td>
-                        <td>{time_period if time_period else '-'}</td>
-                    </tr>
-                </tbody>
-            </table>
 """
         
         # เพิ่มตารางรายการโอน (ถ้ามี)
@@ -362,10 +343,10 @@ class NonBankSummonsGenerator:
                 <thead>
                     <tr>
                         <th style="width: 50px;">#</th>
-                        <th>ธนาคารต้นทาง</th>
-                        <th>เลขบัญชีต้นทาง</th>
+                        <th>บัญชีต้นทาง</th>
+                        <th>บัญชีปลายทาง</th>
                         <th>วันที่โอน</th>
-                        <th>เวลา</th>
+                        <th style="width: 80px;">เวลา</th>
                         <th>จำนวนเงิน</th>
                     </tr>
                 </thead>
@@ -387,11 +368,29 @@ class NonBankSummonsGenerator:
                     except:
                         transfer_amount_str = str(transaction['transfer_amount'])
                 
+                # สร้างข้อความบัญชีต้นทาง (รวม 3 ฟิลด์)
+                source_bank = transaction.get('source_bank_name', '-')
+                # เพิ่มคำว่า "ธนาคาร" ข้างหน้าถ้ายังไม่มี
+                if source_bank != '-' and not source_bank.startswith('ธนาคาร'):
+                    source_bank = f"ธนาคาร {source_bank}"
+                source_account = f"{source_bank}<br>"
+                source_account += f"{transaction.get('source_account_number', '-')}<br>"
+                source_account += f"{transaction.get('source_account_name', '-')}"
+                
+                # สร้างข้อความบัญชีปลายทาง (รวม 3 ฟิลด์)
+                dest_bank = transaction.get('destination_bank_name', '-')
+                # เพิ่มคำว่า "ธนาคาร" ข้างหน้าถ้ายังไม่มี
+                if dest_bank != '-' and not dest_bank.startswith('ธนาคาร'):
+                    dest_bank = f"ธนาคาร {dest_bank}"
+                dest_account = f"{dest_bank}<br>"
+                dest_account += f"{transaction.get('destination_account_number', '-')}<br>"
+                dest_account += f"{transaction.get('destination_account_name', '-')}"
+                
                 html_content += f"""
                     <tr>
                         <td>{index}</td>
-                        <td>{transaction.get('source_bank_name', '-')}</td>
-                        <td>{transaction.get('source_account_number', '-')}</td>
+                        <td style="text-align: left;">{source_account}</td>
+                        <td style="text-align: left;">{dest_account}</td>
                         <td>{transfer_date_str if transfer_date_str else '-'}</td>
                         <td>{transaction.get('transfer_time', '-')}</td>
                         <td style="text-align: right;">{transfer_amount_str if transfer_amount_str else '-'}</td>
@@ -411,19 +410,11 @@ class NonBankSummonsGenerator:
 
             <div class="document-list">
                 <ol>
-                    <li>สำเนาเอกสารคำขอเปิดบัญชี พร้อมภาพการยืนยันตัวตน (KYC) ขณะขอเปิดบัญชี, ยอดเงิน
-                        คงเหลือ ณ ปัจจุบัน และเอกสารที่เกี่ยวข้องพร้อมรับรองสำเนา พร้อมทั้งวิธีขั้นตอนการเปิดบัญชี</li>
+                    <li>การโอนเงินดังกล่าว เป็นการโอนเงิน ชำระสินค้าหรือบริการใด</li>
 
-                    <li>รายการเคลื่อนไหวทางบัญชี (statement) ของบัญชีดังกล่าว ตามห้วงเวลาที่แจ้งข้างต้น โดยแสดง
-                        รายละเอียดการโอน แสดงบัญชีต้นทางปลายทาง วันเวลา และจำนวนเงินที่โอนให้ครบถ้วน ขอทราบหมายเลขโทรศัพท์
-                        ไอพีเเอดเดรส และ พิกัด latitude, longitude ในการทำธุรกรรม (กรณีข้อมูลจำนวนมากไม่สามารถปริ้นเป็นเอกสารได้
-                        ให้บันทึกข้อมูลเป็นลงแผ่นซีดี หรือ ส่งไปที่อีเมล์ ampon.th@police.go.th)</li>
-"""
-        
-        # เพิ่มข้อ 3 ถ้าเป็นการอายัดบัญชี
-        if freeze_account:
-            html_content += """
-                    <li>ให้ท่านอายัดบัญชีดังกล่าวและแจ้งผลการอายัดบัญชี พร้อมยอดเงินคงเหลือมาพร้อมกับข้อมูลข้างต้น</li>
+                    <li>ขอทราบรายละเอียดบัญชี (User) ผู้โอน/ผู้รับโอนดังกล่าว โดยละเอียด ประกอบด้วย เอกสารหรือหลักฐานในการยืนยันตัวบุคคล(KYC), ภาพถ่าย, 
+                        สำเนาบัตรประชาชนหรือ หนังสือเดินทาง (Passport), หมายเลขโทรศัพท์ที่ผูกไว้สำหรับการลงทะเบียนบัญชี  
+                        และ ข้อมูลอื่นๆ ที่จะเป็นประโยชน์ต่อการสืบสวนสอบสวน</li>
 """
         
         html_content += """

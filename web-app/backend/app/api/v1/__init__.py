@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from . import auth, bank_accounts, non_bank_accounts, suspects, criminal_cases, post_arrests, documents, case_types, courts, pdf_parser, police_stations, user_registration, admin_users, cfr_upload
-from .endpoints import banks, non_banks, telco_mobile, telco_internet, exchanges, organizations
+from . import auth, bank_accounts, non_bank_accounts, non_bank_transactions, payment_gateway_accounts, payment_gateway_transactions, suspects, criminal_cases, post_arrests, documents, case_types, courts, pdf_parser, police_stations, user_registration, admin_users, cfr_upload
+from .endpoints import banks, non_banks, payment_gateways, telco_mobile, telco_internet, exchanges, organizations
 
 api_router = APIRouter()
 
@@ -10,12 +10,16 @@ api_router.include_router(admin_users.router, prefix="/admin", tags=["admin-user
 api_router.include_router(organizations.router, prefix="/organizations", tags=["organizations"])
 api_router.include_router(banks.router, prefix="/banks", tags=["banks"])
 api_router.include_router(non_banks.router, prefix="/non-banks", tags=["non-banks"])
+api_router.include_router(payment_gateways.router, prefix="/payment-gateways", tags=["payment-gateways"])
 api_router.include_router(telco_mobile.router, prefix="/telco-mobile", tags=["telco-mobile"])
 api_router.include_router(telco_internet.router, prefix="/telco-internet", tags=["telco-internet"])
 api_router.include_router(exchanges.router, prefix="/exchanges", tags=["exchanges"])
 api_router.include_router(courts.router, prefix="/courts", tags=["courts"])
 api_router.include_router(bank_accounts.router, prefix="/bank-accounts", tags=["bank-accounts"])
 api_router.include_router(non_bank_accounts.router, prefix="/non-bank-accounts", tags=["non-bank-accounts"])
+api_router.include_router(payment_gateway_accounts.router, prefix="/payment-gateway-accounts", tags=["payment-gateway-accounts"])
+api_router.include_router(non_bank_transactions.router, prefix="/non-bank-transactions", tags=["non-bank-transactions"])
+api_router.include_router(payment_gateway_transactions.router, prefix="/payment-gateway-transactions", tags=["payment-gateway-transactions"])
 api_router.include_router(suspects.router, prefix="/suspects", tags=["suspects"])
 api_router.include_router(criminal_cases.router, prefix="/criminal-cases", tags=["criminal-cases"])
 api_router.include_router(post_arrests.router, prefix="/post-arrests", tags=["post-arrests"])

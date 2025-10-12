@@ -2,18 +2,19 @@ from sqlalchemy import Column, Integer, String, Boolean, Date, DateTime, Foreign
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
-class NonBankAccount(Base):
+class PaymentGatewayAccount(Base):
     """
-    Model สำหรับหมายเรียกผู้ให้บริการที่ไม่ใช่ธนาคาร (Non-Bank)
-    เช่น TrueMoney, AirPay, Rabbit LINE Pay, etc.
+    Model สำหรับหมายเรียกผู้ให้บริการ Payment Gateway
+    เช่น Omise, GB Prime Pay, 2C2P
     """
-    __tablename__ = "non_bank_accounts"
+    __tablename__ = "payment_gateway_accounts"
 
     id = Column(Integer, primary_key=True, index=True)
     
     # Foreign Keys
     criminal_case_id = Column(Integer, ForeignKey("criminal_cases.id", ondelete="CASCADE"), nullable=False, index=True)
-    non_bank_id = Column(Integer, ForeignKey("non_banks.id", ondelete="SET NULL"), nullable=True, index=True)
+    payment_gateway_id = Column(Integer, ForeignKey("payment_gateways.id", ondelete="SET NULL"), nullable=True, index=True)
+    bank_id = Column(Integer, ForeignKey("banks.id", ondelete="SET NULL"), nullable=True, index=True)  # ธนาคารที่เปิดบัญชี
     
     # ข้อมูลเอกสาร
     document_number = Column(String(100))
@@ -39,10 +40,11 @@ class NonBankAccount(Base):
     created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))
     
     # Relationships
-    criminal_case = relationship("CriminalCase", back_populates="non_bank_accounts")
-    non_bank = relationship("NonBank", back_populates="non_bank_accounts")
+    criminal_case = relationship("CriminalCase", backref="payment_gateway_accounts")
+    payment_gateway = relationship("PaymentGateway", backref="payment_gateway_accounts")
+    bank = relationship("Bank", foreign_keys=[bank_id])
     creator = relationship("User", foreign_keys=[created_by])
 
     def __repr__(self):
-        return f"<NonBankAccount(id={self.id}, provider={self.provider_name}, account={self.account_number})>"
+        return f"<PaymentGatewayAccount(id={self.id}, account={self.account_number})>"
 

@@ -8,6 +8,7 @@ from app.models.non_bank import NonBank
 from app.services import DocumentGenerator
 from app.services.bank_summons_generator import BankSummonsGenerator
 from app.services.non_bank_summons_generator import NonBankSummonsGenerator
+from app.services.payment_gateway_summons_generator import PaymentGatewaySummonsGenerator
 from app.services.suspect_summons_generator import suspect_summons_generator
 from app.api.v1.auth import get_current_user
 import os
@@ -17,6 +18,7 @@ router = APIRouter()
 doc_generator = DocumentGenerator()
 summons_generator = BankSummonsGenerator()
 non_bank_summons_generator = NonBankSummonsGenerator()
+payment_gateway_summons_generator = PaymentGatewaySummonsGenerator()
 
 @router.get("/bank-account/{bank_account_id}")
 def generate_bank_account_document(
@@ -253,10 +255,13 @@ def generate_suspect_envelope_html(
 @router.get("/non-bank-summons/{non_bank_account_id}", response_class=HTMLResponse)
 def generate_non_bank_summons_html(
     non_bank_account_id: int,
+    freeze_account: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """สร้างหมายเรียกผู้ให้บริการ Non-Bank (HTML)"""
+    from app.models.non_bank_transaction import NonBankTransaction
+    from app.models.bank import Bank
     
     # ดึงข้อมูลบัญชี Non-Bank
     non_bank_account = db.query(NonBankAccount).filter(
@@ -272,30 +277,66 @@ def generate_non_bank_summons_html(
     if not criminal_case:
         raise HTTPException(status_code=404, detail="Criminal case not found")
     
+    # ดึงข้อมูลผู้ให้บริการจาก non_banks table
+    provider_name = ''
+    if non_bank_account.non_bank_id:
+        non_bank = db.query(NonBank).filter(NonBank.id == non_bank_account.non_bank_id).first()
+        if non_bank:
+            provider_name = non_bank.company_name
+    
+    # ดึงรายการโอนที่เกี่ยวข้อง (ถ้ามี)
+    transactions = db.query(NonBankTransaction).filter(
+        NonBankTransaction.non_bank_account_id == non_bank_account_id
+    ).order_by(NonBankTransaction.transfer_date).all()
+    
+    # แปลงรายการโอนเป็น list of dicts
+    transaction_list = []
+    if transactions:
+        for t in transactions:
+            # ดึงชื่อธนาคารต้นทาง
+            source_bank_name = ''
+            if t.source_bank_id:
+                bank = db.query(Bank).filter(Bank.id == t.source_bank_id).first()
+                if bank:
+                    source_bank_name = bank.bank_name
+            
+            transaction_list.append({
+                'source_bank_name': source_bank_name,
+                'source_account_number': t.source_account_number,
+                'source_account_name': t.source_account_name,
+                'transfer_date': t.transfer_date,
+                'transfer_time': t.transfer_time,
+                'transfer_amount': t.transfer_amount,
+                'note': t.note,
+            })
+    
     # แปลงข้อมูลเป็น dict
     non_bank_data = {
         'document_number': non_bank_account.document_number,
         'document_date': non_bank_account.document_date,
-        'document_date_thai': non_bank_account.document_date_thai,
-        'provider_name': non_bank_account.provider_name,
+        'provider_name': provider_name,
         'account_number': non_bank_account.account_number,
         'account_name': non_bank_account.account_name,
         'time_period': non_bank_account.time_period,
         'delivery_date': non_bank_account.delivery_date,
-        'is_frozen': non_bank_account.is_frozen,
     }
     
     case_data = {
         'case_id': criminal_case.case_id,
         'case_number': criminal_case.case_number,
         'complainant': criminal_case.complainant,
+        'victim_name': criminal_case.complainant,  # ใช้ complainant แทน victim_name
         'case_type': criminal_case.case_type,
         'damage_amount': criminal_case.damage_amount,
     }
     
-    # สร้าง HTML (ใช้ฟังก์ชันเดียวกับ bank แต่จะส่งข้อมูล non_bank)
-    freeze_account = non_bank_account.is_frozen
-    html_content = non_bank_summons_generator.generate_bank_letter_html(non_bank_data, case_data, freeze_account)
+    # สร้าง HTML (ส่ง freeze_account ที่ได้จาก parameter)
+    html_content = non_bank_summons_generator.generate_bank_letter_html(
+        non_bank_data, 
+        case_data, 
+        freeze_account,  # ใช้ค่าจาก parameter
+        transactions=transaction_list  # ส่งรายการโอนไปด้วย
+    )
     
     return HTMLResponse(content=html_content, media_type="text/html; charset=utf-8")
 
@@ -314,18 +355,14 @@ def generate_non_bank_envelope_html(
     if not non_bank_account:
         raise HTTPException(status_code=404, detail="Non-bank account not found")
     
-    # แปลงข้อมูลเป็น dict
-    non_bank_data = {
-        'document_number': non_bank_account.document_number,
-        'provider_name': non_bank_account.provider_name,
-    }
-    
-    # ดึงข้อมูลที่อยู่ผู้ให้บริการ (ถ้ามี non_bank_id)
+    # ดึงข้อมูลผู้ให้บริการจาก non_banks table
+    provider_name = ''
     non_bank_address = None
     
     if non_bank_account.non_bank_id:
         non_bank = db.query(NonBank).filter(NonBank.id == non_bank_account.non_bank_id).first()
         if non_bank:
+            provider_name = non_bank.company_name
             non_bank_address = {
                 'company_address': non_bank.company_address,
                 'soi': non_bank.soi,
@@ -336,40 +373,163 @@ def generate_non_bank_envelope_html(
                 'province': non_bank.province,
                 'postal_code': non_bank.postal_code,
             }
-    else:
-        # Fallback: ลอง lookup จาก provider_name
-        if non_bank_account.provider_name:
-            # ลองหาแบบตรงทั้งหมดก่อน
-            non_bank = db.query(NonBank).filter(
-                NonBank.company_name == non_bank_account.provider_name
-            ).first()
-            
-            # ถ้าไม่เจอ ลองหาจาก company_name_short
-            if not non_bank:
-                non_bank = db.query(NonBank).filter(
-                    NonBank.company_name_short == non_bank_account.provider_name
-                ).first()
-            
-            # ถ้ายังไม่เจอ ลองหาแบบ LIKE
-            if not non_bank:
-                search_pattern = f"%{non_bank_account.provider_name}%"
-                non_bank = db.query(NonBank).filter(
-                    NonBank.company_name.like(search_pattern)
-                ).first()
-            
-            if non_bank:
-                non_bank_address = {
-                    'company_address': non_bank.company_address,
-                    'soi': non_bank.soi,
-                    'moo': non_bank.moo,
-                    'road': non_bank.road,
-                    'sub_district': non_bank.sub_district,
-                    'district': non_bank.district,
-                    'province': non_bank.province,
-                    'postal_code': non_bank.postal_code,
-                }
+    
+    # แปลงข้อมูลเป็น dict
+    non_bank_data = {
+        'document_number': non_bank_account.document_number,
+        'provider_name': provider_name,
+    }
     
     # สร้าง HTML
     html_content = non_bank_summons_generator.generate_envelope_html(non_bank_data, non_bank_address)
+    
+    return HTMLResponse(content=html_content, media_type="text/html; charset=utf-8")
+
+# ==================== Payment Gateway Summons Endpoints ====================
+
+@router.get("/payment-gateway-summons/{payment_gateway_account_id}", response_class=HTMLResponse)
+def generate_payment_gateway_summons_html(
+    payment_gateway_account_id: int,
+    freeze_account: bool = False,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """สร้างหมายเรียกผู้ให้บริการ Payment Gateway (HTML)"""
+    from app.models.payment_gateway_account import PaymentGatewayAccount
+    from app.models.payment_gateway import PaymentGateway
+    from app.models.payment_gateway_transaction import PaymentGatewayTransaction
+    from app.models.bank import Bank
+    
+    # ดึงข้อมูลบัญชี Payment Gateway
+    pg_account = db.query(PaymentGatewayAccount).filter(
+        PaymentGatewayAccount.id == payment_gateway_account_id
+    ).first()
+    if not pg_account:
+        raise HTTPException(status_code=404, detail="Payment gateway account not found")
+    
+    # ดึงข้อมูลคดี
+    criminal_case = db.query(CriminalCase).filter(
+        CriminalCase.id == pg_account.criminal_case_id
+    ).first()
+    if not criminal_case:
+        raise HTTPException(status_code=404, detail="Criminal case not found")
+    
+    # ดึงข้อมูลผู้ให้บริการจาก payment_gateways table
+    provider_name = ''
+    if pg_account.payment_gateway_id:
+        pg = db.query(PaymentGateway).filter(PaymentGateway.id == pg_account.payment_gateway_id).first()
+        if pg:
+            provider_name = pg.company_name
+    
+    # ดึงรายการโอนที่เกี่ยวข้อง (ถ้ามี)
+    transactions = db.query(PaymentGatewayTransaction).filter(
+        PaymentGatewayTransaction.payment_gateway_account_id == payment_gateway_account_id
+    ).order_by(PaymentGatewayTransaction.transfer_date).all()
+    
+    # แปลงรายการโอนเป็น list of dicts
+    transaction_list = []
+    if transactions:
+        for t in transactions:
+            # ดึงชื่อธนาคารต้นทาง
+            source_bank_name = ''
+            if t.source_bank_id:
+                bank = db.query(Bank).filter(Bank.id == t.source_bank_id).first()
+                if bank:
+                    source_bank_name = bank.bank_name
+            
+            # ดึงชื่อธนาคารปลายทาง
+            destination_bank_name = ''
+            if t.destination_bank_id:
+                bank = db.query(Bank).filter(Bank.id == t.destination_bank_id).first()
+                if bank:
+                    destination_bank_name = bank.bank_name
+            
+            transaction_list.append({
+                'source_bank_name': source_bank_name,
+                'source_account_number': t.source_account_number,
+                'source_account_name': t.source_account_name,
+                'destination_bank_name': destination_bank_name,
+                'destination_account_number': t.destination_account_number,
+                'destination_account_name': t.destination_account_name,
+                'transfer_date': t.transfer_date,
+                'transfer_time': t.transfer_time,
+                'transfer_amount': t.transfer_amount,
+                'note': t.note,
+            })
+    
+    # แปลงข้อมูลเป็น dict
+    pg_data = {
+        'document_number': pg_account.document_number,
+        'document_date': pg_account.document_date,
+        'provider_name': provider_name,
+        'account_number': pg_account.account_number,
+        'account_name': pg_account.account_name,
+        'time_period': pg_account.time_period,
+        'delivery_date': pg_account.delivery_date,
+    }
+    
+    case_data = {
+        'case_id': criminal_case.case_id,
+        'case_number': criminal_case.case_number,
+        'complainant': criminal_case.complainant,
+        'victim_name': criminal_case.complainant,
+        'case_type': criminal_case.case_type,
+        'damage_amount': criminal_case.damage_amount,
+    }
+    
+    # สร้าง HTML
+    html_content = payment_gateway_summons_generator.generate_bank_letter_html(
+        pg_data, 
+        case_data, 
+        freeze_account,
+        transactions=transaction_list
+    )
+    
+    return HTMLResponse(content=html_content, media_type="text/html; charset=utf-8")
+
+@router.get("/payment-gateway-envelope/{payment_gateway_account_id}", response_class=HTMLResponse)
+def generate_payment_gateway_envelope_html(
+    payment_gateway_account_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """สร้างซองหมายเรียกผู้ให้บริการ Payment Gateway (HTML)"""
+    from app.models.payment_gateway_account import PaymentGatewayAccount
+    from app.models.payment_gateway import PaymentGateway
+    
+    # ดึงข้อมูลบัญชี Payment Gateway
+    pg_account = db.query(PaymentGatewayAccount).filter(
+        PaymentGatewayAccount.id == payment_gateway_account_id
+    ).first()
+    if not pg_account:
+        raise HTTPException(status_code=404, detail="Payment gateway account not found")
+    
+    # ดึงข้อมูลผู้ให้บริการจาก payment_gateways table
+    provider_name = ''
+    pg_address = None
+    
+    if pg_account.payment_gateway_id:
+        pg = db.query(PaymentGateway).filter(PaymentGateway.id == pg_account.payment_gateway_id).first()
+        if pg:
+            provider_name = pg.company_name
+            pg_address = {
+                'company_address': pg.company_address,
+                'soi': pg.soi,
+                'moo': pg.moo,
+                'road': pg.road,
+                'sub_district': pg.sub_district,
+                'district': pg.district,
+                'province': pg.province,
+                'postal_code': pg.postal_code,
+            }
+    
+    # แปลงข้อมูลเป็น dict
+    pg_data = {
+        'document_number': pg_account.document_number,
+        'provider_name': provider_name,
+    }
+    
+    # สร้าง HTML
+    html_content = payment_gateway_summons_generator.generate_envelope_html(pg_data, pg_address)
     
     return HTMLResponse(content=html_content, media_type="text/html; charset=utf-8")

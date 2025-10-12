@@ -7,12 +7,16 @@ from .supervision import Supervision
 from .user import User
 from .bank import Bank
 from .non_bank import NonBank
+from .payment_gateway import PaymentGateway
 from .telco_mobile import TelcoMobile
 from .telco_internet import TelcoInternet
 from .exchange import Exchange
 from .court import Court
 from .bank_account import BankAccount
 from .non_bank_account import NonBankAccount
+from .payment_gateway_account import PaymentGatewayAccount
+from .non_bank_transaction import NonBankTransaction
+from .payment_gateway_transaction import PaymentGatewayTransaction
 from .suspect import Suspect
 from .cfr import CFR
 from .criminal_case import CriminalCase

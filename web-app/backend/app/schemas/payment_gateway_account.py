@@ -3,10 +3,11 @@ from typing import Optional
 from datetime import date, datetime
 
 # Base Schema
-class NonBankAccountBase(BaseModel):
-    """Base schema สำหรับ Non-Bank Account"""
+class PaymentGatewayAccountBase(BaseModel):
+    """Base schema สำหรับ Payment Gateway Account"""
     criminal_case_id: int
-    non_bank_id: Optional[int] = None
+    payment_gateway_id: Optional[int] = None
+    bank_id: Optional[int] = None  # ธนาคารที่เปิดบัญชี
     
     # ข้อมูลเอกสาร
     document_number: Optional[str] = None
@@ -27,14 +28,15 @@ class NonBankAccountBase(BaseModel):
     status: str = "pending"
 
 # Create Schema
-class NonBankAccountCreate(NonBankAccountBase):
-    """Schema สำหรับสร้าง Non-Bank Account ใหม่"""
+class PaymentGatewayAccountCreate(PaymentGatewayAccountBase):
+    """Schema สำหรับสร้าง Payment Gateway Account ใหม่"""
     pass
 
 # Update Schema
-class NonBankAccountUpdate(BaseModel):
-    """Schema สำหรับแก้ไข Non-Bank Account"""
-    non_bank_id: Optional[int] = None
+class PaymentGatewayAccountUpdate(BaseModel):
+    """Schema สำหรับแก้ไข Payment Gateway Account"""
+    payment_gateway_id: Optional[int] = None
+    bank_id: Optional[int] = None
     document_number: Optional[str] = None
     document_date: Optional[date] = None
     account_number: Optional[str] = None
@@ -45,8 +47,8 @@ class NonBankAccountUpdate(BaseModel):
     status: Optional[str] = None
 
 # Response Schema
-class NonBankAccountResponse(NonBankAccountBase):
-    """Schema สำหรับ response Non-Bank Account"""
+class PaymentGatewayAccountResponse(PaymentGatewayAccountBase):
+    """Schema สำหรับ response Payment Gateway Account"""
     id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -56,9 +58,9 @@ class NonBankAccountResponse(NonBankAccountBase):
         from_attributes = True
 
 # Pagination Response
-class NonBankAccountPaginationResponse(BaseModel):
+class PaymentGatewayAccountPaginationResponse(BaseModel):
     """Schema สำหรับ pagination response"""
-    items: list[NonBankAccountResponse]
+    items: list[PaymentGatewayAccountResponse]
     total: int
     skip: int
     limit: int

@@ -7,6 +7,17 @@
 
 คู่มือนี้จัดทำขึ้นเพื่อให้ผู้พัฒนาใหม่สามารถเข้าใจและพัฒนาระบบจัดการคดีอาญาต่อได้อย่างมีประสิทธิภาพ
 
+**ระบบหลัก:**
+- 🌐 **Web Application** - React + FastAPI + PostgreSQL (Production)
+- 🖥️ **Desktop Application** - Python + Tkinter + Excel (Legacy)
+
+**ฟีเจอร์หลัก:**
+- ⚖️ **การจัดการคดีอาญา** - CRUD operations, dashboard, reports
+- 🏦 **บัญชีธนาคาร** - หมายเรียก, ซองหมายเรียก, CFR analysis
+- 👤 **หมายเรียกผู้ต้องหา** - เอกสารและการติดตาม
+- 🏪 **บัญชี Non-Bank** - TrueMoney, Line Pay และบริการทางการเงินอื่นๆ
+- 🏢 **Payment Gateway** - Omise, GB Prime Pay, 2C2P
+
 ---
 
 ## 📋 สารบัญ
@@ -89,24 +100,50 @@ docker-compose -f docker-compose.dev.yml up -d
 ```
 backend/app/
 ├── api/v1/                    # API Routes
+│   ├── endpoints/            # API Endpoint Modules
+│   │   ├── banks.py                  # Bank master data CRUD
+│   │   ├── bank_accounts.py          # Bank accounts CRUD
+│   │   ├── non_banks.py              # Non-Bank master data CRUD
+│   │   ├── non_bank_accounts.py      # Non-Bank accounts CRUD
+│   │   ├── non_bank_transactions.py  # Non-Bank transactions CRUD
+│   │   ├── payment_gateways.py       # Payment Gateway master data CRUD
+│   │   ├── payment_gateway_accounts.py     # Payment Gateway accounts CRUD
+│   │   ├── payment_gateway_transactions.py # Payment Gateway transactions CRUD
+│   │   └── suspects.py               # Suspects CRUD
 │   ├── auth.py               # Authentication endpoints
 │   ├── criminal_cases.py     # Criminal cases CRUD
-│   ├── bank_accounts.py      # Bank accounts CRUD
-│   └── suspects.py           # Suspects CRUD
+│   ├── documents.py          # Document generation (summons, envelopes)
+│   └── cfr.py               # CFR (Cash Flow Report) endpoints
 ├── core/                     # Core Configuration
 │   ├── database.py           # Database connection
 │   ├── security.py           # JWT authentication
 │   └── config.py             # App configuration
 ├── models/                   # SQLAlchemy Models
 │   ├── criminal_case.py      # Criminal case model
+│   ├── bank.py               # Bank master data model
 │   ├── bank_account.py       # Bank account model
+│   ├── non_bank.py           # Non-Bank master data model
+│   ├── non_bank_account.py   # Non-Bank account model
+│   ├── non_bank_transaction.py       # Non-Bank transaction model
+│   ├── payment_gateway.py            # Payment Gateway master data model
+│   ├── payment_gateway_account.py    # Payment Gateway account model
+│   ├── payment_gateway_transaction.py # Payment Gateway transaction model
 │   ├── suspect.py            # Suspect model
 │   └── post_arrest.py        # Post arrest model
 ├── schemas/                  # Pydantic Schemas
+│   ├── bank_account.py       # Bank account schemas
+│   ├── non_bank_account.py   # Non-Bank account schemas
+│   ├── non_bank_transaction.py       # Non-Bank transaction schemas
+│   ├── payment_gateway_account.py    # Payment Gateway account schemas
+│   ├── payment_gateway_transaction.py # Payment Gateway transaction schemas
+│   └── ...                   # Other schemas
 ├── services/                 # Business Logic
 │   ├── data_migration.py     # Excel to DB migration
 │   ├── auth_service.py       # Authentication service
-│   └── case_service.py       # Case management service
+│   ├── case_service.py       # Case management service
+│   ├── bank_summons_generator.py         # Bank summons HTML generator
+│   ├── non_bank_summons_generator.py     # Non-Bank summons HTML generator
+│   └── payment_gateway_summons_generator.py # Payment Gateway summons HTML generator
 └── utils/                    # Utility Functions
     ├── date_utils.py         # Date formatting
     ├── case_styling.py       # Case styling logic
@@ -446,20 +483,119 @@ CREATE TABLE criminal_cases (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Bank Master Data Table
+CREATE TABLE banks (
+    id SERIAL PRIMARY KEY,
+    bank_code VARCHAR(10) UNIQUE,
+    bank_name VARCHAR(255),
+    bank_name_short VARCHAR(50),
+    bank_address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Bank Accounts Table
 CREATE TABLE bank_accounts (
     id SERIAL PRIMARY KEY,
     criminal_case_id INTEGER REFERENCES criminal_cases(id),
-    order_number INTEGER,
+    bank_id INTEGER REFERENCES banks(id),
     document_number VARCHAR(255),
     document_date DATE,
-    document_date_thai VARCHAR(100),
-    bank_branch VARCHAR(255),
-    bank_name VARCHAR(255),
     account_number VARCHAR(255),
     account_name VARCHAR(255),
-    complainant VARCHAR(255),
+    time_period VARCHAR(255),
+    delivery_date DATE,
     reply_status BOOLEAN DEFAULT FALSE,
+    status VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Non-Bank Master Data Table
+CREATE TABLE non_banks (
+    id SERIAL PRIMARY KEY,
+    company_name VARCHAR(255),
+    company_name_short VARCHAR(50),
+    company_address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Non-Bank Accounts Table
+CREATE TABLE non_bank_accounts (
+    id SERIAL PRIMARY KEY,
+    criminal_case_id INTEGER REFERENCES criminal_cases(id),
+    non_bank_id INTEGER REFERENCES non_banks(id),
+    document_number VARCHAR(255),
+    document_date DATE,
+    account_number VARCHAR(255),
+    account_name VARCHAR(255),
+    time_period VARCHAR(255),
+    delivery_date DATE,
+    reply_status BOOLEAN DEFAULT FALSE,
+    status VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Non-Bank Transactions Table
+CREATE TABLE non_bank_transactions (
+    id SERIAL PRIMARY KEY,
+    non_bank_account_id INTEGER REFERENCES non_bank_accounts(id) ON DELETE CASCADE,
+    criminal_case_id INTEGER REFERENCES criminal_cases(id),
+    source_bank_id INTEGER REFERENCES banks(id) ON DELETE SET NULL,
+    source_account_number VARCHAR(255),
+    source_account_name VARCHAR(255),
+    destination_non_bank_id INTEGER REFERENCES non_banks(id) ON DELETE SET NULL,
+    destination_account_number VARCHAR(255),
+    destination_account_name VARCHAR(255),
+    transfer_date VARCHAR(100),
+    transfer_time VARCHAR(50),
+    transfer_amount DECIMAL(15,2),
+    note TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Payment Gateway Master Data Table
+CREATE TABLE payment_gateways (
+    id SERIAL PRIMARY KEY,
+    company_name VARCHAR(255),
+    company_name_short VARCHAR(50),
+    company_address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Payment Gateway Accounts Table
+CREATE TABLE payment_gateway_accounts (
+    id SERIAL PRIMARY KEY,
+    criminal_case_id INTEGER REFERENCES criminal_cases(id),
+    payment_gateway_id INTEGER REFERENCES payment_gateways(id),
+    bank_id INTEGER REFERENCES banks(id),
+    document_number VARCHAR(255),
+    document_date DATE,
+    account_number VARCHAR(255),
+    account_name VARCHAR(255),
+    time_period VARCHAR(255),
+    delivery_date DATE,
+    reply_status BOOLEAN DEFAULT FALSE,
+    status VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Payment Gateway Transactions Table
+CREATE TABLE payment_gateway_transactions (
+    id SERIAL PRIMARY KEY,
+    payment_gateway_account_id INTEGER REFERENCES payment_gateway_accounts(id) ON DELETE CASCADE,
+    criminal_case_id INTEGER REFERENCES criminal_cases(id),
+    source_bank_id INTEGER REFERENCES banks(id) ON DELETE SET NULL,
+    source_account_number VARCHAR(255),
+    source_account_name VARCHAR(255),
+    destination_bank_id INTEGER REFERENCES banks(id) ON DELETE SET NULL,
+    destination_account_number VARCHAR(255),
+    destination_account_name VARCHAR(255),
+    transfer_date VARCHAR(100),
+    transfer_time VARCHAR(50),
+    transfer_amount DECIMAL(15,2),
+    note TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -892,6 +1028,57 @@ from .src.data.bank_data_manager import BankDataManager
 
 ---
 
+## 📝 สรุปความสามารถของระบบ
+
+### 🌐 Web Application Features
+1. **⚖️ Criminal Cases** - CRUD, dashboard, detail view, statistics
+2. **🏦 Bank Accounts** - Master data, accounts, summons, envelopes
+3. **🏪 Non-Bank Accounts** - TrueMoney, Line Pay, multi-transfer support
+4. **🏢 Payment Gateway** - Omise, GB Prime Pay, 2C2P integration
+5. **👤 Suspects** - Summons management and tracking
+6. **📊 CFR Analysis** - Cash flow report, transaction tracking
+7. **🌓 Dark Mode** - Full dark mode support
+8. **📱 Responsive** - Works on all screen sizes
+
+### 🔑 Key Development Concepts
+
+#### Database Normalization
+- **Master Data Tables**: `banks`, `non_banks`, `payment_gateways`
+- **Account Tables**: `bank_accounts`, `non_bank_accounts`, `payment_gateway_accounts`
+- **Transaction Tables**: `non_bank_transactions`, `payment_gateway_transactions`
+- **Foreign Keys**: All relationships use FK constraints for data integrity
+
+#### Multi-Transfer Support
+- **Non-Bank**: 1-5 transfers per summons (optional)
+- **Payment Gateway**: 1-5 transfers per summons (required, minimum 1)
+- **Duplicate Prevention**: Flag existing transactions to avoid duplication on edit
+
+#### Document Generation
+- **Bank Summons**: Standard format + freeze account option
+- **Non-Bank Summons**: Modified format + optional freeze account
+- **Payment Gateway Summons**: Specialized format (no freeze option)
+- **Envelopes**: Auto-generated for all types
+
+#### UI/UX Patterns
+- **Logo Background**: Bank/Non-Bank/Payment Gateway logos (opacity 0.05)
+- **Thai Date Format**: Buddhist Era (พ.ศ.)
+- **Form Validation**: Required fields, min/max constraints
+- **Error Handling**: Proper error messages and user feedback
+
+---
+
+## 🔗 แหล่งข้อมูลเพิ่มเติม
+
+**เอกสารที่เกี่ยวข้อง:**
+- [`README.md`](README.md) - ภาพรวมและวิธีใช้งาน
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) - สถาปัตยกรรมระบบ
+- [`CHANGELOG.md`](CHANGELOG.md) - ประวัติการพัฒนา
+- [`web-app/README.md`](web-app/README.md) - คู่มือ Web Application
+- [`web-app/QUICK_START_GUIDE.md`](web-app/QUICK_START_GUIDE.md) - คู่มือเริ่มต้นเร็ว
+
+---
+
 *📝 คู่มือการพัฒนาฉบับนี้จัดทำขึ้นเพื่อให้ผู้พัฒนาใหม่สามารถเข้าใจและพัฒนาระบบต่อได้อย่างมีประสิทธิภาพ*
 
-*🔄 อัปเดตล่าสุด: ระบบจัดการคดีอาญา v3.0.0*
+*🔄 อัปเดตล่าสุด: ระบบจัดการคดีอาญา v3.2.0 - เพิ่มระบบ Payment Gateway และ Non-Bank*
+*📅 วันที่อัปเดต: 12 ตุลาคม 2568*

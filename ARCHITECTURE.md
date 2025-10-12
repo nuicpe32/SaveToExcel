@@ -275,18 +275,49 @@ bank_manager.load_data()
 - **Configuration**: Python config files
 - **File Management**: os, pathlib
 
+## Recent Updates (v3.2.0)
+
+### ✨ Payment Gateway System
+- **Master Data**: `payment_gateways` table (Omise, GB Prime Pay, 2C2P)
+- **Accounts**: `payment_gateway_accounts` with bank integration
+- **Transactions**: `payment_gateway_transactions` (1-5 transfers, minimum 1 required)
+- **Documents**: Specialized summons format without freeze account option
+- **UI**: Logo background display, integrated dashboard tab
+
+### ✨ Non-Bank System
+- **Master Data**: `non_banks` table (TrueMoney, Line Pay, etc.)
+- **Accounts**: `non_bank_accounts` linked to criminal cases
+- **Transactions**: `non_bank_transactions` with multi-transfer support (1-5 transfers, optional)
+- **Documents**: Modified summons format with optional freeze account
+- **Normalization**: FK relationships to `banks` and `non_banks` master data
+
+### ✨ CFR (Cash Flow Report) System
+- **Upload**: Support .xls, .xlsx files from banks
+- **Analysis**: Auto-detect victim accounts and summons status
+- **Visualization**: Flow chart showing money transfers
+- **Tags**: Visual indicators for victim accounts and summons
+
+### ✨ UI/UX Improvements
+- **Dark Mode**: Full dark mode support across all pages
+- **Logo Display**: Bank/Non-Bank/Payment Gateway logos (opacity 0.05)
+- **Sidebar**: Collapsible sidebar with state persistence
+- **Date Handling**: Improved Thai Buddhist Era date support
+
 ## Future Enhancements
 
 ### 🌐 Web Application
-1. **Advanced Reporting**: PDF generation, Excel export
-2. **Real-time Updates**: WebSocket integration
-3. **Mobile App**: React Native version
-4. **Advanced Analytics**: Charts and statistics
-5. **API Integration**: Third-party service integration
+1. **Advanced Reporting**: PDF generation, Excel export from database
+2. **Real-time Updates**: WebSocket integration for live notifications
+3. **Mobile App**: React Native version for iOS/Android
+4. **Advanced Analytics**: Interactive charts and statistics dashboards
+5. **API Integration**: External API integration (banks, government services)
+6. **Audit Log**: Complete audit trail for all transactions
+7. **Backup/Restore**: Automated backup and restore functionality
 
 ### 🖥️ Desktop Application
 1. **Complete GUI Refactoring**: Extract all GUI components
 2. **Plugin System**: Support for third-party extensions
-3. **Database Support**: Optional database backend
+3. **Database Support**: Optional database backend (SQLite/PostgreSQL)
 4. **Multi-language Support**: Internationalization framework
 5. **Advanced Features**: Workflow automation, bulk operations
+6. **Cloud Sync**: Sync with Web Application database

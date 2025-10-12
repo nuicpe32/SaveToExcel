@@ -25,30 +25,7 @@ def create_non_bank_account(
     """สร้างหมายเรียกผู้ให้บริการ Non-Bank ใหม่"""
     # แปลง schema เป็น dict
     non_bank_data = non_bank_account.dict()
-
-    # Auto-lookup non_bank_id from provider_name
-    if non_bank_data.get('provider_name'):
-        # ลองหาแบบตรงทั้งหมดก่อน
-        non_bank = db.query(NonBank).filter(
-            NonBank.company_name == non_bank_data['provider_name']
-        ).first()
-        
-        # ถ้าไม่เจอ ลองหาจาก company_name_short
-        if not non_bank:
-            non_bank = db.query(NonBank).filter(
-                NonBank.company_name_short == non_bank_data['provider_name']
-            ).first()
-        
-        # ถ้ายังไม่เจอ ลองหาแบบ LIKE
-        if not non_bank:
-            search_pattern = f"%{non_bank_data['provider_name']}%"
-            non_bank = db.query(NonBank).filter(
-                NonBank.company_name.like(search_pattern)
-            ).first()
-        
-        if non_bank:
-            non_bank_data['non_bank_id'] = non_bank.id
-
+    
     # เพิ่ม created_by
     non_bank_data['created_by'] = current_user.id
 
@@ -106,29 +83,6 @@ def update_non_bank_account(
 
     update_data = non_bank_account.dict(exclude_unset=True)
 
-    # Auto-lookup non_bank_id from provider_name if being updated
-    if 'provider_name' in update_data and update_data['provider_name']:
-        # ลองหาแบบตรงทั้งหมดก่อน
-        non_bank = db.query(NonBank).filter(
-            NonBank.company_name == update_data['provider_name']
-        ).first()
-        
-        # ถ้าไม่เจอ ลองหาจาก company_name_short
-        if not non_bank:
-            non_bank = db.query(NonBank).filter(
-                NonBank.company_name_short == update_data['provider_name']
-            ).first()
-        
-        # ถ้ายังไม่เจอ ลองหาแบบ LIKE
-        if not non_bank:
-            search_pattern = f"%{update_data['provider_name']}%"
-            non_bank = db.query(NonBank).filter(
-                NonBank.company_name.like(search_pattern)
-            ).first()
-        
-        if non_bank:
-            update_data['non_bank_id'] = non_bank.id
-
     for key, value in update_data.items():
         setattr(db_non_bank_account, key, value)
 
@@ -154,7 +108,7 @@ def delete_non_bank_account(
     return {"message": "Non-bank account deleted successfully"}
 
 # Endpoint สำหรับดึง non_bank_accounts ของคดี
-@router.get("/by-case/{criminal_case_id}", response_model=List[NonBankAccountResponse])
+@router.get("/by-case/{criminal_case_id}")
 def get_non_bank_accounts_by_case(
     criminal_case_id: int,
     db: Session = Depends(get_db),
@@ -164,5 +118,33 @@ def get_non_bank_accounts_by_case(
     non_bank_accounts = db.query(NonBankAccount).filter(
         NonBankAccount.criminal_case_id == criminal_case_id
     ).all()
-    return non_bank_accounts
+    
+    # เพิ่ม provider_name จาก relationship
+    result = []
+    for account in non_bank_accounts:
+        account_dict = {
+            'id': account.id,
+            'non_bank_id': account.non_bank_id,
+            'document_number': account.document_number,
+            'document_date': account.document_date,
+            'account_number': account.account_number,
+            'account_name': account.account_name,
+            'time_period': account.time_period,
+            'delivery_date': account.delivery_date,
+            'reply_status': account.reply_status,
+            'status': account.status,
+            'created_at': account.created_at,
+            'updated_at': account.updated_at,
+            'created_by': account.created_by,
+        }
+        
+        # เพิ่ม provider_name จาก non_banks table
+        if account.non_bank_id:
+            non_bank = db.query(NonBank).filter(NonBank.id == account.non_bank_id).first()
+            if non_bank:
+                account_dict['provider_name'] = non_bank.company_name
+        
+        result.append(account_dict)
+    
+    return result
 

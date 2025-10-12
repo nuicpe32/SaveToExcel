@@ -15,6 +15,13 @@ const formatThaiMonth = (month: number): string => {
   return thaiMonths[month]
 }
 
+// ฟังก์ชันแปลงเดือนไทยกลับเป็นตัวเลข
+const parseThaiMonth = (monthStr: string): number => {
+  const thaiMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 
+                      'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
+  return thaiMonths.indexOf(monthStr)
+}
+
 // ฟังก์ชันแปลง date range เป็น text ไทย
 const formatDateRangeToThai = (dates: [dayjs.Dayjs, dayjs.Dayjs] | null): string => {
   if (!dates || !dates[0] || !dates[1]) return ''
@@ -32,6 +39,74 @@ const formatDateRangeToThai = (dates: [dayjs.Dayjs, dayjs.Dayjs] | null): string
   const endYear = (endDate.year() + 543).toString().slice(-2)
   
   return `${startDay} ${startMonth} ${startYear} - ${endDay} ${endMonth} ${endYear}`
+}
+
+// ฟังก์ชันแปลง text ไทยกลับเป็น date range objects
+const parseThaiDateRange = (thaiDateRange: string): [dayjs.Dayjs, dayjs.Dayjs] | null => {
+  if (!thaiDateRange) return null
+  
+  try {
+    console.log('Parsing Thai date range:', thaiDateRange)
+    
+    // รูปแบบ: "4 ส.ค. 68 - 6 ส.ค. 68"
+    const parts = thaiDateRange.split(' - ')
+    console.log('Parts:', parts)
+    if (parts.length !== 2) {
+      console.log('Invalid format: parts length is not 2')
+      return null
+    }
+    
+    // Parse start date
+    const startParts = parts[0].trim().split(' ')
+    console.log('Start parts:', startParts)
+    if (startParts.length !== 3) {
+      console.log('Invalid start date format')
+      return null
+    }
+    const startDay = parseInt(startParts[0])
+    const startMonth = parseThaiMonth(startParts[1])
+    const startYear = parseInt(startParts[2]) + 2500 - 543 // แปลง พ.ศ. 2 หลัก → ค.ศ. 4 หลัก
+    console.log('Start date parsed:', { startDay, startMonth, startYear })
+    
+    // Parse end date
+    const endParts = parts[1].trim().split(' ')
+    console.log('End parts:', endParts)
+    if (endParts.length !== 3) {
+      console.log('Invalid end date format')
+      return null
+    }
+    const endDay = parseInt(endParts[0])
+    const endMonth = parseThaiMonth(endParts[1])
+    const endYear = parseInt(endParts[2]) + 2500 - 543 // แปลง พ.ศ. 2 หลัก → ค.ศ. 4 หลัก
+    console.log('End date parsed:', { endDay, endMonth, endYear })
+    
+    // ตรวจสอบว่าค่าที่ parse ได้ถูกต้อง
+    if (startMonth === -1 || endMonth === -1) {
+      console.log('Invalid month name')
+      return null
+    }
+    
+    // สร้าง dayjs objects
+    const startDate = dayjs().year(startYear).month(startMonth).date(startDay)
+    const endDate = dayjs().year(endYear).month(endMonth).date(endDay)
+    console.log('Created dayjs objects:', { 
+      startDate: startDate.format('YYYY-MM-DD'), 
+      endDate: endDate.format('YYYY-MM-DD'),
+      startValid: startDate.isValid(),
+      endValid: endDate.isValid()
+    })
+    
+    if (!startDate.isValid() || !endDate.isValid()) {
+      console.log('Invalid dayjs objects')
+      return null
+    }
+    
+    console.log('Successfully parsed date range')
+    return [startDate, endDate]
+  } catch (error) {
+    console.error('Error parsing Thai date range:', error)
+    return null
+  }
 }
 
 interface BankAccountFormModalProps {
@@ -97,7 +172,20 @@ export default function BankAccountFormModal({
             editingRecord._date_range_end
           ]
           setDateRange(dateRangeValue)
+        } else if (editingRecord.time_period) {
+          // แปลง time_period (text) กลับเป็น date range objects
+          console.log('🔍 Attempting to parse time_period:', editingRecord.time_period)
+          const parsedDateRange = parseThaiDateRange(editingRecord.time_period)
+          console.log('📅 Parsed date range result:', parsedDateRange)
+          if (parsedDateRange) {
+            console.log('✅ Setting date range:', parsedDateRange)
+            setDateRange(parsedDateRange)
+          } else {
+            console.log('❌ Failed to parse, setting null')
+            setDateRange(null)
+          }
         } else {
+          console.log('ℹ️ No time_period found, setting null')
           setDateRange(null)
         }
       } else {
@@ -253,6 +341,7 @@ export default function BankAccountFormModal({
                 style={{ width: '100%' }}
                 format="DD/MM/YYYY"
                 placeholder={['วันที่เริ่มต้น', 'วันที่สิ้นสุด']}
+                value={dateRange}
                 onChange={(dates) => {
                   setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)
                   if (dates) {

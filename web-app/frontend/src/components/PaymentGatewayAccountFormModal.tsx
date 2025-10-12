@@ -91,28 +91,28 @@ const parseThaiDateRange = (thaiDateRange: string): [dayjs.Dayjs, dayjs.Dayjs] |
   }
 }
 
-interface NonBankAccountFormModalProps {
+interface PaymentGatewayAccountFormModalProps {
   visible: boolean
   criminalCaseId: number
   editingRecord?: any
   onClose: (success?: boolean) => void
 }
 
-export default function NonBankAccountFormModal({
+export default function PaymentGatewayAccountFormModal({
   visible,
   criminalCaseId,
   editingRecord,
   onClose,
-}: NonBankAccountFormModalProps) {
+}: PaymentGatewayAccountFormModalProps) {
   const [form] = Form.useForm()
   const isEdit = !!editingRecord && !editingRecord._is_new_from_cfr
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null)
   const isFromCfr = !!editingRecord && editingRecord._is_new_from_cfr
-  const [nonBanks, setNonBanks] = useState<any[]>([])
+  const [paymentGateways, setPaymentGateways] = useState<any[]>([])
   const [banks, setBanks] = useState<any[]>([])
-  const [showTransferDetails, setShowTransferDetails] = useState(false)
   const [transferDetails, setTransferDetails] = useState<TransferDetail[]>([])
   const MAX_TRANSFERS = 5
+  const MIN_TRANSFERS = 1  // ต้องมีอย่างน้อย 1 รายการ
 
   // Helper function: หาชื่อธนาคารจาก ID
   const getBankNameById = (bankId?: number): string => {
@@ -122,9 +122,9 @@ export default function NonBankAccountFormModal({
   }
 
   // ดึงรายการโอนที่มีอยู่แล้วในฐานข้อมูล
-  const fetchExistingTransactions = async (nonBankAccountId: number) => {
+  const fetchExistingTransactions = async (paymentGatewayAccountId: number) => {
     try {
-      const response = await api.get(`/non-bank-transactions/?non_bank_account_id=${nonBankAccountId}`)
+      const response = await api.get(`/payment-gateway-transactions/?payment_gateway_account_id=${paymentGatewayAccountId}`)
       const transactions = response.data
       
       console.log('📦 Fetched existing transactions:', transactions)
@@ -146,8 +146,6 @@ export default function NonBankAccountFormModal({
         
         console.log('✅ Formatted transactions:', formattedTransactions)
         setTransferDetails(formattedTransactions)
-        setShowTransferDetails(true)  // เปิด section อัตโนมัติ
-        form.setFieldsValue({ add_transfer_details: true })
         
         message.info(`พบรายการโอนที่บันทึกไว้แล้ว ${formattedTransactions.length} รายการ`)
       }
@@ -156,18 +154,18 @@ export default function NonBankAccountFormModal({
     }
   }
 
-  // ดึงรายชื่อผู้ให้บริการ
+  // ดึงรายชื่อ Payment Gateway Payment Gateway
   useEffect(() => {
-    const fetchNonBanks = async () => {
+    const fetchPaymentGateways = async () => {
       try {
-        const response = await api.get('/non-banks/')
-        setNonBanks(response.data)
+        const response = await api.get('/payment-gateways/')
+        setPaymentGateways(response.data)
       } catch (error) {
-        console.error('Error fetching non-banks:', error)
+        console.error('Error fetching payment gateways:', error)
       }
     }
     if (visible) {
-      fetchNonBanks()
+      fetchPaymentGateways()
     }
   }, [visible])
 
@@ -190,6 +188,10 @@ export default function NonBankAccountFormModal({
     if (visible) {
       if (editingRecord) {
         // แก้ไข - ใส่ค่าเดิม
+        console.log('🔍 Editing record:', editingRecord)
+        console.log('🏦 Bank ID from record:', editingRecord.bank_id)
+        console.log('💳 Payment Gateway ID from record:', editingRecord.payment_gateway_id)
+        
         form.setFieldsValue({
           ...editingRecord,
           document_date: editingRecord.document_date
@@ -227,7 +229,6 @@ export default function NonBankAccountFormModal({
         // เพิ่มใหม่ - reset form
         form.resetFields()
         setDateRange(null) // reset date range
-        setShowTransferDetails(false) // reset transfer details
         setTransferDetails([]) // reset transfer list
         const today = dayjs()
         const deliveryDate = today.add(14, 'day')
@@ -241,14 +242,23 @@ export default function NonBankAccountFormModal({
       }
     } else {
       // เมื่อปิด modal ให้ reset
-      setShowTransferDetails(false)
       setTransferDetails([])
     }
   }, [visible, editingRecord, criminalCaseId, form])
 
   const handleSubmit = async () => {
     try {
+      // Validate: ต้องมีรายการโอนอย่างน้อย 1 รายการ
+      if (transferDetails.length < MIN_TRANSFERS) {
+        message.error(`กรุณาเพิ่มรายละเอียดการโอนอย่างน้อย ${MIN_TRANSFERS} รายการ`)
+        return
+      }
+
       const values = await form.validateFields()
+
+      console.log('📝 Form values:', values)
+      console.log('🏦 Bank ID:', values.bank_id)
+      console.log('💳 Payment Gateway ID:', values.payment_gateway_id)
 
       // แปลง dates เป็น string
       const payload = {
@@ -264,16 +274,20 @@ export default function NonBankAccountFormModal({
         time_period: dateRange ? formatDateRangeToThai(dateRange) : values.time_period,
       }
 
-      let nonBankAccountId = editingRecord?.id
+      console.log('📤 Payload:', payload)
+
+      let paymentGatewayAccountId = editingRecord?.id
 
       try {
         if (isEdit) {
-          await api.put(`/non-bank-accounts/${editingRecord.id}`, payload)
-          message.success('แก้ไขบัญชีผู้ให้บริการสำเร็จ')
+          const response = await api.put(`/payment-gateway-accounts/${editingRecord.id}`, payload)
+          console.log('✅ Updated account:', response.data)
+          message.success('แก้ไขบัญชี Payment Gateway สำเร็จ')
         } else {
-          const response = await api.post('/non-bank-accounts/', payload)
-          nonBankAccountId = response.data.id
-          message.success('เพิ่มบัญชีผู้ให้บริการสำเร็จ')
+          const response = await api.post('/payment-gateway-accounts/', payload)
+          paymentGatewayAccountId = response.data.id
+          console.log('✅ Created account:', response.data)
+          message.success('เพิ่มบัญชี Payment Gateway สำเร็จ')
         }
       } catch (err: any) {
         // ถ้า token หมดอายุ (401) จะถูก handle โดย interceptor
@@ -287,7 +301,7 @@ export default function NonBankAccountFormModal({
       }
 
       // ถ้ามีรายการโอน ให้บันทึกเฉพาะรายการใหม่
-      if (transferDetails.length > 0 && nonBankAccountId) {
+      if (transferDetails.length > 0 && paymentGatewayAccountId) {
         let successCount = 0
         let failCount = 0
 
@@ -302,11 +316,11 @@ export default function NonBankAccountFormModal({
           // รายการใหม่ - ให้ POST
           const transactionPayload = {
             criminal_case_id: criminalCaseId,
-            non_bank_account_id: nonBankAccountId,
+            payment_gateway_account_id: paymentGatewayAccountId,
             source_bank_id: transfer.source_bank_id,
             source_account_number: transfer.source_account_number,
             source_account_name: transfer.source_account_name,
-            destination_non_bank_id: values.non_bank_id,
+            destination_bank_id: values.bank_id,
             destination_account_number: values.account_number,
             destination_account_name: values.account_name,
             transfer_date: transfer.transfer_date,
@@ -317,7 +331,7 @@ export default function NonBankAccountFormModal({
 
           try {
             console.log('➕ Adding new transaction:', transactionPayload)
-            await api.post('/non-bank-transactions/', transactionPayload)
+            await api.post('/payment-gateway-transactions/', transactionPayload)
             successCount++
           } catch (err: any) {
             if (err.message === 'Session หมดอายุ กรุณา login ใหม่') {
@@ -341,7 +355,6 @@ export default function NonBankAccountFormModal({
       }
 
       form.resetFields()
-      setShowTransferDetails(false)
       setTransferDetails([])
       onClose(true)
     } catch (err: any) {
@@ -351,7 +364,7 @@ export default function NonBankAccountFormModal({
         // Token หมดอายุ - interceptor จะ redirect
         return
       } else {
-        const errorMsg = err.response?.data?.detail || (isEdit ? 'ไม่สามารถแก้ไขบัญชีผู้ให้บริการได้' : 'ไม่สามารถเพิ่มบัญชีผู้ให้บริการได้')
+        const errorMsg = err.response?.data?.detail || (isEdit ? 'ไม่สามารถแก้ไขบัญชี Payment Gatewayได้' : 'ไม่สามารถเพิ่มบัญชี Payment Gatewayได้')
         message.error(errorMsg)
         console.error('Error:', err)
       }
@@ -414,7 +427,7 @@ export default function NonBankAccountFormModal({
     // ถ้าเป็นรายการเดิมที่บันทึกในฐานข้อมูลแล้ว ต้องลบจากฐานข้อมูลด้วย
     if (transfer?._existing_id) {
       try {
-        await api.delete(`/non-bank-transactions/${transfer._existing_id}`)
+        await api.delete(`/payment-gateway-transactions/${transfer._existing_id}`)
         console.log('🗑️ Deleted existing transaction from database:', transfer._existing_id)
         message.success('ลบรายการโอนจากฐานข้อมูลเรียบร้อย')
       } catch (err) {
@@ -433,14 +446,13 @@ export default function NonBankAccountFormModal({
   const handleCancel = () => {
     form.resetFields()
     setDateRange(null)
-    setShowTransferDetails(false)
     setTransferDetails([])
     onClose(false)
   }
 
   return (
     <Modal
-      title={isEdit ? 'แก้ไขบัญชีผู้ให้บริการ' : 'เพิ่มบัญชีผู้ให้บริการ'}
+      title={isEdit ? 'แก้ไขบัญชี Payment Gateway' : 'เพิ่มบัญชี Payment Gateway'}
       open={visible}
       onOk={handleSubmit}
       onCancel={handleCancel}
@@ -479,14 +491,14 @@ export default function NonBankAccountFormModal({
             </h4>
           </Col>
 
-          <Col span={24}>
+          <Col span={12}>
             <Form.Item
-              label="ชื่อผู้ให้บริการ"
-              name="non_bank_id"
-              rules={[{ required: true, message: 'กรุณาเลือกผู้ให้บริการ' }]}
+              label="ชื่อ Payment Gateway"
+              name="payment_gateway_id"
+              rules={[{ required: true, message: 'กรุณาเลือก Payment Gateway' }]}
             >
               <Select
-                placeholder="เลือกผู้ให้บริการ"
+                placeholder="เลือก Payment Gateway"
                 showSearch
                 filterOption={(input, option) =>
                   (option?.children?.toString() || '')
@@ -494,9 +506,33 @@ export default function NonBankAccountFormModal({
                     .includes(input.toLowerCase())
                 }
               >
-                {nonBanks.map((nonBank) => (
-                  <Option key={nonBank.id} value={nonBank.id}>
-                    {nonBank.company_name}
+                {paymentGateways.map((pg) => (
+                  <Option key={pg.id} value={pg.id}>
+                    {pg.company_name}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Col>
+
+          <Col span={12}>
+            <Form.Item
+              label="ธนาคาร"
+              name="bank_id"
+              rules={[{ required: true, message: 'กรุณาเลือกธนาคาร' }]}
+            >
+              <Select
+                placeholder="เลือกธนาคาร"
+                showSearch
+                filterOption={(input, option) =>
+                  (option?.children?.toString() || '')
+                    .toLowerCase()
+                    .includes(input.toLowerCase())
+                }
+              >
+                {banks.map((bank) => (
+                  <Option key={bank.id} value={bank.id}>
+                    {bank.bank_name}
                   </Option>
                 ))}
               </Select>
@@ -552,31 +588,14 @@ export default function NonBankAccountFormModal({
             </Form.Item>
           </Col>
 
-          <Col span={24}>
-            <p style={{ marginTop: 8, color: '#888', fontSize: '13px' }}>
-              📍 หมายเหตุ: ที่อยู่จะดึงจากข้อมูลสำนักงานของผู้ให้บริการโดยอัตโนมัติ
-            </p>
-          </Col>
-
-          {/* เพิ่มรายละเอียดการโอน */}
+          {/* รายละเอียดการโอนเงิน (บังคับ) */}
           <Col span={24}>
             <h4 style={{ marginTop: 16, marginBottom: 12, color: '#1890ff' }}>
-              รายละเอียดการโอนเงิน (ถ้ามี)
+              รายละเอียดการโอนเงิน (บังคับ อย่างน้อย 1 รายการ)
             </h4>
           </Col>
 
-          <Col span={24}>
-            <Form.Item name="add_transfer_details" valuePropName="checked">
-              <Switch
-                checkedChildren="แสดงฟิลด์รายละเอียดการโอน"
-                unCheckedChildren="ไม่ต้องเพิ่มรายละเอียดการโอน"
-                onChange={(checked) => setShowTransferDetails(checked)}
-              />
-            </Form.Item>
-          </Col>
-
-          {showTransferDetails && (
-            <>
+          <>
               {/* บัญชีต้นทาง */}
               <Col span={24}>
                 <h4 style={{ marginTop: 8, marginBottom: 8, color: '#52c41a' }}>
@@ -622,17 +641,17 @@ export default function NonBankAccountFormModal({
                   2. บัญชีปลายทาง (Destination Account)
                 </h4>
                 <p style={{ fontSize: '13px', color: '#888', marginTop: -4, marginBottom: 8 }}>
-                  ข้อมูลจะถูกดึงจากข้อมูลผู้ให้บริการด้านบนโดยอัตโนมัติ
+                  ข้อมูลจะถูกดึงจากข้อมูลด้านบนโดยอัตโนมัติ
                 </p>
               </Col>
 
               <Col span={8}>
-                <Form.Item label="ผู้ให้บริการ">
+                <Form.Item label="ธนาคาร">
                   <Input 
                     disabled 
                     value={
-                      form.getFieldValue('non_bank_id')
-                        ? nonBanks.find(b => b.id === form.getFieldValue('non_bank_id'))?.company_name || '-'
+                      form.getFieldValue('bank_id')
+                        ? banks.find(b => b.id === form.getFieldValue('bank_id'))?.bank_name || '-'
                         : '-'
                     } 
                   />
@@ -781,7 +800,6 @@ export default function NonBankAccountFormModal({
                 </Col>
               )}
             </>
-          )}
 
           {/* ข้อมูลการส่งเอกสาร */}
           <Col span={24}>
@@ -806,11 +824,18 @@ export default function NonBankAccountFormModal({
             </Form.Item>
           </Col>
 
-          {/* หมายเหตุ */}
+          {/* บันทึกเพิ่มเติม */}
           <Col span={24}>
-            <Form.Item label="หมายเหตุ" name="notes">
+            <Form.Item label="บันทึกเพิ่มเติม" name="notes">
               <TextArea rows={3} placeholder="บันทึกข้อมูลเพิ่มเติม..." />
             </Form.Item>
+          </Col>
+
+          {/* หมายเหตุที่อยู่ */}
+          <Col span={24}>
+            <p style={{ marginTop: 8, color: '#888', fontSize: '13px' }}>
+              📍 หมายเหตุ: ที่อยู่จะดึงจากข้อมูลสำนักงานของผู้ให้บริการโดยอัตโนมัติ
+            </p>
           </Col>
         </Row>
       </Form>
