@@ -54,3 +54,10 @@ uploads/*
 # *.xlsx
 # *.xls
 
+# Export packages (ห้ามอัพโฟลเดอร์ export)
+criminal-case-export/
+criminal-case-images.tar
+criminal-case-database.sql
+criminal-case-uploads/
+criminal-case-management-*.zip
+
