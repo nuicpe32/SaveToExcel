@@ -1600,7 +1600,7 @@ export default function DashboardPage() {
       >
         {selected && (
           <Tabs defaultActiveKey="general">
-            <Tabs.TabPane tab="ข้อมูลทั่วไป" key="general">
+            <Tabs.TabPane tab="📋 ข้อมูลทั่วไป" key="general">
               <Descriptions column={2} bordered>
                 <Descriptions.Item label="เลขที่คดี">{selected.case_number || '-'}</Descriptions.Item>
                 <Descriptions.Item label="CaseID">{selected.case_id || '-'}</Descriptions.Item>
@@ -1931,7 +1931,7 @@ export default function DashboardPage() {
               </Card>
             </Tabs.TabPane>
 
-            <Tabs.TabPane tab={`บัญชีธนาคารที่เกี่ยวข้อง (${bankAccounts.length})`} key="bank-accounts">
+            <Tabs.TabPane tab={`🏦 บัญชีธนาคารที่เกี่ยวข้อง (${bankAccounts.length})`} key="bank-accounts">
               <Space style={{ marginBottom: 16 }}>
                 <Button
                   type="primary"
@@ -2159,7 +2159,7 @@ export default function DashboardPage() {
               />
             </Tabs.TabPane>
 
-            <Tabs.TabPane tab={`Non-Bank (${nonBankAccounts.length})`} key="non-bank-accounts">
+            <Tabs.TabPane tab={`🏪 Non-Bank (${nonBankAccounts.length})`} key="non-bank-accounts">
               <Space style={{ marginBottom: 16 }}>
                 <Button
                   type="primary"
@@ -2322,7 +2322,7 @@ export default function DashboardPage() {
               />
             </Tabs.TabPane>
 
-            <Tabs.TabPane tab={`Payment Gateway (${paymentGatewayAccounts.length})`} key="payment-gateway-accounts">
+            <Tabs.TabPane tab={`💳 Payment Gateway (${paymentGatewayAccounts.length})`} key="payment-gateway-accounts">
               <Space style={{ marginBottom: 16 }}>
                 <Button
                   type="primary"
@@ -2584,7 +2584,7 @@ export default function DashboardPage() {
               />
             </Tabs.TabPane>
 
-            <Tabs.TabPane tab={`หมายเลขโทรศัพท์ (${telcoMobileAccounts.length})`} key="telco-mobile-accounts">
+            <Tabs.TabPane tab={`📱 หมายเลขโทรศัพท์ (${telcoMobileAccounts.length})`} key="telco-mobile-accounts">
               <Space style={{ marginBottom: 16 }}>
                 <Button
                   type="primary"
@@ -2692,7 +2692,7 @@ export default function DashboardPage() {
               />
             </Tabs.TabPane>
 
-            <Tabs.TabPane tab={`IP Address (${telcoInternetAccounts.length})`} key="telco-internet-accounts">
+            <Tabs.TabPane tab={`🌐 IP Address (${telcoInternetAccounts.length})`} key="telco-internet-accounts">
               <Space style={{ marginBottom: 16 }}>
                 <Button
                   type="primary"
@@ -2800,7 +2800,7 @@ export default function DashboardPage() {
               />
             </Tabs.TabPane>
 
-            <Tabs.TabPane tab={`ผู้ต้องหาที่เกี่ยวข้อง (${suspects.length})`} key="suspects">
+            <Tabs.TabPane tab={`👤 ผู้ต้องหาที่เกี่ยวข้อง (${suspects.length})`} key="suspects">
 
               <Space style={{ marginBottom: 16 }}>
                 <Button
