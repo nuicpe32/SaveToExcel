@@ -8,6 +8,8 @@ import { useAuthStore } from '../stores/authStore'
 import BankAccountFormModal from '../components/BankAccountFormModal'
 import NonBankAccountFormModal from '../components/NonBankAccountFormModal'
 import PaymentGatewayAccountFormModal from '../components/PaymentGatewayAccountFormModal'
+import TelcoMobileAccountFormModal from '../components/TelcoMobileAccountFormModal'
+import TelcoInternetAccountFormModal from '../components/TelcoInternetAccountFormModal'
 import SuspectFormModal from '../components/SuspectFormModal'
 import CfrFlowChart from '../components/CfrFlowChart'
 import dayjs from 'dayjs'
@@ -66,6 +68,32 @@ interface PaymentGatewayAccount {
   bank_name?: string
 }
 
+interface TelcoMobileAccount {
+  id: number
+  telco_mobile_id?: number
+  document_number?: string
+  document_date?: string
+  provider_name: string  // ชื่อผู้ให้บริการ
+  phone_number: string   // หมายเลขโทรศัพท์
+  time_period?: string
+  delivery_date?: string
+  reply_status: boolean
+  status: string
+}
+
+interface TelcoInternetAccount {
+  id: number
+  telco_internet_id?: number
+  document_number?: string
+  document_date?: string
+  provider_name: string  // ชื่อผู้ให้บริการ
+  ip_address: string     // IP Address
+  time_period?: string
+  delivery_date?: string
+  reply_status: boolean
+  status: string
+}
+
 interface Suspect {
   id: number
   document_number?: string
@@ -115,16 +143,22 @@ export default function DashboardPage() {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [nonBankAccounts, setNonBankAccounts] = useState<NonBankAccount[]>([])
   const [paymentGatewayAccounts, setPaymentGatewayAccounts] = useState<PaymentGatewayAccount[]>([])
+  const [telcoMobileAccounts, setTelcoMobileAccounts] = useState<TelcoMobileAccount[]>([])
+  const [telcoInternetAccounts, setTelcoInternetAccounts] = useState<TelcoInternetAccount[]>([])
   const [suspects, setSuspects] = useState<Suspect[]>([])
   const [loadingDetails, setLoadingDetails] = useState(false)
   const [suspectDetailOpen, setSuspectDetailOpen] = useState(false)
   const [selectedSuspect, setSelectedSuspect] = useState<Suspect | null>(null)
   const [bankModalVisible, setBankModalVisible] = useState(false)
   const [paymentGatewayModalVisible, setPaymentGatewayModalVisible] = useState(false)
+  const [telcoMobileModalVisible, setTelcoMobileModalVisible] = useState(false)
+  const [telcoInternetModalVisible, setTelcoInternetModalVisible] = useState(false)
   const [suspectModalVisible, setSuspectModalVisible] = useState(false)
   const [editingBank, setEditingBank] = useState<BankAccount | null>(null)
   const [editingNonBank, setEditingNonBank] = useState<NonBankAccount | null>(null)
   const [editingPaymentGateway, setEditingPaymentGateway] = useState<PaymentGatewayAccount | null>(null)
+  const [editingTelcoMobile, setEditingTelcoMobile] = useState<TelcoMobileAccount | null>(null)
+  const [editingTelcoInternet, setEditingTelcoInternet] = useState<TelcoInternetAccount | null>(null)
   const [nonBankModalVisible, setNonBankModalVisible] = useState(false)
   const [editingSuspect, setEditingSuspect] = useState<Suspect | null>(null)
   const [cfrFiles, setCfrFiles] = useState<any[]>([])
@@ -255,15 +289,19 @@ export default function DashboardPage() {
   const fetchCaseDetails = useCallback(async (caseId: number) => {
     try {
       setLoadingDetails(true)
-      const [bankRes, nonBankRes, paymentGatewayRes, suspectsRes] = await Promise.all([
+      const [bankRes, nonBankRes, paymentGatewayRes, telcoMobileRes, telcoInternetRes, suspectsRes] = await Promise.all([
         api.get<BankAccount[]>(`/criminal-cases/${caseId}/bank-accounts`),
         api.get<NonBankAccount[]>(`/non-bank-accounts/by-case/${caseId}`),
         api.get<PaymentGatewayAccount[]>(`/payment-gateway-accounts/by-case/${caseId}`),
+        api.get<TelcoMobileAccount[]>(`/telco-mobile-accounts/by-case/${caseId}`),
+        api.get<TelcoInternetAccount[]>(`/telco-internet-accounts/by-case/${caseId}`),
         api.get<Suspect[]>(`/criminal-cases/${caseId}/suspects`)
       ])
       setBankAccounts(bankRes.data)
       setNonBankAccounts(nonBankRes.data)
       setPaymentGatewayAccounts(paymentGatewayRes.data)
+      setTelcoMobileAccounts(telcoMobileRes.data)
+      setTelcoInternetAccounts(telcoInternetRes.data)
       setSuspects(suspectsRes.data)
     } catch (err) {
       message.error('ไม่สามารถดึงข้อมูลรายละเอียดคดีได้')
@@ -605,6 +643,35 @@ export default function DashboardPage() {
     navigate(`/edit-criminal-case/${record.id}`)
   }
 
+  const handlePrintCaseReport = async (record: CriminalCase) => {
+    try {
+      // ดึงข้อมูล HTML จาก API (ใช้ api client ที่มี token)
+      const response = await api.get(`/documents/case-report/${record.id}`, {
+        responseType: 'text'
+      })
+
+      // สร้าง Blob และ URL
+      const blob = new Blob([response.data], { type: 'text/html' })
+      const url = URL.createObjectURL(blob)
+
+      // เปิดหน้าต่างใหม่แบบเต็มจอ
+      const printWindow = window.open(url, '_blank', 'width=' + screen.width + ',height=' + screen.height)
+
+      if (!printWindow) {
+        message.error('ไม่สามารถเปิดหน้าต่างพิมพ์ได้ กรุณาอนุญาตให้เปิด popup')
+      } else {
+        // ขยายหน้าต่างให้เต็มจอ
+        printWindow.moveTo(0, 0)
+        printWindow.resizeTo(screen.width, screen.height)
+
+        // ทำความสะอาด URL หลังจาก 1 นาที
+        setTimeout(() => URL.revokeObjectURL(url), 60000)
+      }
+    } catch (error: any) {
+      message.error('ไม่สามารถสร้างรายงานคดีได้: ' + (error.response?.data?.detail || error.message))
+    }
+  }
+
   const handleDelete = async (record: CriminalCase) => {
     try {
       await api.delete(`/criminal-cases/${record.id}`)
@@ -917,6 +984,160 @@ export default function DashboardPage() {
       message.success('กำลังเปิดหน้าต่างพิมพ์ซองหมายเรียก Payment Gateway')
     } catch (err) {
       message.error('ไม่สามารถสร้างซองหมายเรียก Payment Gateway ได้')
+      console.error(err)
+    }
+  }
+
+  // ==================== Telco Mobile Handlers ====================
+
+  const handleAddTelcoMobile = () => {
+    setEditingTelcoMobile(null)
+    setTelcoMobileModalVisible(true)
+  }
+
+  const handleEditTelcoMobile = (record: TelcoMobileAccount) => {
+    setEditingTelcoMobile(record)
+    setTelcoMobileModalVisible(true)
+  }
+
+  const handleDeleteTelcoMobile = async (id: number) => {
+    try {
+      await api.delete(`/telco-mobile-accounts/${id}`)
+      message.success('ลบหมายเลขโทรศัพท์สำเร็จ')
+      if (selected) {
+        fetchCaseDetails(selected.id)
+      }
+    } catch (err) {
+      message.error('ไม่สามารถลบหมายเลขโทรศัพท์ได้')
+    }
+  }
+
+  const handleTelcoMobileModalClose = (success?: boolean) => {
+    setTelcoMobileModalVisible(false)
+    setEditingTelcoMobile(null)
+    if (success && selected) {
+      fetchCaseDetails(selected.id)
+    }
+  }
+
+  const handlePrintTelcoMobileSummons = async (telcoMobileAccountId: number, freezeAccount: boolean = false) => {
+    try {
+      const response = await api.get(`/documents/telco-mobile-summons/${telcoMobileAccountId}?freeze_account=${freezeAccount}`, {
+        responseType: 'blob'
+      })
+      const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
+      const url = window.URL.createObjectURL(blob)
+      const printWindow = window.open(url, '_blank')
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => printWindow.print(), 500)
+        }
+      }
+      message.success('กำลังเปิดหน้าต่างพิมพ์หมายเรียกข้อมูลโทรศัพท์')
+    } catch (err) {
+      message.error('ไม่สามารถสร้างหมายเรียกข้อมูลโทรศัพท์ได้')
+      console.error(err)
+    }
+  }
+
+  const handlePrintTelcoMobileEnvelope = async (telcoMobileAccountId: number) => {
+    try {
+      const response = await api.get(`/documents/telco-mobile-envelope/${telcoMobileAccountId}`, {
+        responseType: 'blob'
+      })
+
+      const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
+      const url = window.URL.createObjectURL(blob)
+      const printWindow = window.open(url, '_blank')
+
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print()
+          }, 500)
+        }
+      }
+
+      message.success('กำลังเปิดหน้าต่างพิมพ์ซองหมายเรียกข้อมูลโทรศัพท์')
+    } catch (err) {
+      message.error('ไม่สามารถสร้างซองหมายเรียกข้อมูลโทรศัพท์ได้')
+      console.error(err)
+    }
+  }
+
+  // ==================== Telco Internet (IP Address) Handlers ====================
+
+  const handleAddTelcoInternet = () => {
+    setEditingTelcoInternet(null)
+    setTelcoInternetModalVisible(true)
+  }
+
+  const handleEditTelcoInternet = (record: TelcoInternetAccount) => {
+    setEditingTelcoInternet(record)
+    setTelcoInternetModalVisible(true)
+  }
+
+  const handleDeleteTelcoInternet = async (id: number) => {
+    try {
+      await api.delete(`/telco-internet-accounts/${id}`)
+      message.success('ลบ IP Address สำเร็จ')
+      if (selected) {
+        fetchCaseDetails(selected.id)
+      }
+    } catch (err) {
+      message.error('ไม่สามารถลบ IP Address ได้')
+    }
+  }
+
+  const handleTelcoInternetModalClose = (success?: boolean) => {
+    setTelcoInternetModalVisible(false)
+    setEditingTelcoInternet(null)
+    if (success && selected) {
+      fetchCaseDetails(selected.id)
+    }
+  }
+
+  const handlePrintTelcoInternetSummons = async (telcoInternetAccountId: number, freezeAccount: boolean = false) => {
+    try {
+      const response = await api.get(`/documents/telco-internet-summons/${telcoInternetAccountId}?freeze_account=${freezeAccount}`, {
+        responseType: 'blob'
+      })
+      const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
+      const url = window.URL.createObjectURL(blob)
+      const printWindow = window.open(url, '_blank')
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => printWindow.print(), 500)
+        }
+      }
+      message.success('กำลังเปิดหน้าต่างพิมพ์หมายเรียกข้อมูล IP Address')
+    } catch (err) {
+      message.error('ไม่สามารถสร้างหมายเรียกข้อมูล IP Address ได้')
+      console.error(err)
+    }
+  }
+
+  const handlePrintTelcoInternetEnvelope = async (telcoInternetAccountId: number) => {
+    try {
+      const response = await api.get(`/documents/telco-internet-envelope/${telcoInternetAccountId}`, {
+        responseType: 'blob'
+      })
+
+      const blob = new Blob([response.data], { type: 'text/html; charset=utf-8' })
+      const url = window.URL.createObjectURL(blob)
+      const printWindow = window.open(url, '_blank')
+
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print()
+          }, 500)
+        }
+      }
+
+      message.success('กำลังเปิดหน้าต่างพิมพ์ซองหมายเรียกข้อมูล IP Address')
+    } catch (err) {
+      message.error('ไม่สามารถสร้างซองหมายเรียกข้อมูล IP Address ได้')
       console.error(err)
     }
   }
@@ -1266,6 +1487,13 @@ export default function DashboardPage() {
             type="text"
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
+            title="แก้ไขคดี"
+          />
+          <Button
+            type="text"
+            icon={<PrinterOutlined />}
+            onClick={() => handlePrintCaseReport(record)}
+            title="พิมพ์รายงานคดี"
           />
           <Popconfirm
             title="คุณแน่ใจหรือไม่ที่จะลบคดีนี้?"
@@ -1277,6 +1505,7 @@ export default function DashboardPage() {
               type="text"
               danger
               icon={<DeleteOutlined />}
+              title="ลบคดี"
             />
           </Popconfirm>
         </Space>
@@ -2355,6 +2584,222 @@ export default function DashboardPage() {
               />
             </Tabs.TabPane>
 
+            <Tabs.TabPane tab={`หมายเลขโทรศัพท์ (${telcoMobileAccounts.length})`} key="telco-mobile-accounts">
+              <Space style={{ marginBottom: 16 }}>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={handleAddTelcoMobile}
+                >
+                  เพิ่มหมายเลขโทรศัพท์
+                </Button>
+              </Space>
+              <Table
+                dataSource={telcoMobileAccounts}
+                loading={loadingDetails}
+                rowKey="id"
+                size="small"
+                rowClassName={(record) => record.reply_status ? 'row-green' : ''}
+                columns={[
+                  {
+                    title: 'เลขหนังสือ',
+                    dataIndex: 'document_number',
+                    key: 'document_number',
+                    render: (value) => value || '-',
+                  },
+                  {
+                    title: 'ลงวันที่',
+                    dataIndex: 'document_date',
+                    key: 'document_date',
+                    render: (date) => formatThaiDate(date),
+                  },
+                  {
+                    title: 'ชื่อผู้ให้บริการ',
+                    dataIndex: 'provider_name',
+                    key: 'provider_name',
+                  },
+                  {
+                    title: 'หมายเลขโทรศัพท์',
+                    dataIndex: 'phone_number',
+                    key: 'phone_number',
+                  },
+                  {
+                    title: 'สถานะตอบกลับ',
+                    dataIndex: 'reply_status',
+                    key: 'reply_status',
+                    render: (reply_status: boolean, record: TelcoMobileAccount) => {
+                      if (reply_status) {
+                        return <Tag color="green">ตอบกลับแล้ว</Tag>
+                      } else {
+                        const daysSince = calculateDaysSinceSent(record.document_date)
+                        return (
+                          <div>
+                            <Tag color="red">ยังไม่ตอบกลับ</Tag>
+                            <br />
+                            <small>ส่งไปแล้ว {daysSince}</small>
+                          </div>
+                        )
+                      }
+                    },
+                  },
+                  {
+                    title: 'การจัดการ',
+                    key: 'action',
+                    render: (_, record) => (
+                      <Space size="small" direction="vertical">
+                        <Space size="small">
+                          <Button
+                            type="link"
+                            size="small"
+                            icon={<EditOutlined />}
+                            onClick={() => handleEditTelcoMobile(record)}
+                          >
+                            แก้ไข
+                          </Button>
+                          <Popconfirm
+                            title="ยืนยันการลบหมายเลขโทรศัพท์?"
+                            onConfirm={() => handleDeleteTelcoMobile(record.id)}
+                            okText="ยืนยัน"
+                            cancelText="ยกเลิก"
+                          >
+                            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                              ลบ
+                            </Button>
+                          </Popconfirm>
+                        </Space>
+                        <Button
+                          type="primary"
+                          size="small"
+                          icon={<PrinterOutlined />}
+                          onClick={() => handlePrintTelcoMobileSummons(record.id)}
+                          block
+                        >
+                          ปริ้นหมายเรียก
+                        </Button>
+                        <Button
+                          size="small"
+                          icon={<PrinterOutlined />}
+                          onClick={() => handlePrintTelcoMobileEnvelope(record.id)}
+                          block
+                        >
+                          ปริ้นซองหมายเรียก
+                        </Button>
+                      </Space>
+                    ),
+                  },
+                ]}
+                pagination={false}
+              />
+            </Tabs.TabPane>
+
+            <Tabs.TabPane tab={`IP Address (${telcoInternetAccounts.length})`} key="telco-internet-accounts">
+              <Space style={{ marginBottom: 16 }}>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={handleAddTelcoInternet}
+                >
+                  เพิ่ม IP Address
+                </Button>
+              </Space>
+              <Table
+                dataSource={telcoInternetAccounts}
+                loading={loadingDetails}
+                rowKey="id"
+                size="small"
+                rowClassName={(record) => record.reply_status ? 'row-green' : ''}
+                columns={[
+                  {
+                    title: 'เลขหนังสือ',
+                    dataIndex: 'document_number',
+                    key: 'document_number',
+                    render: (value) => value || '-',
+                  },
+                  {
+                    title: 'ลงวันที่',
+                    dataIndex: 'document_date',
+                    key: 'document_date',
+                    render: (date) => formatThaiDate(date),
+                  },
+                  {
+                    title: 'ชื่อผู้ให้บริการ',
+                    dataIndex: 'provider_name',
+                    key: 'provider_name',
+                  },
+                  {
+                    title: 'IP Address',
+                    dataIndex: 'ip_address',
+                    key: 'ip_address',
+                  },
+                  {
+                    title: 'สถานะตอบกลับ',
+                    dataIndex: 'reply_status',
+                    key: 'reply_status',
+                    render: (reply_status: boolean, record: TelcoInternetAccount) => {
+                      if (reply_status) {
+                        return <Tag color="green">ตอบกลับแล้ว</Tag>
+                      } else {
+                        const daysSince = calculateDaysSinceSent(record.document_date)
+                        return (
+                          <div>
+                            <Tag color="red">ยังไม่ตอบกลับ</Tag>
+                            <br />
+                            <small>ส่งไปแล้ว {daysSince}</small>
+                          </div>
+                        )
+                      }
+                    },
+                  },
+                  {
+                    title: 'การจัดการ',
+                    key: 'action',
+                    render: (_, record) => (
+                      <Space size="small" direction="vertical">
+                        <Space size="small">
+                          <Button
+                            type="link"
+                            size="small"
+                            icon={<EditOutlined />}
+                            onClick={() => handleEditTelcoInternet(record)}
+                          >
+                            แก้ไข
+                          </Button>
+                          <Popconfirm
+                            title="ยืนยันการลบ IP Address?"
+                            onConfirm={() => handleDeleteTelcoInternet(record.id)}
+                            okText="ยืนยัน"
+                            cancelText="ยกเลิก"
+                          >
+                            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                              ลบ
+                            </Button>
+                          </Popconfirm>
+                        </Space>
+                        <Button
+                          type="primary"
+                          size="small"
+                          icon={<PrinterOutlined />}
+                          onClick={() => handlePrintTelcoInternetSummons(record.id)}
+                          block
+                        >
+                          ปริ้นหมายเรียก
+                        </Button>
+                        <Button
+                          size="small"
+                          icon={<PrinterOutlined />}
+                          onClick={() => handlePrintTelcoInternetEnvelope(record.id)}
+                          block
+                        >
+                          ปริ้นซองหมายเรียก
+                        </Button>
+                      </Space>
+                    ),
+                  },
+                ]}
+                pagination={false}
+              />
+            </Tabs.TabPane>
+
             <Tabs.TabPane tab={`ผู้ต้องหาที่เกี่ยวข้อง (${suspects.length})`} key="suspects">
 
               <Space style={{ marginBottom: 16 }}>
@@ -2625,6 +3070,20 @@ export default function DashboardPage() {
         criminalCaseId={selected?.id || 0}
         editingRecord={editingPaymentGateway}
         onClose={handlePaymentGatewayModalClose}
+      />
+
+      <TelcoMobileAccountFormModal
+        visible={telcoMobileModalVisible}
+        criminalCaseId={selected?.id || 0}
+        editingRecord={editingTelcoMobile}
+        onClose={handleTelcoMobileModalClose}
+      />
+
+      <TelcoInternetAccountFormModal
+        visible={telcoInternetModalVisible}
+        criminalCaseId={selected?.id || 0}
+        editingRecord={editingTelcoInternet}
+        onClose={handleTelcoInternetModalClose}
       />
 
       <SuspectFormModal

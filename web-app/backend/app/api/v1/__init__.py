@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from . import auth, bank_accounts, non_bank_accounts, non_bank_transactions, payment_gateway_accounts, payment_gateway_transactions, suspects, criminal_cases, post_arrests, documents, case_types, courts, pdf_parser, police_stations, user_registration, admin_users, cfr_upload
+from . import auth, bank_accounts, non_bank_accounts, non_bank_transactions, payment_gateway_accounts, payment_gateway_transactions, telco_mobile_accounts, telco_internet_accounts, suspects, criminal_cases, post_arrests, documents, case_types, courts, pdf_parser, police_stations, user_registration, admin_users, cfr_upload
 from .endpoints import banks, non_banks, payment_gateways, telco_mobile, telco_internet, exchanges, organizations
 
 api_router = APIRouter()
@@ -20,6 +20,8 @@ api_router.include_router(non_bank_accounts.router, prefix="/non-bank-accounts",
 api_router.include_router(payment_gateway_accounts.router, prefix="/payment-gateway-accounts", tags=["payment-gateway-accounts"])
 api_router.include_router(non_bank_transactions.router, prefix="/non-bank-transactions", tags=["non-bank-transactions"])
 api_router.include_router(payment_gateway_transactions.router, prefix="/payment-gateway-transactions", tags=["payment-gateway-transactions"])
+api_router.include_router(telco_mobile_accounts.router, prefix="/telco-mobile-accounts", tags=["telco-mobile-accounts"])
+api_router.include_router(telco_internet_accounts.router, prefix="/telco-internet-accounts", tags=["telco-internet-accounts"])
 api_router.include_router(suspects.router, prefix="/suspects", tags=["suspects"])
 api_router.include_router(criminal_cases.router, prefix="/criminal-cases", tags=["criminal-cases"])
 api_router.include_router(post_arrests.router, prefix="/post-arrests", tags=["post-arrests"])

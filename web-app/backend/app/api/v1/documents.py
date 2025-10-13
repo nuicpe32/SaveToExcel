@@ -2,13 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 from sqlalchemy.orm import Session
 from app.core import get_db
-from app.models import User, BankAccount, Suspect, CriminalCase, Bank
+from app.models import User, BankAccount, Suspect, CriminalCase, Bank, TelcoMobileAccount, TelcoMobile, TelcoInternetAccount, TelcoInternet
 from app.models.non_bank_account import NonBankAccount
 from app.models.non_bank import NonBank
 from app.services import DocumentGenerator
 from app.services.bank_summons_generator import BankSummonsGenerator
 from app.services.non_bank_summons_generator import NonBankSummonsGenerator
 from app.services.payment_gateway_summons_generator import PaymentGatewaySummonsGenerator
+from app.services.telco_mobile_summons_generator import TelcoMobileSummonsGenerator
+from app.services.telco_internet_summons_generator import TelcoInternetSummonsGenerator
 from app.services.suspect_summons_generator import suspect_summons_generator
 from app.api.v1.auth import get_current_user
 import os
@@ -19,6 +21,8 @@ doc_generator = DocumentGenerator()
 summons_generator = BankSummonsGenerator()
 non_bank_summons_generator = NonBankSummonsGenerator()
 payment_gateway_summons_generator = PaymentGatewaySummonsGenerator()
+telco_mobile_summons_generator = TelcoMobileSummonsGenerator()
+telco_internet_summons_generator = TelcoInternetSummonsGenerator()
 
 @router.get("/bank-account/{bank_account_id}")
 def generate_bank_account_document(
@@ -149,17 +153,17 @@ def generate_bank_envelope_html(
                 bank_name_search = f"%{bank_account.bank_name.replace('ธนาคาร', '').strip()}%"
                 bank = db.query(Bank).filter(Bank.bank_name.like(bank_name_search)).first()
             
-            if bank:
-                bank_address = {
-                    'bank_address': bank.bank_address,
-                    'soi': bank.soi,
-                    'moo': bank.moo,
-                    'road': bank.road,
-                    'sub_district': bank.sub_district,
-                    'district': bank.district,
-                    'province': bank.province,
-                    'postal_code': bank.postal_code,
-                }
+        if bank:
+            bank_address = {
+                'bank_address': bank.bank_address,
+                'soi': bank.soi,
+                'moo': bank.moo,
+                'road': bank.road,
+                'sub_district': bank.sub_district,
+                'district': bank.district,
+                'province': bank.province,
+                'postal_code': bank.postal_code,
+            }
     
     # สร้าง HTML
     html_content = summons_generator.generate_envelope_html(bank_data, bank_address)
@@ -276,7 +280,7 @@ def generate_non_bank_summons_html(
     ).first()
     if not criminal_case:
         raise HTTPException(status_code=404, detail="Criminal case not found")
-    
+
     # ดึงข้อมูลผู้ให้บริการจาก non_banks table
     provider_name = ''
     if non_bank_account.non_bank_id:
@@ -384,7 +388,7 @@ def generate_non_bank_envelope_html(
     html_content = non_bank_summons_generator.generate_envelope_html(non_bank_data, non_bank_address)
     
     return HTMLResponse(content=html_content, media_type="text/html; charset=utf-8")
-
+        
 # ==================== Payment Gateway Summons Endpoints ====================
 
 @router.get("/payment-gateway-summons/{payment_gateway_account_id}", response_class=HTMLResponse)
@@ -531,5 +535,257 @@ def generate_payment_gateway_envelope_html(
     
     # สร้าง HTML
     html_content = payment_gateway_summons_generator.generate_envelope_html(pg_data, pg_address)
+    
+    return HTMLResponse(content=html_content, media_type="text/html; charset=utf-8")
+
+# ============================================
+# Telco Mobile (โทรศัพท์มือถือ) Document Endpoints
+# ============================================
+
+@router.get("/telco-mobile-summons/{telco_account_id}", response_class=HTMLResponse)
+def generate_telco_mobile_summons_html(
+    telco_account_id: int,
+    freeze_account: bool = False,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """สร้างหมายเรียกข้อมูลโทรศัพท์ (HTML) สำหรับรายการเดียว
+    
+    Args:
+        freeze_account: True = อายัดบัญชี, False = ไม่อายัดบัญชี (default)
+    """
+    
+    # ดึงข้อมูลหมายเลขโทรศัพท์
+    telco_account = db.query(TelcoMobileAccount).filter(
+        TelcoMobileAccount.id == telco_account_id
+    ).first()
+    if not telco_account:
+        raise HTTPException(status_code=404, detail="Telco mobile account not found")
+    
+    # ดึงข้อมูลคดี
+    criminal_case = db.query(CriminalCase).filter(
+        CriminalCase.id == telco_account.criminal_case_id
+    ).first()
+    if not criminal_case:
+        raise HTTPException(status_code=404, detail="Criminal case not found")
+    
+    # ดึงข้อมูล company_name จาก telco_mobile (สำหรับใช้ในเรียน)
+    company_name = telco_account.provider_name  # default
+    if telco_account.telco_mobile_id:
+        telco_mobile = db.query(TelcoMobile).filter(
+            TelcoMobile.id == telco_account.telco_mobile_id
+        ).first()
+        if telco_mobile and telco_mobile.company_name:
+            company_name = telco_mobile.company_name
+    
+    # แปลงข้อมูลเป็น dict
+    telco_data = {
+        'id': telco_account.id,
+        'document_number': telco_account.document_number,
+        'document_date': telco_account.document_date,
+        'provider_name': telco_account.provider_name,
+        'company_name': company_name,  # เพิ่มชื่อเต็ม
+        'phone_number': telco_account.phone_number,
+        'time_period': telco_account.time_period,
+    }
+    
+    # ใช้ complainant เป็นฟิลด์หลักสำหรับผู้เสียหาย/ผู้กล่าวหา
+    complainant_name = criminal_case.complainant or 'ผู้เสียหาย'
+    
+    case_data = {
+        'case_id': criminal_case.case_id,
+        'case_number': criminal_case.case_number,
+        'complainant': complainant_name,
+        'victim_name': complainant_name,  # เพื่อ backward compatibility
+    }
+    
+    # สร้าง HTML
+    html_content = telco_mobile_summons_generator.generate_telco_mobile_letter_html(
+        telco_data, case_data, freeze_account
+    )
+    
+    return HTMLResponse(content=html_content, media_type="text/html; charset=utf-8")
+
+@router.get("/telco-mobile-envelope/{telco_account_id}", response_class=HTMLResponse)
+def generate_telco_mobile_envelope_html(
+    telco_account_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """สร้างซองหมายเรียกข้อมูลโทรศัพท์ (HTML) สำหรับรายการเดียว"""
+    
+    # ดึงข้อมูลหมายเลขโทรศัพท์
+    telco_account = db.query(TelcoMobileAccount).filter(
+        TelcoMobileAccount.id == telco_account_id
+    ).first()
+    if not telco_account:
+        raise HTTPException(status_code=404, detail="Telco mobile account not found")
+    
+    # ดึงข้อมูลคดี
+    criminal_case = db.query(CriminalCase).filter(
+        CriminalCase.id == telco_account.criminal_case_id
+    ).first()
+    if not criminal_case:
+        raise HTTPException(status_code=404, detail="Criminal case not found")
+    
+    # ดึงข้อมูลที่อยู่จาก telco_mobile table (ถ้ามี telco_mobile_id)
+    telco_address = None
+    if telco_account.telco_mobile_id:
+        telco_mobile = db.query(TelcoMobile).filter(
+            TelcoMobile.id == telco_account.telco_mobile_id
+        ).first()
+        if telco_mobile:
+            telco_address = {
+                'company_name': telco_mobile.company_name,
+                'company_name_short': telco_mobile.company_name_short,
+                'building_name': telco_mobile.building_name,
+                'company_address': telco_mobile.company_address,
+                'soi': telco_mobile.soi,
+                'moo': telco_mobile.moo,
+                'road': telco_mobile.road,
+                'sub_district': telco_mobile.sub_district,
+                'district': telco_mobile.district,
+                'province': telco_mobile.province,
+                'postal_code': telco_mobile.postal_code,
+            }
+    
+    # แปลงข้อมูลเป็น dict
+    telco_data = {
+        'id': telco_account.id,
+        'document_number': telco_account.document_number,
+        'provider_name': telco_account.provider_name,
+        'phone_number': telco_account.phone_number,
+    }
+    
+    # สร้าง HTML ซอง (ส่งที่อยู่ไปด้วย)
+    html_content = telco_mobile_summons_generator.generate_telco_mobile_envelope_html(
+        telco_data, telco_address
+    )
+    
+    return HTMLResponse(content=html_content, media_type="text/html; charset=utf-8")
+
+# ============================================
+# Telco Internet (IP Address) Document Endpoints
+# ============================================
+
+@router.get("/telco-internet-summons/{telco_account_id}", response_class=HTMLResponse)
+def generate_telco_internet_summons_html(
+    telco_account_id: int,
+    freeze_account: bool = False,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """สร้างหมายเรียกข้อมูล IP Address (HTML) สำหรับรายการเดียว
+    
+    Args:
+        freeze_account: True = อายัดบัญชี, False = ไม่อายัดบัญชี (default)
+    """
+    
+    # ดึงข้อมูล IP Address
+    telco_account = db.query(TelcoInternetAccount).filter(
+        TelcoInternetAccount.id == telco_account_id
+    ).first()
+    if not telco_account:
+        raise HTTPException(status_code=404, detail="Telco internet account not found")
+    
+    # ดึงข้อมูลคดี
+    criminal_case = db.query(CriminalCase).filter(
+        CriminalCase.id == telco_account.criminal_case_id
+    ).first()
+    if not criminal_case:
+        raise HTTPException(status_code=404, detail="Criminal case not found")
+    
+    # ดึงข้อมูล company_name จาก telco_internet (สำหรับใช้ในเรียน)
+    company_name = telco_account.provider_name  # default
+    if telco_account.telco_internet_id:
+        telco_internet = db.query(TelcoInternet).filter(
+            TelcoInternet.id == telco_account.telco_internet_id
+        ).first()
+        if telco_internet and telco_internet.company_name:
+            company_name = telco_internet.company_name
+    
+    # แปลงข้อมูลเป็น dict
+    telco_data = {
+        'id': telco_account.id,
+        'document_number': telco_account.document_number,
+        'document_date': telco_account.document_date,
+        'provider_name': telco_account.provider_name,
+        'company_name': company_name,  # เพิ่มชื่อเต็ม
+        'ip_address': telco_account.ip_address,
+        'datetime_used': telco_account.datetime_used,
+    }
+    
+    # ใช้ complainant เป็นฟิลด์หลักสำหรับผู้เสียหาย/ผู้กล่าวหา
+    complainant_name = criminal_case.complainant or 'ผู้เสียหาย'
+    
+    case_data = {
+        'case_id': criminal_case.case_id,
+        'case_number': criminal_case.case_number,
+        'complainant': complainant_name,
+        'victim_name': complainant_name,  # เพื่อ backward compatibility
+    }
+    
+    # สร้าง HTML
+    html_content = telco_internet_summons_generator.generate_telco_internet_letter_html(
+        telco_data, case_data, freeze_account
+    )
+    
+    return HTMLResponse(content=html_content, media_type="text/html; charset=utf-8")
+
+@router.get("/telco-internet-envelope/{telco_account_id}", response_class=HTMLResponse)
+def generate_telco_internet_envelope_html(
+    telco_account_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """สร้างซองหมายเรียกข้อมูล IP Address (HTML) สำหรับรายการเดียว"""
+    
+    # ดึงข้อมูล IP Address
+    telco_account = db.query(TelcoInternetAccount).filter(
+        TelcoInternetAccount.id == telco_account_id
+    ).first()
+    if not telco_account:
+        raise HTTPException(status_code=404, detail="Telco internet account not found")
+    
+    # ดึงข้อมูลคดี
+    criminal_case = db.query(CriminalCase).filter(
+        CriminalCase.id == telco_account.criminal_case_id
+    ).first()
+    if not criminal_case:
+        raise HTTPException(status_code=404, detail="Criminal case not found")
+    
+    # ดึงข้อมูลที่อยู่จาก telco_internet table (ถ้ามี telco_internet_id)
+    telco_address = None
+    if telco_account.telco_internet_id:
+        telco_internet = db.query(TelcoInternet).filter(
+            TelcoInternet.id == telco_account.telco_internet_id
+        ).first()
+        if telco_internet:
+            telco_address = {
+                'company_name': telco_internet.company_name,
+                'company_name_short': telco_internet.company_name_short,
+                'building_name': telco_internet.building_name,
+                'company_address': telco_internet.company_address,
+                'soi': telco_internet.soi,
+                'moo': telco_internet.moo,
+                'road': telco_internet.road,
+                'sub_district': telco_internet.sub_district,
+                'district': telco_internet.district,
+                'province': telco_internet.province,
+                'postal_code': telco_internet.postal_code,
+            }
+    
+    # แปลงข้อมูลเป็น dict
+    telco_data = {
+        'id': telco_account.id,
+        'document_number': telco_account.document_number,
+        'provider_name': telco_account.provider_name,
+        'ip_address': telco_account.ip_address,
+    }
+    
+    # สร้าง HTML ซอง (ส่งที่อยู่ไปด้วย)
+    html_content = telco_internet_summons_generator.generate_telco_internet_envelope_html(
+        telco_data, telco_address
+    )
     
     return HTMLResponse(content=html_content, media_type="text/html; charset=utf-8")

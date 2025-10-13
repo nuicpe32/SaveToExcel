@@ -17,8 +17,9 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'http://criminal-case-backend:8000',  // Use Docker service name
+        target: 'http://backend:8000',  // ใช้ Docker service name ที่ถูกต้อง
         changeOrigin: true,
+        rewrite: (path) => path,
       },
     },
   },

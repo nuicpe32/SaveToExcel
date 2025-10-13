@@ -36,6 +36,6 @@ class TelcoMobile(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships (for future telco_mobile_accounts table)
-    # telco_accounts = relationship("TelcoAccount", back_populates="telco_mobile")
+    # Relationships
+    telco_mobile_accounts = relationship("TelcoMobileAccount", back_populates="telco_mobile")
 

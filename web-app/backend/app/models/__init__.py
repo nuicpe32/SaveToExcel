@@ -17,6 +17,8 @@ from .non_bank_account import NonBankAccount
 from .payment_gateway_account import PaymentGatewayAccount
 from .non_bank_transaction import NonBankTransaction
 from .payment_gateway_transaction import PaymentGatewayTransaction
+from .telco_mobile_account import TelcoMobileAccount
+from .telco_internet_account import TelcoInternetAccount
 from .suspect import Suspect
 from .cfr import CFR
 from .criminal_case import CriminalCase

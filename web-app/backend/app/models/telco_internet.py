@@ -36,6 +36,6 @@ class TelcoInternet(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships (for future telco_internet_accounts table)
-    # telco_internet_accounts = relationship("TelcoInternetAccount", back_populates="telco_internet")
+    # Relationships
+    telco_internet_accounts = relationship("TelcoInternetAccount", back_populates="telco_internet")
 

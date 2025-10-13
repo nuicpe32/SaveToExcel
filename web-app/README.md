@@ -1,561 +1,253 @@
-# Criminal Case Management System - Web Application
+# Criminal Case Management System v3.4.0
 
-ระบบจัดการคดีอาญาออนไลน์ เวอร์ชัน 3.1.1
+ระบบจัดการคดีอาญา สำหรับกองบังคับการตำรวจสืบสวนสอบสวนอาชญากรรมทางเทคโนโลยี 4
 
-## 📋 สารบัญ
+## 🚀 Version 3.4.0 - New Features
 
-- [ภาพรวมระบบ](#ภาพรวมระบบ)
-- [เทคโนโลยีที่ใช้](#เทคโนโลยีที่ใช้)
-- [การติดตั้งและใช้งาน](#การติดตั้งและใช้งาน)
-- [โครงสร้างโปรเจค](#โครงสร้างโปรเจค)
-- [คู่มือการใช้งาน Docker](#คู่มือการใช้งาน-docker)
-- [การพัฒนาต่อยอด](#การพัฒนาต่อยอด)
-- [ปัญหาที่พบบ่อย](#ปัญหาที่พบบ่อย)
+### 📱 ระบบหมายเลขโทรศัพท์
+- เพิ่ม/แก้ไข/ลบ ข้อมูลหมายเลขโทรศัพท์ที่เกี่ยวข้องกับคดี
+- ออกหมายเรียกข้อมูลโทรศัพท์และซองหมายเรียก
+- ดึงข้อมูลผู้ให้บริการจาก Master Data (AIS, True, NT)
 
----
+### 🌐 ระบบ IP Address  
+- เพิ่ม/แก้ไข/ลบ ข้อมูล IP Address ที่เกี่ยวข้องกับคดี
+- ออกหมายเรียกข้อมูล IP Address และซองหมายเรียก
+- ดึงข้อมูลผู้ให้บริการจาก Master Data (TRUE Online, AIS Fibre, 3BB, NT Broadband)
+- ระบุวันเวลาที่ใช้งาน (DateTime) แทนช่วงเวลา
 
-## ภาพรวมระบบ
+## 🏗️ Architecture
 
-ระบบจัดการคดีอาญาทางเทคโนโลยี สำหรับ กก.1 บก.สอท.4 ประกอบด้วย:
+### Backend (FastAPI)
+- **Database**: PostgreSQL with SQLAlchemy ORM
+- **API**: RESTful API with Pydantic validation
+- **Document Generation**: HTML-based with Thai date formatting
+- **Authentication**: JWT-based authentication
 
-### ฟีเจอร์หลัก
-- **จัดการคดีอาญา**: บันทึก แก้ไข ค้นหาคดี
-- **จัดการผู้ต้องหา**: บันทึกข้อมูลผู้ต้องหา พิมพ์หมายเรียกผู้ต้องหา และซองหมายเรียก
-- **จัดการบัญชีธนาคาร**: บันทึกบัญชีที่เกี่ยวข้อง พิมพ์หนังสือขอข้อมูลธนาคาร
-- **ออกเอกสาร**:
-  - หมายเรียกผู้ต้องหา (HTML)
-  - ซองหมายเรียกผู้ต้องหา (HTML)
-  - หนังสือขอข้อมูลธนาคาร (HTML)
-- **ค้นหาข้อมูล**: ค้นหาตามหมายเลขคดี ชื่อผู้ต้องหา ชื่อผู้เสียหาย
-- **Parse PDF**: แกะข้อมูลจากไฟล์ ทร.14 อัตโนมัติ
-- **ค้นหาสถานีตำรวจ**: ค้นหาสถานีตำรวจตามที่อยู่
-
-**ข้อมูลในระบบ (ณ 3 ต.ค. 2568):**
-- 48 คดีอาญา
-- 15 ผู้ต้องหา
-- 418 บัญชีธนาคาร
-
----
-
-## เทคโนโลยีที่ใช้
-
-### Backend
-- **FastAPI** - Python Web Framework
-- **SQLAlchemy** - ORM
-- **PostgreSQL** - Database
-- **Redis** - Cache & Session
-- **Uvicorn** - ASGI Server
-- **PyPDF2** - PDF Parser
-
-### Frontend
-- **React 18** - UI Framework
-- **TypeScript** - Type Safety
-- **Vite** - Build Tool
-- **Ant Design 5** - UI Components
-- **Axios** - HTTP Client
-- **React Router** - Navigation
+### Frontend (React + TypeScript)
+- **UI Library**: Ant Design
+- **State Management**: Zustand
+- **Date Handling**: Day.js with Thai locale
+- **Build Tool**: Vite
 
 ### Infrastructure
-- **Docker** - Containerization
-- **Docker Compose** - Orchestration
+- **Containerization**: Docker & Docker Compose
+- **Services**: PostgreSQL, Redis, FastAPI, React
+- **Proxy**: Vite dev proxy for API forwarding
 
----
+## 📊 Database Tables
 
-## การติดตั้งและใช้งาน
+### Core Tables
+- `criminal_cases` - ข้อมูลคดีหลัก
+- `users` - ผู้ใช้งานระบบ
+- `police_stations` - สถานีตำรวจ
 
-### ✅ วิธีที่แนะนำ: ใช้ Docker Compose
+### Financial Tables
+- `bank_accounts` - บัญชีธนาคาร
+- `non_bank_accounts` - Non-Bank (TrueMoney, etc.)
+- `payment_gateway_accounts` - Payment Gateway (Omise, etc.)
 
-#### 1. ติดตั้ง Docker
-- Windows: [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- Linux: `sudo apt install docker.io docker-compose`
+### Telecom Tables (New!)
+- `telco_mobile_accounts` - หมายเลขโทรศัพท์ ⭐
+- `telco_internet_accounts` - IP Address ⭐
 
-#### 2. เริ่มต้นใช้งาน
+### Master Data
+- `banks` - ธนาคาร
+- `non_banks` - ผู้ให้บริการ Non-Bank
+- `payment_gateways` - ผู้ให้บริการ Payment Gateway
+- `telco_mobile` - ผู้ให้บริการโทรศัพท์ ⭐
+- `telco_internet` - ผู้ให้บริการอินเทอร์เน็ต ⭐
 
+### Other Tables
+- `suspects` - ผู้ต้องหา
+- `cfr_records` - CFR Records
+
+## 🎯 Key Features
+
+### Dashboard
+- แสดงสถิติคดี และกราฟ
+- รายการคดีพร้อมการค้นหา/กรอง
+- 8 Tabs สำหรับข้อมูลแต่ละประเภท
+
+### Document Generation
+- หมายเรียกพยานเอกสาร (HTML)
+- ซองหมายเรียก (HTML)
+- รายงานคดี (HTML)
+- รองรับการพิมพ์โดยตรง
+
+### Data Management
+- CRUD operations ครบชุด
+- Auto-lookup จาก Master Data
+- Status tracking (ตอบกลับ/ยังไม่ตอบกลับ)
+- วันที่นับจากส่งเอกสาร
+
+## 🔐 Security
+- JWT Authentication
+- Role-based access control
+- Database relationship constraints
+- Input validation with Pydantic
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Docker & Docker Compose
+- Node.js 18+ (for development)
+- Python 3.11+ (for development)
+
+### Quick Start
 ```bash
-# เข้าโฟลเดอร์โปรเจค
-cd /mnt/c/SaveToExcel/web-app
+# Clone repository
+git clone [repository-url]
+cd SaveToExcel/web-app
 
-# เริ่มระบบ
+# Start services
 docker-compose up -d
 
-# รอประมาณ 30-60 วินาที เพื่อให้ทุก service พร้อม
+# Access application
+# Frontend: http://localhost:3001
+# Backend API: http://localhost:8000
 ```
 
-#### 3. เข้าใช้งาน
-
-- **Frontend**: http://localhost:3001
-- **Backend API**: http://localhost:8000
-- **API Documentation**: http://localhost:8000/docs
-
-**ข้อมูลเข้าสู่ระบบ:**
-- Username: `admin`
-- Password: `admin123`
-
-#### 4. หยุดระบบ
-
+### Development
 ```bash
-# หยุดระบบ (เก็บข้อมูล)
-docker-compose down
+# Backend development
+cd backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
 
-# หยุดและลบข้อมูลทั้งหมด (ระวัง!)
-docker-compose down -v
+# Frontend development  
+cd frontend
+npm install
+npm run dev
 ```
+
+## 📱 Usage
+
+### 1. Login
+- เข้าสู่ระบบด้วย username/password
+- ระบบจะแสดง Dashboard
+
+### 2. จัดการคดี
+- ดูรายการคดีทั้งหมด
+- คลิกเลขคดีเพื่อดูรายละเอียด
+- เพิ่ม/แก้ไข ข้อมูลในแต่ละ Tab
+
+### 3. เพิ่มข้อมูลโทรศัพท์
+- Tab "หมายเลขโทรศัพท์"
+- คลิก "เพิ่มหมายเลขโทรศัพท์"
+- เลือกผู้ให้บริการ + กรอกหมายเลข
+- ปริ้นหมายเรียก/ซองได้ทันที
+
+### 4. เพิ่มข้อมูล IP Address
+- Tab "IP Address"  
+- คลิก "เพิ่ม IP Address"
+- เลือกผู้ให้บริการ + กรอก IP
+- ระบุวันเวลาที่ใช้งาน
+- ปริ้นหมายเรียก/ซองได้ทันที
+
+## 📄 Document Templates
+
+### หมายเรียกโทรศัพท์
+- เรื่อง: ขอข้อมูลหมายเลขโทรศัพท์
+- รายการเอกสาร: 5 ข้อเฉพาะโทรศัพท์
+- ตาราง: ผู้ให้บริการ | หมายเลข | ช่วงเวลา
+
+### หมายเรียก IP Address
+- เรื่อง: ขอข้อมูล IP Address
+- รายการเอกสาร: 4 ข้อเฉพาะ IP Address
+- ตาราง: ผู้ให้บริการ | IP Address | วันเวลาใช้งาน
+
+### ซองหมายเรียก
+- ชื่อเต็มผู้ให้บริการ (company_name)
+- ที่อยู่ดึงจาก Master Data
+- รูปแบบมาตรฐานราชการ
+
+## 🔧 API Endpoints
+
+### Authentication
+- `POST /api/v1/auth/login` - เข้าสู่ระบบ
+- `POST /api/v1/auth/refresh` - Refresh token
+
+### Criminal Cases
+- `GET /api/v1/criminal-cases/` - รายการคดี
+- `GET /api/v1/criminal-cases/{id}` - ข้อมูลคดี
+- `POST /api/v1/criminal-cases/` - สร้างคดีใหม่
+
+### Telco Mobile (New!)
+- `GET /api/v1/telco-mobile-accounts/by-case/{id}` - รายการตามคดี
+- `POST /api/v1/telco-mobile-accounts/` - เพิ่มข้อมูล
+- `PUT /api/v1/telco-mobile-accounts/{id}` - แก้ไข
+- `DELETE /api/v1/telco-mobile-accounts/{id}` - ลบ
+
+### Telco Internet (New!)
+- `GET /api/v1/telco-internet-accounts/by-case/{id}` - รายการตามคดี
+- `POST /api/v1/telco-internet-accounts/` - เพิ่มข้อมูล
+- `PUT /api/v1/telco-internet-accounts/{id}` - แก้ไข
+- `DELETE /api/v1/telco-internet-accounts/{id}` - ลบ
+
+### Documents (New!)
+- `GET /api/v1/documents/telco-mobile-summons/{id}` - หมายเรียกโทรศัพท์
+- `GET /api/v1/documents/telco-mobile-envelope/{id}` - ซองโทรศัพท์
+- `GET /api/v1/documents/telco-internet-summons/{id}` - หมายเรียก IP
+- `GET /api/v1/documents/telco-internet-envelope/{id}` - ซอง IP
+
+### Master Data
+- `GET /api/v1/telco-mobile/` - ผู้ให้บริการโทรศัพท์
+- `GET /api/v1/telco-internet/` - ผู้ให้บริการอินเทอร์เน็ต
+
+## 🧪 Testing
+
+### Manual Testing
+1. **Refresh Browser**: `Ctrl + Shift + R`
+2. **Open Case**: คลิกเลขคดีใดก็ได้
+3. **Check New Tabs**: ดู Tab "หมายเลขโทรศัพท์" และ "IP Address"
+4. **Add Data**: เพิ่มข้อมูลผ่าน Modal
+5. **Print Documents**: ทดสอบปริ้นหมายเรียกและซอง
+
+### API Testing
+```bash
+# Test Telco Mobile API
+curl -H "Authorization: Bearer {token}" \
+  http://localhost:8000/api/v1/telco-mobile-accounts/by-case/291
+
+# Test Telco Internet API  
+curl -H "Authorization: Bearer {token}" \
+  http://localhost:8000/api/v1/telco-internet-accounts/by-case/291
+```
+
+## 📝 Migration Files
+
+1. `026_create_telco_mobile_accounts_table.sql`
+2. `027_create_telco_internet_accounts_table.sql`  
+3. `028_alter_telco_internet_accounts_change_time_period.sql`
+
+## 🎉 What's New in v3.4.0
+
+### 🆕 New Tabs
+- 📱 หมายเลขโทรศัพท์ (Phone Numbers)
+- 🌐 IP Address
+
+### 🆕 New Documents
+- หมายเรียกข้อมูลโทรศัพท์
+- หมายเรียกข้อมูล IP Address
+- ซองหมายเรียกสำหรับทั้ง 2 ระบบ
+
+### 🆕 New Features
+- DateTime Picker สำหรับ IP Address
+- Auto-lookup จาก Master Data
+- Thai date/datetime formatting
+- Status tracking พร้อมนับวัน
 
 ---
 
-## โครงสร้างโปรเจค
+## 📞 Support
 
-```
-web-app/
-├── backend/                    # FastAPI Backend
-│   ├── app/
-│   │   ├── api/v1/            # API Endpoints
-│   │   │   ├── auth.py        # Authentication
-│   │   │   ├── criminal_cases.py
-│   │   │   ├── suspects_improved.py
-│   │   │   ├── bank_accounts_improved.py
-│   │   │   ├── documents.py   # Document generation
-│   │   │   ├── pdf_parser.py  # PDF parsing
-│   │   │   └── police_stations.py
-│   │   ├── models/            # Database Models (SQLAlchemy)
-│   │   │   ├── criminal_case.py
-│   │   │   ├── suspect.py
-│   │   │   ├── bank_account.py
-│   │   │   └── user.py
-│   │   ├── schemas/           # Pydantic Schemas
-│   │   ├── services/          # Business Logic
-│   │   │   ├── bank_summons_generator.py
-│   │   │   ├── suspect_summons_generator.py
-│   │   │   ├── pdf_parser.py
-│   │   │   └── police_station_service.py
-│   │   ├── utils/             # Utilities
-│   │   │   ├── date_utils.py
-│   │   │   ├── thai_date_utils.py
-│   │   │   └── string_utils.py
-│   │   └── main.py            # FastAPI App Entry Point
-│   ├── migrations/            # SQL Migration Scripts
-│   ├── requirements.txt       # Python Dependencies
-│   └── Dockerfile            # Backend Docker Image
-│
-├── frontend/                  # React Frontend
-│   ├── src/
-│   │   ├── components/        # Reusable Components
-│   │   │   ├── BankAccountForm.tsx
-│   │   │   ├── SuspectForm.tsx
-│   │   │   ├── PoliceStationSearchModal.tsx
-│   │   │   └── ...
-│   │   ├── pages/            # Page Components
-│   │   │   ├── DashboardPage.tsx          # หน้าแรก (ตาราง)
-│   │   │   ├── CriminalCaseDetailPage.tsx # รายละเอียดคดี
-│   │   │   ├── AddCriminalCasePage.tsx    # เพิ่มคดีใหม่
-│   │   │   ├── EditCriminalCasePage.tsx   # แก้ไขคดี
-│   │   │   └── LoginPage.tsx              # เข้าสู่ระบบ
-│   │   ├── contexts/         # React Contexts
-│   │   │   └── ThemeContext.tsx           # Dark/Light Mode
-│   │   ├── api.ts            # Axios Instance & API Config
-│   │   ├── App.tsx           # Main App Component
-│   │   └── main.tsx          # Entry Point
-│   ├── package.json          # NPM Dependencies
-│   ├── vite.config.ts        # Vite Configuration
-│   └── Dockerfile            # Frontend Docker Image
-│
-├── docker-compose.yml         # Docker Compose Configuration (Production)
-├── README.md                  # This file
-├── DEVELOPMENT_GUIDE.md       # Development Guide
-├── DOCKER_USAGE.md           # Docker Commands Reference
-└── BACKUP_RESTORE_GUIDE.md   # Backup/Restore Guide
-```
+สำหรับข้อสงสัยหรือปัญหาการใช้งาน:
+- **ระบบ**: Criminal Case Management System
+- **หน่วยงาน**: กองบังคับการตำรวจสืบสวนสอบสวนอาชญากรรมทางเทคโนโลยี 4
+- **เวอร์ชัน**: 3.4.0
+- **วันที่อัพเดต**: 13 ตุลาคม 2568
 
 ---
 
-## คู่มือการใช้งาน Docker
-
-### ⚠️ สำคัญ: Container และ Volume Names
-
-ระบบใช้ Docker Compose แบบ **Production Single Environment**
-
-**Container Names:**
-- `criminal-case-db` - PostgreSQL Database
-- `criminal-case-redis` - Redis Cache
-- `criminal-case-backend` - FastAPI Backend
-- `criminal-case-frontend` - React Frontend (Vite Dev Server)
-
-**Volume Names:**
-- `web-app_postgres_data` - Database storage
-- `web-app_backend_uploads` - Uploaded files
-
-**Database Credentials:**
-- Host: `postgres` (inside Docker) / `localhost:5432` (outside Docker)
-- Database: `criminal_case_db`
-- Username: `user`
-- Password: `password123`
-
-### คำสั่ง Docker ที่ใช้บ่อย
-
-```bash
-# ดูสถานะ containers
-docker ps
-
-# ดู logs
-docker logs criminal-case-backend -f
-docker logs criminal-case-frontend -f
-docker logs criminal-case-db
-
-# รีสตาร์ท service
-docker-compose restart backend
-docker-compose restart frontend
-docker-compose restart postgres
-
-# เข้า container
-docker exec -it criminal-case-backend bash
-docker exec -it criminal-case-frontend sh
-docker exec -it criminal-case-db psql -U user -d criminal_case_db
-
-# ดูข้อมูลในฐานข้อมูล
-docker exec criminal-case-db psql -U user -d criminal_case_db -c "SELECT COUNT(*) FROM criminal_cases;"
-docker exec criminal-case-db psql -U user -d criminal_case_db -c "SELECT COUNT(*) FROM suspects;"
-docker exec criminal-case-db psql -U user -d criminal_case_db -c "SELECT COUNT(*) FROM bank_accounts;"
-
-# ดู volumes
-docker volume ls | grep web-app
-
-# ดู networks
-docker network ls | grep web-app
-```
-
-### การ Backup และ Restore
-
-```bash
-# Backup database
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-docker exec criminal-case-db pg_dump -U user -d criminal_case_db -F c -f /tmp/backup_${TIMESTAMP}.dump
-docker cp criminal-case-db:/tmp/backup_${TIMESTAMP}.dump ./backup_${TIMESTAMP}.dump
-
-# Restore database
-docker cp backup_20251003_163753.dump criminal-case-db:/tmp/restore.dump
-docker exec criminal-case-db pg_restore -U user -d criminal_case_db -c -F c /tmp/restore.dump
-
-# Backup ทั้งระบบ (database + code)
-tar -czf web-app-backup-$(date +%Y%m%d_%H%M%S).tar.gz \
-  --exclude='node_modules' \
-  --exclude='__pycache__' \
-  --exclude='.git' \
-  .
-```
-
-### การ Rebuild Services
-
-```bash
-# Rebuild เฉพาะ backend (ใช้เมื่อแก้ Python code หรือ dependencies)
-docker-compose up -d --build --no-cache backend
-
-# Rebuild เฉพาะ frontend (ใช้เมื่อแก้ package.json)
-docker-compose up -d --build --no-cache frontend
-
-# Rebuild ทั้งหมด
-docker-compose down
-docker-compose up -d --build --no-cache
-
-# ลบ images เก่าและ rebuild
-docker-compose down
-docker system prune -a -f
-docker-compose up -d --build
-```
-
----
-
-## การพัฒนาต่อยอด
-
-### การแก้ไข Backend Code
-
-1. แก้ไขไฟล์ใน `backend/app/`
-2. Backend จะ **Hot Reload อัตโนมัติ** (ไม่ต้องรีสตาร์ท)
-3. ถ้า Hot Reload ไม่ทำงาน:
-   ```bash
-   docker-compose restart backend
-   ```
-
-### การแก้ไข Frontend Code
-
-1. แก้ไขไฟล์ใน `frontend/src/`
-2. **Vite จะ Hot Reload อัตโนมัติ** (ไม่ต้องรีสตาร์ท)
-3. ถ้า Hot Reload ไม่ทำงาน:
-   - รีเฟรชเบราว์เซอร์ (Ctrl+Shift+R หรือ Cmd+Shift+R)
-   - หรือรีสตาร์ท frontend:
-     ```bash
-     docker-compose restart frontend
-     ```
-
-### การเพิ่ม Python Package
-
-1. เพิ่มใน `backend/requirements.txt`:
-   ```
-   new-package==1.0.0
-   ```
-2. Rebuild backend:
-   ```bash
-   docker-compose up -d --build backend
-   ```
-
-### การเพิ่ม NPM Package
-
-```bash
-# วิธีที่ 1: เข้า container
-docker exec -it criminal-case-frontend sh
-npm install <package-name>
-exit
-
-# วิธีที่ 2: Rebuild
-# แก้ไข frontend/package.json ก่อน
-docker-compose up -d --build frontend
-```
-
-### Database Migration
-
-1. สร้างไฟล์ migration ใหม่:
-   ```sql
-   -- backend/migrations/009_add_new_field.sql
-   ALTER TABLE criminal_cases ADD COLUMN new_field VARCHAR(255);
-   ```
-
-2. รัน migration:
-   ```bash
-   docker cp backend/migrations/009_add_new_field.sql criminal-case-db:/tmp/
-   docker exec criminal-case-db psql -U user -d criminal_case_db -f /tmp/009_add_new_field.sql
-   ```
-
-### การเพิ่มฟีเจอร์ใหม่
-
-#### 1. เพิ่ม Backend API Endpoint
-
-```python
-# backend/app/api/v1/new_feature.py
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from app.models.database import get_db
-
-router = APIRouter()
-
-@router.get("/new-feature")
-async def get_new_feature(db: Session = Depends(get_db)):
-    return {"message": "New feature"}
-```
-
-```python
-# backend/app/main.py
-from app.api.v1 import new_feature
-
-app.include_router(new_feature.router, prefix="/api/v1", tags=["new-feature"])
-```
-
-#### 2. เพิ่ม Frontend Page
-
-```typescript
-// frontend/src/pages/NewFeaturePage.tsx
-import React from 'react'
-import { Card } from 'antd'
-
-const NewFeaturePage: React.FC = () => {
-  return (
-    <Card title="New Feature">
-      <p>Content here</p>
-    </Card>
-  )
-}
-
-export default NewFeaturePage
-```
-
-```typescript
-// frontend/src/App.tsx
-import NewFeaturePage from './pages/NewFeaturePage'
-
-// ใน <Routes>
-<Route path="/new-feature" element={<NewFeaturePage />} />
-```
-
-#### 3. เพิ่ม API Call
-
-```typescript
-// frontend/src/api.ts
-export const getNewFeature = () => api.get('/api/v1/new-feature')
-```
-
----
-
-## ปัญหาที่พบบ่อย
-
-### 1. Frontend ไม่เชื่อม Backend (ERR_CONNECTION_REFUSED)
-
-**สาเหตุ:** `vite.config.ts` proxy ตั้งค่าไม่ถูกต้อง
-
-**ตรวจสอบ:**
-```typescript
-// frontend/vite.config.ts
-export default defineConfig({
-  server: {
-    host: '0.0.0.0',
-    port: 3001,
-    proxy: {
-      '/api': {
-        target: 'http://backend:8000',  // ✅ ต้องใช้ Docker service name
-        changeOrigin: true,
-      },
-    },
-  },
-})
-```
-
-**แก้ไข:**
-```bash
-docker-compose restart frontend
-```
-
-### 2. ข้อมูลหายหลัง Restart
-
-**สาเหตุ:** ลบ volume โดยไม่ได้ตั้งใจ (`docker-compose down -v`)
-
-**วิธีป้องกัน:**
-- ใช้ `docker-compose down` แทน `docker-compose down -v`
-- สำรอง backup เป็นประจำ
-
-**แก้ไข:**
-```bash
-# Restore จาก backup
-docker cp backup_20251003_163753.dump criminal-case-db:/tmp/restore.dump
-docker exec criminal-case-db pg_restore -U user -d criminal_case_db -c -F c /tmp/restore.dump
-```
-
-### 3. Port Already in Use
-
-**Error:** `Bind for 0.0.0.0:3001 failed: port is already allocated`
-
-**ตรวจสอบ:**
-```bash
-# Windows
-netstat -ano | findstr :3001
-
-# Linux/Mac
-lsof -i :3001
-```
-
-**แก้ไข:**
-- ปิด process ที่ใช้ port
-- หรือเปลี่ยน port ใน `docker-compose.yml`:
-  ```yaml
-  frontend:
-    ports:
-      - "3002:3001"  # เปลี่ยนจาก 3001 เป็น 3002
-  ```
-
-### 4. Database Connection Error
-
-**Error:** `FATAL: password authentication failed for user "user"`
-
-**ตรวจสอบ:**
-```bash
-docker exec criminal-case-db psql -U user -d criminal_case_db -c "SELECT 1;"
-```
-
-**แก้ไข:**
-- Password ที่ถูกต้อง: `password123`
-- ถ้ายังไม่ได้ ให้ลบ volume และสร้างใหม่:
-  ```bash
-  docker-compose down -v
-  docker-compose up -d
-  ```
-
-### 5. Frontend Shows Blank Page
-
-**สาเหตุ:** JavaScript error หรือ routing ผิด
-
-**ตรวจสอบ:**
-```bash
-# ดู logs
-docker logs criminal-case-frontend -f
-
-# ดู browser console (F12)
-```
-
-**แก้ไข:**
-```bash
-# Hard refresh browser
-Ctrl+Shift+R  # Windows/Linux
-Cmd+Shift+R   # Mac
-
-# ล้าง cache
-docker exec -it criminal-case-frontend sh
-rm -rf node_modules/.vite
-exit
-docker-compose restart frontend
-```
-
-### 6. Hot Reload ไม่ทำงาน
-
-**Backend:**
-```bash
-# ตรวจสอบว่า uvicorn มี --reload flag
-docker exec criminal-case-backend ps aux | grep uvicorn
-```
-
-**Frontend:**
-```bash
-# ตรวจสอบว่า Vite running
-docker logs criminal-case-frontend | grep "ready"
-```
-
-**แก้ไข:**
-```bash
-docker-compose restart backend
-docker-compose restart frontend
-```
-
-### 7. เลขที่หนังสือแสดงเป็น NaN
-
-**สาเหตุ:** มีการใช้ `parseInt()` กับ document_number ที่เป็น string
-
-**แก้ไข:** ลบ `parseInt()` ออก ใช้แค่ `value || '-'`
-
-ตรวจสอบว่าข้อมูลในฐานข้อมูลเป็นรูปแบบ "ตช.0039.52/xxxx"
-
----
-
-## 📝 เอกสารเพิ่มเติม
-
-- `DEVELOPMENT_GUIDE.md` - คู่มือสำหรับนักพัฒนา
-- `DOCKER_USAGE.md` - คำสั่ง Docker ที่ใช้บ่อย
-- `BACKUP_RESTORE_GUIDE.md` - วิธี Backup/Restore ฐานข้อมูล
-- `CHANGELOG.md` - ประวัติการเปลี่ยนแปลง
-
----
-
-## 🔒 ความปลอดภัย
-
-**⚠️ สำคัญสำหรับ Production:**
-1. เปลี่ยน database password ใน `docker-compose.yml`
-2. เปลี่ยน admin password ในระบบ
-3. ตั้งค่า CORS ให้ถูกต้อง
-4. ใช้ HTTPS
-5. ตั้งค่า SECRET_KEY ใหม่
-6. สำรองข้อมูลเป็นประจำ
-
----
-
-## 📞 ข้อมูลโปรเจค
-
-- **พัฒนาโดย**: กก.1 บก.สอท.4
-- **Version**: 3.1.1
-- **Last Updated**: 3 ตุลาคม 2568
-- **Database Backup**: `backup_20251003_163753.dump` (76 KB)
-
-**สถิติโค้ด:**
-- Backend: Python (FastAPI)
-- Frontend: TypeScript + React
-- Database: PostgreSQL
-- Total Lines of Code: ~15,000 lines
-
----
-
-## 📄 License
-
-Internal Use Only - สำหรับใช้ภายในหน่วยงานเท่านั้น
+**🎯 พร้อมใช้งานแล้ว!** 
+URL: http://localhost:3001

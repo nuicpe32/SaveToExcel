@@ -39,6 +39,8 @@ class CriminalCase(Base):
     # Relationships
     bank_accounts = relationship("BankAccount", back_populates="criminal_case", cascade="all, delete-orphan")
     non_bank_accounts = relationship("NonBankAccount", back_populates="criminal_case", cascade="all, delete-orphan")
+    telco_mobile_accounts = relationship("TelcoMobileAccount", back_populates="criminal_case", cascade="all, delete-orphan")
+    telco_internet_accounts = relationship("TelcoInternetAccount", back_populates="criminal_case", cascade="all, delete-orphan")
     suspects = relationship("Suspect", back_populates="criminal_case", cascade="all, delete-orphan")
     post_arrests = relationship("PostArrest", back_populates="criminal_case", cascade="all, delete-orphan")
     cfr_records = relationship("CFR", back_populates="criminal_case", cascade="all, delete-orphan")

@@ -71,6 +71,34 @@ def format_date_to_thai_buddhist_era(date_obj):
         print(f"Error formatting date to Thai Buddhist Era: {e}")
         return None
 
+def format_datetime_to_thai(datetime_obj):
+    """
+    Format datetime object to Thai format with time
+    Input: datetime(2025, 9, 18, 14, 30, 0)
+    Output: "18 กันยายน 2568 เวลา 14:30 น."
+    """
+    if not datetime_obj:
+        return None
+    
+    try:
+        # Thai month names
+        thai_months = [
+            'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน',
+            'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม',
+            'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+        ]
+        
+        # Convert to Buddhist Era
+        buddhist_year = datetime_obj.year + 543
+        thai_month = thai_months[datetime_obj.month - 1]
+        
+        # Format: วันที่ เดือน ปี เวลา HH:MM น.
+        return f"{datetime_obj.day} {thai_month} {buddhist_year} เวลา {datetime_obj.hour:02d}:{datetime_obj.minute:02d} น."
+        
+    except Exception as e:
+        print(f"Error formatting datetime to Thai: {e}")
+        return None
+
 def parse_thai_date_to_date_object(thai_date_str):
     """
     Parse Thai date string and return date object
