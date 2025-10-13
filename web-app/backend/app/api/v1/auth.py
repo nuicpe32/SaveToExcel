@@ -73,6 +73,15 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
     return user
 
+def require_admin(current_user: User = Depends(get_current_user)):
+    """ตรวจสอบว่าผู้ใช้มีสิทธิ์ admin หรือไม่"""
+    if not current_user.role or current_user.role.role_name != 'admin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ไม่มีสิทธิ์เข้าถึงฟังก์ชันนี้ (ต้องเป็น Admin เท่านั้น)"
+        )
+    return current_user
+
 @router.post("/register", response_model=UserResponse)
 def register(user: UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.username == user.username).first()

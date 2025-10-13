@@ -12,6 +12,7 @@ import {
   MoonOutlined,
   SettingOutlined,
   ApartmentOutlined,
+  DatabaseOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '../stores/authStore'
 import { useTheme } from '../contexts/ThemeContext'
@@ -46,7 +47,8 @@ export default function MainLayout() {
         label: 'ระบบผู้ดูแล',
         children: [
           { key: '/admin/users', icon: <UserOutlined />, label: 'จัดการผู้ใช้' },
-          { key: '/admin/organizations', icon: <ApartmentOutlined />, label: 'จัดการหน่วยงาน' }
+          { key: '/admin/organizations', icon: <ApartmentOutlined />, label: 'จัดการหน่วยงาน' },
+          { key: '/admin/master-data', icon: <DatabaseOutlined />, label: 'จัดการฐานข้อมูล' }
         ]
       }
     ] : [])

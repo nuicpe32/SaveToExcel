@@ -1,5 +1,108 @@
 # CHANGELOG - Criminal Case Management System
 
+## Version 3.5.0 - 13 ตุลาคม 2568
+
+### 🎉 New Features
+
+#### 🗄️ ระบบจัดการฐานข้อมูล Master Data (Admin Only)
+- ✅ หน้าจัดการ Master Data สำหรับ Admin
+- ✅ CRUD Operations สำหรับ 6 ตาราง Master Data:
+  - 🏦 **Banks** - ธนาคาร
+  - 🏪 **Non-Banks** - บริษัทนอกระบบธนาคาร
+  - 💳 **Payment Gateways** - ผู้ให้บริการชำระเงิน
+  - 📱 **Telco Mobile** - ผู้ให้บริการโทรศัพท์มือถือ
+  - 🌐 **Telco Internet** - ผู้ให้บริการอินเทอร์เน็ต
+  - 🔄 **Exchanges** - ผู้ให้บริการซื้อขายสินทรัพย์ดิจิทัล
+- ✅ UI แบบ Tabs พร้อมไอคอนสื่อความหมาย
+- ✅ Modal Form สำหรับเพิ่ม/แก้ไข ข้อมูล
+- ✅ Validation ป้องกันการลบข้อมูลที่มี relationships
+- ✅ Confirmation Dialog พร้อมข้อความแจ้งเตือนที่ชัดเจน
+- ✅ ตรวจสอบชื่อซ้ำ (Unique Constraint)
+
+### 🔐 Security & Access Control
+- ✅ เพิ่มฟังก์ชัน `require_admin()` สำหรับตรวจสอบสิทธิ์ Admin
+- ✅ Route Protection: `/admin/master-data` - Admin only
+- ✅ Navigation Menu แสดงเฉพาะ Admin
+
+### 🔧 Technical Improvements
+
+#### Backend API
+- ✅ `/api/v1/master-data/banks/` - CRUD operations
+- ✅ `/api/v1/master-data/non-banks/` - CRUD operations
+- ✅ `/api/v1/master-data/payment-gateways/` - CRUD operations
+- ✅ `/api/v1/master-data/telco-mobile/` - CRUD operations
+- ✅ `/api/v1/master-data/telco-internet/` - CRUD operations
+- ✅ `/api/v1/master-data/exchanges/` - CRUD operations
+
+#### Validation Logic
+- ✅ ตรวจสอบ Foreign Key relationships ก่อนลบ:
+  - Banks → BankAccounts
+  - Non-Banks → NonBankAccounts
+  - Payment Gateways → PaymentGatewayAccounts
+  - Telco Mobile → TelcoMobileAccounts
+  - Telco Internet → TelcoInternetAccounts
+  - Exchanges → (ยังไม่มี ExchangeAccounts)
+- ✅ Error Messages ภาษาไทยที่เข้าใจง่าย
+- ✅ HTTP Status Codes ที่เหมาะสม (400, 404, 403)
+
+#### Frontend Components
+- ✅ `MasterDataPage.tsx` - หน้าจัดการ Master Data
+- ✅ Dynamic Form Fields ตามประเภทข้อมูล
+- ✅ Responsive Table พร้อม Pagination
+- ✅ Status Display (ใช้งาน/ปิดใช้งาน)
+
+### 🐛 Bug Fixes
+- ✅ แก้ไข Import Schema: ใช้ `NonBankResponse`, `TelcoMobileResponse`, `TelcoInternetResponse`, `ExchangeResponse`
+- ✅ ลบฟิลด์ `license_number` และ `license_date` จาก Exchange (ไม่จำเป็น)
+
+### 🎯 UI/UX Enhancements
+- ✅ เมนู "จัดการฐานข้อมูล" ใน Navigation (Admin only)
+- ✅ ไอคอน `DatabaseOutlined` สำหรับเมนู
+- ✅ Table Columns ปรับให้เหมาะสมกับข้อมูลแต่ละประเภท
+- ✅ Form Modal กว้าง 700px สำหรับกรอกข้อมูลได้สะดวก
+- ✅ Switch Component สำหรับสถานะเปิด/ปิด
+
+### 📋 Master Data Fields
+
+#### Banks (11 fields)
+- bank_name, bank_code, bank_short_name
+- bank_address, soi, moo, road
+- sub_district, district, province, postal_code
+
+#### Non-Banks / Payment Gateways (13 fields)
+- company_name, company_name_short
+- company_address, soi, moo, road
+- sub_district, district, province, postal_code
+- phone, email, website, is_active
+
+#### Telco Mobile / Telco Internet (14 fields)
+- company_name, company_name_short, building_name
+- company_address, soi, moo, road
+- sub_district, district, province, postal_code
+- phone, email, website, is_active
+
+#### Exchanges (17 fields)
+- company_name, company_name_short, company_name_alt
+- building_name, company_address, floor, unit
+- soi, moo, road, sub_district, district, province, postal_code
+- phone, email, website, is_active
+
+---
+
+## 🛡️ Backward Compatibility
+- ✅ ระบบเดิมทำงานปกติ 100%
+- ✅ ไม่มีการแก้ไขโครงสร้างฐานข้อมูล
+- ✅ ไม่กระทบฟังก์ชันที่มีอยู่แล้ว
+- ✅ เพิ่มเฉพาะ API Endpoints ใหม่
+
+---
+
+## 🎯 Breaking Changes
+- ❌ ไม่มี Breaking Changes
+- ✅ เป็น Additive Changes เท่านั้น
+
+---
+
 ## Version 3.4.0 - 13 ตุลาคม 2568
 
 ### 🎉 New Features

@@ -3,7 +3,7 @@ from typing import Optional
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Criminal Case Management System"
-    VERSION: str = "3.0.0"
+    VERSION: str = "3.5.0"
     API_V1_STR: str = "/api/v1"
 
     DATABASE_URL: str

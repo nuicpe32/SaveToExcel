@@ -10,6 +10,7 @@ import EditCriminalCasePage from './pages/EditCriminalCasePage'
 import CriminalCaseDetailPage from './pages/CriminalCaseDetailPage'
 import AdminUsersPage from './pages/AdminUsersPage'
 import OrganizationManagementPage from './pages/OrganizationManagementPage'
+import MasterDataPage from './pages/MasterDataPage'
 import MainLayout from './components/MainLayout'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -63,13 +64,21 @@ function App() {
               </AdminRoute>
             } 
           />
-          <Route 
-            path="admin/organizations" 
+          <Route
+            path="admin/organizations"
             element={
               <AdminRoute>
                 <OrganizationManagementPage />
               </AdminRoute>
-            } 
+            }
+          />
+          <Route
+            path="admin/master-data"
+            element={
+              <AdminRoute>
+                <MasterDataPage />
+              </AdminRoute>
+            }
           />
         </Route>
       </Routes>
