@@ -77,16 +77,17 @@ class NonBankSummonsGenerator:
         
         return cleaned_name.strip()
     
-    def generate_bank_letter_html(self, bank_data: Dict, criminal_case: Dict, freeze_account: bool = False, transactions: list = None) -> str:
+    def generate_bank_letter_html(self, bank_data: Dict, criminal_case: Dict, freeze_account: bool = False, transactions: list = None, signature_path: Optional[str] = None) -> str:
         """
         สร้าง HTML หมายเรียกขอข้อมูลบัญชีธนาคาร
-        
+
         Args:
             bank_data: ข้อมูลบัญชีธนาคาร (from bank_accounts table)
             criminal_case: ข้อมูลคดี (from criminal_cases table)
             freeze_account: True = อายัดบัญชี, False = ไม่อายัดบัญชี
             transactions: รายการโอนเงิน (optional, สำหรับ Non-Bank)
-        
+            signature_path: path to signature image file (optional, for email only)
+
         Returns:
             HTML content string
         """
@@ -104,7 +105,19 @@ class NonBankSummonsGenerator:
         if bank_data.get('document_date'):
             from app.utils.thai_date_utils import format_date_to_thai_buddhist_era
             date_thai = format_date_to_thai_buddhist_era(bank_data.get('document_date'))
-        
+
+        # โหลดลายเซ็น (ถ้ามี)
+        signature_base64 = ''
+        if signature_path:
+            from app.core.config import settings
+            full_signature_path = os.path.join(settings.UPLOAD_DIR, signature_path)
+            if os.path.exists(full_signature_path):
+                try:
+                    with open(full_signature_path, "rb") as sig_file:
+                        signature_base64 = base64.b64encode(sig_file.read()).decode()
+                except Exception as e:
+                    print(f"ไม่สามารถโหลดลายเซ็น: {e}")
+
         # ดึงข้อมูลจาก criminal_case
         victim_name = self._format_value(criminal_case.get('victim_name', ''))
         case_id = self._format_value(criminal_case.get('case_id', ''))
@@ -114,7 +127,7 @@ class NonBankSummonsGenerator:
         
         # สร้าง title ตามที่ต้องการ
         html_title = f"หมายเรียกพยานเอกสาร{document_no} ลงวันที่ {date_thai}"
-        
+
         # สร้าง HTML
         html_content = f"""<!DOCTYPE html>
 <html lang="th">
@@ -358,43 +371,79 @@ class NonBankSummonsGenerator:
         if transactions and len(transactions) > 0:
             html_content += """
             <h4 style="margin-top: 20px; margin-bottom: 10px; font-weight: bold;">รายละเอียดการโอนเงิน</h4>
-            <table class="bank-table">
+            <table class="bank-table" style="font-size: 65%; width: 100%; table-layout: fixed;">
                 <thead>
                     <tr>
-                        <th style="width: 50px;">#</th>
-                        <th>ธนาคารต้นทาง</th>
-                        <th>เลขบัญชีต้นทาง</th>
-                        <th>วันที่โอน</th>
-                        <th>เวลา</th>
-                        <th>จำนวนเงิน</th>
+                        <th style="width: 30px;">#</th>
+                        <th style="width: 120px;">ธนาคารต้นทาง</th>
+                        <th style="width: 100px;">เลขบัญชีต้นทาง</th>
+                        <th style="width: 120px;">ชื่อบัญชีต้นทาง</th>
+                        <th style="width: 110px;">วันเวลาโอน</th>
+                        <th style="width: 80px;">จำนวนเงิน</th>
                     </tr>
                 </thead>
                 <tbody>
 """
             for index, transaction in enumerate(transactions, 1):
-                # Format transfer_date
+                # Format transfer_date (แบบสั้น: 16 ต.ค. 68)
                 transfer_date_str = ''
                 if transaction.get('transfer_date'):
-                    from app.utils.thai_date_utils import format_date_to_thai_buddhist_era
-                    transfer_date_str = format_date_to_thai_buddhist_era(transaction['transfer_date'])
+                    try:
+                        from datetime import datetime
+                        # Thai months (ย่อ)
+                        thai_months_short = [
+                            'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+                            'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+                        ]
+                        
+                        # Parse date
+                        if isinstance(transaction['transfer_date'], str):
+                            date_obj = datetime.strptime(transaction['transfer_date'], '%Y-%m-%d')
+                        else:
+                            date_obj = transaction['transfer_date']
+                        
+                        day = date_obj.day
+                        month_short = thai_months_short[date_obj.month - 1]
+                        year_short = str(date_obj.year + 543)[-2:]  # แค่ 2 หัก เช่น 68
+                        
+                        transfer_date_str = f"{day} {month_short} {year_short}"
+                    except Exception as e:
+                        transfer_date_str = str(transaction.get('transfer_date', ''))
+                
+                # Format วันเวลาโอน (รวมกัน)
+                transfer_time = self._format_value(transaction.get('transfer_time', ''))
+                if not transfer_time or transfer_time == '-':
+                    datetime_str = transfer_date_str if transfer_date_str else '-'
+                else:
+                    # รวมวันที่และเวลา
+                    if transfer_date_str:
+                        # ตรวจสอบว่า transfer_time มี "น." ไหม
+                        if 'น.' not in transfer_time:
+                            transfer_time = f"{transfer_time} น."
+                        datetime_str = f"{transfer_date_str} {transfer_time}"
+                    else:
+                        datetime_str = transfer_time
                 
                 # Format transfer_amount
                 transfer_amount_str = ''
                 if transaction.get('transfer_amount'):
                     try:
                         amount = float(transaction['transfer_amount'])
-                        transfer_amount_str = f"{amount:,.2f} บาท"
+                        transfer_amount_str = f"{amount:,.2f}"
                     except:
                         transfer_amount_str = str(transaction['transfer_amount'])
                 
+                # Get source_account_name
+                source_account_name = self._format_value(transaction.get('source_account_name', '-'))
+                
                 html_content += f"""
                     <tr>
-                        <td>{index}</td>
-                        <td>{transaction.get('source_bank_name', '-')}</td>
-                        <td>{transaction.get('source_account_number', '-')}</td>
-                        <td>{transfer_date_str if transfer_date_str else '-'}</td>
-                        <td>{transaction.get('transfer_time', '-')}</td>
-                        <td style="text-align: right;">{transfer_amount_str if transfer_amount_str else '-'}</td>
+                        <td style="text-align: center;">{index}</td>
+                        <td style="white-space: nowrap;">{transaction.get('source_bank_name', '-')}</td>
+                        <td style="white-space: nowrap;">{transaction.get('source_account_number', '-')}</td>
+                        <td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{source_account_name}</td>
+                        <td style="white-space: nowrap;">{datetime_str}</td>
+                        <td style="text-align: right; white-space: nowrap;">{transfer_amount_str if transfer_amount_str else '-'}</td>
                     </tr>
 """
             html_content += """
@@ -417,7 +466,7 @@ class NonBankSummonsGenerator:
                     <li>รายการเคลื่อนไหวทางบัญชี (statement) ของบัญชีดังกล่าว ตามห้วงเวลาที่แจ้งข้างต้น โดยแสดง
                         รายละเอียดการโอน แสดงบัญชีต้นทางปลายทาง วันเวลา และจำนวนเงินที่โอนให้ครบถ้วน ขอทราบหมายเลขโทรศัพท์
                         ไอพีเเอดเดรส และ พิกัด latitude, longitude ในการทำธุรกรรม (กรณีข้อมูลจำนวนมากไม่สามารถปริ้นเป็นเอกสารได้
-                        ให้บันทึกข้อมูลเป็นลงแผ่นซีดี หรือ ส่งไปที่อีเมล์ ampon.th@police.go.th)</li>
+                        ให้บันทึกข้อมูลเป็นลงแผ่นซีดี หรือ ส่งไปที่อีเมล์ <strong style="color: #0066cc;">ampon.th@police.go.th</strong>)</li>
 """
         
         # เพิ่มข้อ 3 ถ้าเป็นการอายัดบัญชี
@@ -433,17 +482,35 @@ class NonBankSummonsGenerator:
             <div class="paragraph">
                 ทั้งนี้ให้สำเนาข้อมูลดังกล่าวเป็นเอกสาร/แผ่นบันทึกข้อมูล (DVD Rom) ส่งมาที่ "พ.ต.ต.อำพล ทอง
                 อร่าม ที่อยู่ กองกำกับการ 1 กองบังคับการตำรวจสืบสวนสอบสวนอาชญากรรมทางเทคโนโลยี 4 เลขที่ 370 หมู่ 3
-                ตำบลดอนแก้ว อำเภอแม่ริม จังหวัดเชียงใหม่ 50180" และ อีเมล์ ampon.th@police.go.th ภายใน 7 วัน นับ
+                ตำบลดอนแก้ว อำเภอแม่ริม จังหวัดเชียงใหม่ 50180" และ อีเมล์ <strong style="color: #0066cc;">ampon.th@police.go.th</strong> ภายใน 7 วัน นับ
                 แต่ได้รับหมายเรียกนี้
             </div>
 
             <div class="signature">
                 <div class="signature-line">ขอแสดงความนับถือ</div>
-                <br>
+                <br>"""
+
+        # ถ้ามีลายเซ็น (ส่งอีเมล์) → จัดกลาง
+        if signature_base64:
+            html_content += """
+                <div style="text-align: center;">
+                    <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 5px;">
+                        <span style="display: inline-block;">พันตำรวจตรี</span>
+                        <img src="data:image/png;base64,""" + signature_base64 + """" alt="ลายเซ็น" style="max-width: 120px; max-height: 60px; margin-left: 15px; vertical-align: middle;">
+                    </div>
+                    <div style="text-align: center; margin-top: 5px;">( อำพล ทองอร่าม )</div>
+                    <div style="text-align: center;">สารวัตร (สอบสวน)ฯ ปฏิบัติราชการแทน</div>
+                    <div style="text-align: center;">ผู้กำกับการกองกำกับการ 1 กองบังคับการตำรวจสืบสวนสอบสวนอาชญากรรมทางเทคโนโลยี 4</div>
+                </div>"""
+        else:
+            # ถ้าไม่มีลายเซ็น (ปริ้นปกติ) → ใช้ CSS classes เหมือน bank_summons_generator
+            html_content += """
                 <div class="signature-title">พันตำรวจตรี</div>
                 <div class="signature-line">( อำพล ทองอร่าม )</div>
                 <div class="signature-line">สารวัตร (สอบสวน)ฯ ปฏิบัติราชการแทน</div>
-                <div class="signature-line">ผู้กำกับการกองกำกับการ 1 กองบังคับการตำรวจสืบสวนสอบสวนอาชญากรรมทางเทคโนโลยี 4</div>
+                <div class="signature-line">ผู้กำกับการกองกำกับการ 1 กองบังคับการตำรวจสืบสวนสอบสวนอาชญากรรมทางเทคโนโลยี 4</div>"""
+
+        html_content += """
             </div>
         </div>
     </div>

@@ -24,3 +24,5 @@ from .cfr import CFR
 from .criminal_case import CriminalCase
 from .post_arrest import PostArrest
 from .police_station import PoliceStation
+from .email_log import EmailLog
+from .charge import Charge

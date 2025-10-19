@@ -12,6 +12,7 @@ from app.services.payment_gateway_summons_generator import PaymentGatewaySummons
 from app.services.telco_mobile_summons_generator import TelcoMobileSummonsGenerator
 from app.services.telco_internet_summons_generator import TelcoInternetSummonsGenerator
 from app.services.suspect_summons_generator import suspect_summons_generator
+from app.services.case_report_generator import CaseReportGenerator
 from app.api.v1.auth import get_current_user
 import os
 
@@ -23,6 +24,7 @@ non_bank_summons_generator = NonBankSummonsGenerator()
 payment_gateway_summons_generator = PaymentGatewaySummonsGenerator()
 telco_mobile_summons_generator = TelcoMobileSummonsGenerator()
 telco_internet_summons_generator = TelcoInternetSummonsGenerator()
+case_report_generator = CaseReportGenerator()
 
 @router.get("/bank-account/{bank_account_id}")
 def generate_bank_account_document(
@@ -787,5 +789,138 @@ def generate_telco_internet_envelope_html(
     html_content = telco_internet_summons_generator.generate_telco_internet_envelope_html(
         telco_data, telco_address
     )
-    
+
+    return HTMLResponse(content=html_content, media_type="text/html; charset=utf-8")
+
+# ============================================
+# Case Report Endpoint
+# ============================================
+
+@router.get("/case-report/{criminal_case_id}", response_class=HTMLResponse)
+def generate_case_report_html(
+    criminal_case_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """สร้างรายงานคดีแบบสมบูรณ์ (HTML)"""
+    from app.models.payment_gateway_account import PaymentGatewayAccount
+    from app.models.payment_gateway import PaymentGateway
+
+    # ดึงข้อมูลคดี
+    criminal_case = db.query(CriminalCase).filter(
+        CriminalCase.id == criminal_case_id
+    ).first()
+    if not criminal_case:
+        raise HTTPException(status_code=404, detail="Criminal case not found")
+
+    # แปลงข้อมูลคดีเป็น dict
+    case_data = {
+        'case_number': criminal_case.case_number,
+        'case_id': criminal_case.case_id,
+        'complainant': criminal_case.complainant,
+        'damage_amount': criminal_case.damage_amount,
+        'complaint_date': criminal_case.complaint_date,
+        'incident_date': criminal_case.incident_date,
+        'status': criminal_case.status,
+        'case_type': criminal_case.case_type,
+        'court_name': criminal_case.court_name,
+    }
+
+    # ดึงรายการบัญชีธนาคาร
+    bank_accounts = db.query(BankAccount).filter(
+        BankAccount.criminal_case_id == criminal_case_id
+    ).all()
+    bank_accounts_list = [{
+        'bank_name': ba.bank_name,
+        'account_number': ba.account_number,
+        'account_name': ba.account_name,
+        'document_date': ba.document_date,
+        'reply_status': ba.reply_status,
+    } for ba in bank_accounts]
+
+    # ดึงรายการผู้ต้องหา
+    suspects = db.query(Suspect).filter(
+        Suspect.criminal_case_id == criminal_case_id
+    ).all()
+    suspects_list = [{
+        'suspect_name': s.suspect_name,
+        'suspect_id_card': s.suspect_id_card,
+        'document_date': s.document_date,
+        'appointment_date': s.appointment_date,
+        'reply_status': s.reply_status,
+    } for s in suspects]
+
+    # ดึงรายการ Non-Bank
+    non_bank_accounts = db.query(NonBankAccount).filter(
+        NonBankAccount.criminal_case_id == criminal_case_id
+    ).all()
+    non_bank_accounts_list = []
+    for nba in non_bank_accounts:
+        provider_name = ''
+        if nba.non_bank_id:
+            non_bank = db.query(NonBank).filter(NonBank.id == nba.non_bank_id).first()
+            if non_bank:
+                provider_name = non_bank.company_name
+
+        non_bank_accounts_list.append({
+            'provider_name': provider_name,
+            'account_number': nba.account_number,
+            'account_name': nba.account_name,
+            'document_date': nba.document_date,
+            'reply_status': nba.reply_status,
+        })
+
+    # ดึงรายการ Payment Gateway
+    pg_accounts = db.query(PaymentGatewayAccount).filter(
+        PaymentGatewayAccount.criminal_case_id == criminal_case_id
+    ).all()
+    pg_accounts_list = []
+    for pga in pg_accounts:
+        provider_name = ''
+        if pga.payment_gateway_id:
+            pg = db.query(PaymentGateway).filter(PaymentGateway.id == pga.payment_gateway_id).first()
+            if pg:
+                provider_name = pg.company_name
+
+        pg_accounts_list.append({
+            'provider_name': provider_name,
+            'account_number': pga.account_number,
+            'account_name': pga.account_name,
+            'document_date': pga.document_date,
+            'reply_status': pga.reply_status,
+        })
+
+    # ดึงรายการหมายเลขโทรศัพท์
+    telco_mobile_accounts = db.query(TelcoMobileAccount).filter(
+        TelcoMobileAccount.criminal_case_id == criminal_case_id
+    ).all()
+    telco_mobile_list = [{
+        'provider_name': tma.provider_name,
+        'phone_number': tma.phone_number,
+        'document_date': tma.document_date,
+        'reply_status': tma.reply_status,
+    } for tma in telco_mobile_accounts]
+
+    # ดึงรายการ IP Address
+    telco_internet_accounts = db.query(TelcoInternetAccount).filter(
+        TelcoInternetAccount.criminal_case_id == criminal_case_id
+    ).all()
+    telco_internet_list = [{
+        'provider_name': tia.provider_name,
+        'ip_address': tia.ip_address,
+        'document_date': tia.document_date,
+        'reply_status': tia.reply_status,
+    } for tia in telco_internet_accounts]
+
+    # สร้าง HTML
+    html_content = case_report_generator.generate_case_report_html(
+        case_data=case_data,
+        bank_accounts=bank_accounts_list,
+        suspects=suspects_list,
+        non_bank_accounts=non_bank_accounts_list,
+        payment_gateway_accounts=pg_accounts_list,
+        telco_mobile_accounts=telco_mobile_list,
+        telco_internet_accounts=telco_internet_list
+    )
+
     return HTMLResponse(content=html_content, media_type="text/html; charset=utf-8")

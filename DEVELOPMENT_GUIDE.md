@@ -1043,8 +1043,8 @@ from .src.data.bank_data_manager import BankDataManager
 ### 🔑 Key Development Concepts
 
 #### Database Normalization
-- **Master Data Tables**: `banks`, `non_banks`, `payment_gateways`
-- **Account Tables**: `bank_accounts`, `non_bank_accounts`, `payment_gateway_accounts`
+- **Master Data Tables**: `banks`, `non_banks`, `payment_gateways`, `telco_mobile`, `telco_internet`, `exchanges`, `charges`
+- **Account Tables**: `bank_accounts`, `non_bank_accounts`, `payment_gateway_accounts`, `telco_mobile_accounts`, `telco_internet_accounts`
 - **Transaction Tables**: `non_bank_transactions`, `payment_gateway_transactions`
 - **Foreign Keys**: All relationships use FK constraints for data integrity
 
@@ -1080,5 +1080,5 @@ from .src.data.bank_data_manager import BankDataManager
 
 *📝 คู่มือการพัฒนาฉบับนี้จัดทำขึ้นเพื่อให้ผู้พัฒนาใหม่สามารถเข้าใจและพัฒนาระบบต่อได้อย่างมีประสิทธิภาพ*
 
-*🔄 อัปเดตล่าสุด: ระบบจัดการคดีอาญา v3.2.0 - เพิ่มระบบ Payment Gateway และ Non-Bank*
-*📅 วันที่อัปเดต: 12 ตุลาคม 2568*
+*🔄 อัปเดตล่าสุด: ระบบจัดการคดีอาญา v3.7.0 - เพิ่มระบบฐานข้อมูลข้อหาความผิด*
+*📅 วันที่อัปเดต: 19 ตุลาคม 2568*

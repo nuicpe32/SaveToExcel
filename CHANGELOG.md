@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.7.0] - 2025-10-19
+
+### ✨ Added - Charges Master Data System
+- **📋 ระบบฐานข้อมูลข้อหาความผิด** - เพิ่มระบบจัดการข้อหาความผิดทางอาญา
+  - ตาราง `charges` สำหรับข้อมูล Master Data ข้อหา
+  - Model, Schema, API endpoints สำหรับ CRUD operations
+  - นำเข้าข้อมูลเริ่มต้น 5 รายการจากไฟล์ Excel
+- **🎨 UI Enhancement** - เพิ่ม Tab "ข้อหาความผิด" ใน Master Data Page
+  - แสดงรายการข้อหาแบบ table พร้อม pagination
+  - ฟอร์มเพิ่ม/แก้ไขข้อมูลครบถ้วน
+  - Validation และ duplicate check
+- **🔐 Admin Only** - เข้าถึงได้เฉพาะผู้ดูแลระบบเท่านั้น
+- **📊 Data Structure**:
+  - ชื่อข้อหา (charge_name)
+  - ข้อหา/รายละเอียดเต็ม (charge_description)
+  - กฎหมายที่เกี่ยวข้อง (related_laws)
+  - อัตราโทษ (penalty)
+
+### 🔧 Technical Details
+- **Database Migration**: `033_update_charges_table_structure.sql`, `034_insert_charges_data.sql`
+- **Backend**: Model, Schema, Router สำหรับ Charges
+- **Frontend**: Tab ใหม่ใน Master Data Page
+- **API Endpoints**: `/api/v1/charges/` (GET, POST, PUT, DELETE)
+
+---
+
 ## [Unreleased] - 2025-10-12
 
 ### ✨ Added - Payment Gateway Management System

@@ -17,6 +17,8 @@ from app.schemas.payment_gateway import PaymentGateway as PaymentGatewaySchema, 
 from app.schemas.telco_mobile import TelcoMobileResponse as TelcoMobileSchema, TelcoMobileCreate, TelcoMobileUpdate
 from app.schemas.telco_internet import TelcoInternetResponse as TelcoInternetSchema, TelcoInternetCreate, TelcoInternetUpdate
 from app.schemas.exchange import ExchangeResponse as ExchangeSchema, ExchangeCreate, ExchangeUpdate
+from app.models.charge import Charge
+from app.schemas.charge import ChargeResponse as ChargeSchema, ChargeCreate, ChargeUpdate
 
 router = APIRouter()
 
@@ -607,3 +609,104 @@ def delete_exchange(
     db.delete(db_exchange)
     db.commit()
     return {"message": "Exchange deleted successfully"}
+
+
+# ==================== Charges (ฐานข้อมูลความผิด) ====================
+
+@router.get("/charges", response_model=List[ChargeSchema])
+def get_all_charges(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """ดึงรายการฐานความผิดทั้งหมด (Admin only)"""
+    charges = db.query(Charge).order_by(Charge.title_th, Charge.section).all()
+    return charges
+
+
+@router.get("/charges/{charge_id}", response_model=ChargeSchema)
+def get_charge(
+    charge_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """ดึงข้อมูลฐานความผิดตาม ID (Admin only)"""
+    charge = db.query(Charge).filter(Charge.id == charge_id).first()
+    if not charge:
+        raise HTTPException(status_code=404, detail="Charge not found")
+    return charge
+
+
+@router.post("/charges", response_model=ChargeSchema)
+def create_charge(
+    charge: ChargeCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """สร้างฐานความผิดใหม่ (Admin only)
+
+    ป้องกันชื่อซ้ำเบื้องต้นโดยตรวจสอบ (title_th, section) หากระบุ section
+    """
+    query = db.query(Charge).filter(Charge.title_th == charge.title_th)
+    if charge.section:
+        query = query.filter(Charge.section == charge.section)
+    existing = query.first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Charge with same title/section already exists")
+
+    db_obj = Charge(**charge.dict())
+    db.add(db_obj)
+    db.commit()
+    db.refresh(db_obj)
+    return db_obj
+
+
+@router.put("/charges/{charge_id}", response_model=ChargeSchema)
+def update_charge(
+    charge_id: int,
+    charge: ChargeUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """แก้ไขข้อมูลฐานความผิด (Admin only)"""
+    db_obj = db.query(Charge).filter(Charge.id == charge_id).first()
+    if not db_obj:
+        raise HTTPException(status_code=404, detail="Charge not found")
+
+    update_data = charge.dict(exclude_unset=True)
+
+    # Check duplicate if title_th/section changed
+    new_title = update_data.get("title_th", db_obj.title_th)
+    new_section = update_data.get("section", db_obj.section)
+    dup_q = db.query(Charge).filter(Charge.title_th == new_title)
+    if new_section:
+        dup_q = dup_q.filter(Charge.section == new_section)
+    dup = dup_q.filter(Charge.id != charge_id).first()
+    if dup:
+        raise HTTPException(status_code=400, detail="Charge with same title/section already exists")
+
+    for k, v in update_data.items():
+        setattr(db_obj, k, v)
+
+    db.commit()
+    db.refresh(db_obj)
+    return db_obj
+
+
+@router.delete("/charges/{charge_id}")
+def delete_charge(
+    charge_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """ลบฐานความผิด (Admin only)
+
+    หมายเหตุ: ยังไม่มี FK จากตารางอื่น (planned: suspects.charge_id)
+    หากเพิ่ม FK ในอนาคตต้องเช็กการอ้างอิงก่อนลบ
+    """
+    db_obj = db.query(Charge).filter(Charge.id == charge_id).first()
+    if not db_obj:
+        raise HTTPException(status_code=404, detail="Charge not found")
+
+    db.delete(db_obj)
+    db.commit()
+    return {"message": "Charge deleted successfully"}

@@ -11,6 +11,7 @@ import CriminalCaseDetailPage from './pages/CriminalCaseDetailPage'
 import AdminUsersPage from './pages/AdminUsersPage'
 import OrganizationManagementPage from './pages/OrganizationManagementPage'
 import MasterDataPage from './pages/MasterDataPage'
+import ProfilePage from './pages/ProfilePage'
 import MainLayout from './components/MainLayout'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -51,6 +52,7 @@ function App() {
           }
         >
           <Route index element={<DashboardPage />} />
+          <Route path="profile" element={<ProfilePage />} />
           <Route path="bank-accounts" element={<BankAccountsPage />} />
           <Route path="suspects" element={<SuspectsPage />} />
           <Route path="add-criminal-case" element={<AddCriminalCasePage />} />

@@ -102,7 +102,13 @@ def delete_payment_gateway_account(
     ).first()
     if db_pg_account is None:
         raise HTTPException(status_code=404, detail="Payment gateway account not found")
-    
+
+    # ลบ transactions ที่เกี่ยวข้องก่อน (explicit delete)
+    from app.models.payment_gateway_transaction import PaymentGatewayTransaction
+    db.query(PaymentGatewayTransaction).filter(
+        PaymentGatewayTransaction.payment_gateway_account_id == payment_gateway_account_id
+    ).delete(synchronize_session=False)
+
     db.delete(db_pg_account)
     db.commit()
     return {"message": "Payment gateway account deleted successfully"}

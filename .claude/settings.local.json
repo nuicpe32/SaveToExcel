@@ -28,7 +28,8 @@
       "Bash(else echo \".env already exists\")",
       "Bash(fi)",
       "Bash(docker-compose:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Read(//c/Users/nui_c/Downloads/**)"
     ],
     "deny": [],
     "ask": []

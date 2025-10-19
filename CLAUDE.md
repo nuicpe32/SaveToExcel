@@ -18,11 +18,11 @@
 
 ## 🚀 Web Application - Quick Start (สำคัญ!)
 
-**โปรเจค Web App ใช้ Development Mode เป็นหลัก:**
+**โปรเจค Web App ใช้ Docker Compose (Universal Mode):**
 
 ```bash
 cd /mnt/c/SaveToExcel/web-app
-docker-compose -f docker-compose.dev.yml up -d
+docker-compose up -d
 ```
 
 **URLs:**
@@ -35,9 +35,7 @@ docker-compose -f docker-compose.dev.yml up -d
 - Password: `admin123`
 
 **📖 อ่านเอกสารสำคัญ:**
-- `/mnt/c/SaveToExcel/web-app/IMPORTANT_DEV_MODE.md` ⭐ **อ่านก่อนเสมอ!**
-- `/mnt/c/SaveToExcel/web-app/README.md`
-- `/mnt/c/SaveToExcel/web-app/BACKUP_RESTORE_GUIDE.md`
+- `/mnt/c/SaveToExcel/web-app/README.md` - ⭐ **เอกสารเดียวที่ครบถ้วนสมบูรณ์!**
 
 ---
 
@@ -69,11 +67,8 @@ docker-compose -f docker-compose.dev.yml up -d
     │   │   └── App.tsx
     │   ├── package.json
     │   └── Dockerfile.dev
-    ├── docker-compose.dev.yml       # ⭐ ใช้อันนี้!
-    ├── docker-compose.yml           # ⚠️ เลิกใช้แล้ว
-    ├── IMPORTANT_DEV_MODE.md        # ⭐ อ่านก่อนเสมอ!
-    ├── BACKUP_RESTORE_GUIDE.md
-    └── README.md
+    ├── docker-compose.yml           # ⭐ Universal Docker Compose
+    └── README.md                    # ⭐ เอกสารเดียวครบถ้วน (880+ บรรทัด)
 ```
 
 ---
@@ -83,49 +78,48 @@ docker-compose -f docker-compose.dev.yml up -d
 ### เมื่อได้รับโปรเจคนี้:
 
 1. **อ่านไฟล์สำคัญก่อน:**
-   - `/mnt/c/SaveToExcel/web-app/IMPORTANT_DEV_MODE.md` ⭐⭐⭐
-   - ไฟล์นี้บอกทุกอย่างที่ต้องรู้เกี่ยวกับ Docker, Volumes, Containers
+   - `/mnt/c/SaveToExcel/web-app/README.md` ⭐ **เอกสารเดียวที่ครบถ้วนสมบูรณ์!**
+   - เอกสารนี้รวมทุกอย่าง: Quick Start, Architecture, Features, Database, Email System, CFR System, Master Data, Deployment, Backup & Restore, Troubleshooting, และ Changelog
 
 2. **ตรวจสอบว่ากำลังทำงานกับ App ไหน:**
    - Desktop App → ใช้ `simple_excel_manager.py`
-   - Web App → ใช้ `docker-compose -f docker-compose.dev.yml`
+   - Web App → ใช้ `docker-compose up -d`
 
 3. **สำหรับ Web App:**
-   - **เสมอ** ใช้ `docker-compose -f docker-compose.dev.yml`
-   - **อย่า** ใช้ `docker-compose up` (จะใช้ volume ผิด)
-   - Container ทั้งหมดลงท้ายด้วย `-dev`
-   - Database password: `password123` (ไม่ใช่ `password`)
+   - ใช้ `docker-compose up -d` (Universal mode รองรับทั้ง Dev และ Production)
+   - Database password: `password123`
+   - Container names: `criminal-case-db`, `criminal-case-backend`, `criminal-case-frontend`
 
 4. **ตรวจสอบสถานะปัจจุบัน:**
    ```bash
    docker ps  # ดู containers
-   docker volume ls | grep dev  # ดู volumes
+   docker volume ls | grep criminal  # ดู volumes
    ```
 
 ---
 
 ## 📦 Docker Configuration (Web App)
 
-### ❌ อย่าใช้:
+### ✅ คำสั่งที่ใช้:
 ```bash
-docker-compose up -d  # ❌ ใช้ production volumes (ผิด!)
-```
-
-### ✅ ใช้อันนี้:
-```bash
-docker-compose -f docker-compose.dev.yml up -d  # ✅ ถูกต้อง!
+docker-compose up -d  # เริ่มระบบ (Universal mode)
+docker-compose down   # หยุดระบบ
+docker-compose logs -f # ดู logs
+docker-compose restart # Restart services
 ```
 
 ### Container Names (สำคัญ!):
-- `criminal-case-db-dev` - PostgreSQL (password: `password123`)
-- `criminal-case-redis-dev` - Redis
-- `criminal-case-backend-dev` - FastAPI
-- `criminal-case-frontend-dev` - React (Vite)
+- `criminal-case-db` - PostgreSQL (password: `password123`)
+- `criminal-case-redis` - Redis
+- `criminal-case-backend` - FastAPI (with hot reload)
+- `criminal-case-frontend` - React (Vite dev server)
+- `criminal-case-pgadmin` - pgAdmin (optional, use `--profile tools`)
+- `criminal-case-adminer` - Adminer (optional, use `--profile tools`)
 
 ### Volume Names:
-- `criminal-case-postgres-dev` ✅ ใช้งานอยู่
-- `criminal-case-uploads-dev` ✅ ใช้งานอยู่
-- `web-app_postgres_data` ⚠️ เก่า (ไม่ใช้แล้ว)
+- `criminal-case-postgres` - Database data
+- `criminal-case-uploads` - User uploads (signatures, etc.)
+- `criminal-case-pgadmin` - pgAdmin data
 
 ---
 
@@ -150,26 +144,26 @@ Password: admin123
 
 ## 🛠️ Common Commands
 
-### Web App (Development Mode):
+### Web App:
 
 ```bash
 # เริ่มระบบ
 cd /mnt/c/SaveToExcel/web-app
-docker-compose -f docker-compose.dev.yml up -d
+docker-compose up -d
 
 # หยุดระบบ
-docker-compose -f docker-compose.dev.yml down
+docker-compose down
 
 # ดู logs
-docker logs criminal-case-backend-dev -f
-docker logs criminal-case-frontend-dev -f
+docker logs criminal-case-backend -f
+docker logs criminal-case-frontend -f
 
 # เข้า container
-docker exec -it criminal-case-backend-dev bash
-docker exec -it criminal-case-db-dev psql -U user -d criminal_case_db
+docker exec -it criminal-case-backend bash
+docker exec -it criminal-case-db psql -U user -d criminal_case_db
 
 # ตรวจสอบข้อมูล
-docker exec criminal-case-db-dev psql -U user -d criminal_case_db -c "
+docker exec criminal-case-db psql -U user -d criminal_case_db -c "
 SELECT
   (SELECT COUNT(*) FROM criminal_cases) as cases,
   (SELECT COUNT(*) FROM suspects) as suspects,
@@ -178,8 +172,14 @@ SELECT
 
 # Backup database
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-docker exec criminal-case-db-dev pg_dump -U user -d criminal_case_db -F c -f /tmp/backup_${TIMESTAMP}.dump
-docker cp criminal-case-db-dev:/tmp/backup_${TIMESTAMP}.dump ./backup_database_${TIMESTAMP}.dump
+docker exec criminal-case-db pg_dump -U user -d criminal_case_db -F c -f /tmp/backup_${TIMESTAMP}.dump
+docker cp criminal-case-db:/tmp/backup_${TIMESTAMP}.dump ./backup_database_${TIMESTAMP}.dump
+
+# เปิด pgAdmin (optional)
+docker-compose --profile tools up -d pgadmin
+
+# เปิด Adminer (optional)
+docker-compose --profile tools up -d adminer
 ```
 
 ### Desktop App:
@@ -217,13 +217,13 @@ proxy: {
 
 ### 2. ข้อมูลหายหลัง Restart
 
-**สาเหตุ:** ใช้ `docker-compose.yml` แทน `docker-compose.dev.yml`
+**สาเหตุ:** ลบ volumes โดยไม่ได้ตั้งใจ (docker-compose down -v)
 
 **วิธีแก้:**
 ```bash
 # Restore จาก backup
-docker cp backup_database_YYYYMMDD_HHMMSS.dump criminal-case-db-dev:/tmp/restore.dump
-docker exec criminal-case-db-dev pg_restore -U user -d criminal_case_db -c -F c /tmp/restore.dump
+docker cp backup_database_YYYYMMDD_HHMMSS.dump criminal-case-db:/tmp/restore.dump
+docker exec criminal-case-db pg_restore -U user -d criminal_case_db -c -F c /tmp/restore.dump
 ```
 
 ### 3. Login ไม่ได้
@@ -231,7 +231,7 @@ docker exec criminal-case-db-dev pg_restore -U user -d criminal_case_db -c -F c 
 **เช็คสิ่งเหล่านี้:**
 ```bash
 # 1. ตรวจสอบ users table
-docker exec criminal-case-db-dev psql -U user -d criminal_case_db -c "SELECT * FROM users;"
+docker exec criminal-case-db psql -U user -d criminal_case_db -c "SELECT * FROM users;"
 
 # 2. Test API โดยตรง
 curl -X POST http://localhost:8000/api/v1/auth/login \
@@ -239,7 +239,7 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
   -d "username=admin&password=admin123"
 
 # 3. ดู backend logs
-docker logs criminal-case-backend-dev --tail 50
+docker logs criminal-case-backend --tail 50
 ```
 
 ---
@@ -289,29 +289,27 @@ git push origin main
 ## 🎯 Important Reminders for AI
 
 ### ✅ Always:
-1. อ่าน `IMPORTANT_DEV_MODE.md` ก่อนทำงานกับ Web App
-2. ใช้ `docker-compose -f docker-compose.dev.yml` สำหรับ Web App
-3. ใช้ `-dev` container names
-4. ใช้ `password123` สำหรับ database (DEV mode)
-5. สร้าง backup ก่อนทำการเปลี่ยนแปลงสำคัญ
-6. ตรวจสอบ `docker ps` และ `docker volume ls` ก่อนเริ่มงาน
+1. ใช้ `docker-compose up -d` สำหรับ Web App (Universal mode)
+2. ใช้ `password123` สำหรับ database
+3. Container names: `criminal-case-db`, `criminal-case-backend`, `criminal-case-frontend`
+4. สร้าง backup ก่อนทำการเปลี่ยนแปลงสำคัญ
+5. ตรวจสอบ `docker ps` และ `docker volume ls` ก่อนเริ่มงาน
+6. ใช้ `backend:8000` ใน Docker network (ไม่ใช่ `localhost:8000`)
 
 ### ❌ Never:
-1. ใช้ `docker-compose up` โดยไม่ระบุ `-f docker-compose.dev.yml`
-2. สมมติว่า production mode ใช้งานอยู่
-3. ใช้ `localhost:8000` ใน Docker network (ต้องใช้ `backend:8000`)
-4. ลืมตรวจสอบ volume ที่ใช้งานอยู่
-5. แก้ไข `docker-compose.yml` (ใช้ `.dev.yml` แทน)
+1. ใช้ `docker-compose down -v` (จะลบ volumes ทั้งหมด!)
+2. ใช้ `localhost:8000` ใน Docker network (ต้องใช้ `backend:8000`)
+3. ลืมตรวจสอบ volume ที่ใช้งานอยู่
+4. ลืม backup ข้อมูลก่อนทำการเปลี่ยนแปลงครั้งใหญ่
 
 ---
 
 ## 📚 Documentation Files
 
 ### Web App:
-- ⭐ `web-app/IMPORTANT_DEV_MODE.md` - **อ่านก่อนเสมอ!**
-- `web-app/README.md` - คู่มือหลัก
-- `web-app/BACKUP_RESTORE_GUIDE.md` - Backup/Restore
-- `web-app/DEV_MODE_SETUP.md` - Development setup
+- ⭐ `web-app/README.md` - **เอกสารเดียวที่ครบถ้วนสมบูรณ์!** (880+ บรรทัด)
+  - รวมทุกอย่าง: Architecture, Features (v3.0.0-3.6.0), Database, Development, Email System, CFR System, Master Data, Deployment, Backup & Restore, Troubleshooting, Changelog
+- `web-app/docker-compose.yml` - Docker configuration (Universal mode)
 
 ### Desktop App:
 - `README.md` - User documentation
@@ -324,9 +322,16 @@ git push origin main
 ---
 
 **Created:** 1 October 2025
-**Updated:** 1 October 2025
+**Updated:** 19 October 2025
 **For:** AI Assistants & Developers
-**Project:** Criminal Case Management System v3.0.1
+**Project:** Criminal Case Management System v3.7.0
+
+**⭐ การอัปเดตล่าสุด (19 ต.ค. 2025 - v3.7.0):**
+- 📋 เพิ่มระบบฐานข้อมูลข้อหาความผิด (Charges Master Data)
+- 🎨 เพิ่ม Tab "ข้อหาความผิด" ใน Master Data Page (Admin only)
+- 📊 นำเข้าข้อมูลเริ่มต้น 5 รายการจากไฟล์ Excel
+- 🔐 CRUD operations พร้อม validation และ duplicate check
+- 📄 Migration SQL: 033, 034 สำหรับสร้างตารางและ import ข้อมูล
 
 ---
 
@@ -334,7 +339,7 @@ git push origin main
 
 **Web App Quick Start:**
 ```bash
-cd /mnt/c/SaveToExcel/web-app && docker-compose -f docker-compose.dev.yml up -d
+cd /mnt/c/SaveToExcel/web-app && docker-compose up -d
 ```
 
 **Web App URLs:**
@@ -349,9 +354,12 @@ cd /mnt/c/SaveToExcel && python3 simple_excel_manager.py
 **ตรวจสอบสถานะ:**
 ```bash
 docker ps  # Web App containers
-docker exec criminal-case-db-dev psql -U user -d criminal_case_db -c "SELECT COUNT(*) FROM criminal_cases;"
+docker exec criminal-case-db psql -U user -d criminal_case_db -c "SELECT COUNT(*) FROM criminal_cases;"
 ```
 
 ---
 
-**หมายเหตุสำคัญ:** ถ้ามีข้อสงสัยหรือข้อมูลไม่ตรงกัน ให้เชื่อไฟล์ `IMPORTANT_DEV_MODE.md` เป็นหลัก เพราะเป็นไฟล์ที่อัพเดทล่าสุดและมีรายละเอียดครบถ้วนที่สุด
+**หมายเหตุสำคัญ:**
+- โปรเจคใช้ Docker Compose แบบ Universal Mode รองรับทั้ง Development และ Production ผ่าน Environment Variables
+- ⭐ **เอกสารทั้งหมดอยู่ในไฟล์เดียว:** `/mnt/c/SaveToExcel/web-app/README.md` (880+ บรรทัด)
+- อ่านเอกสารนี้ก่อนเริ่มพัฒนาเสมอ เพื่อความเข้าใจที่ถูกต้องและครบถ้วน

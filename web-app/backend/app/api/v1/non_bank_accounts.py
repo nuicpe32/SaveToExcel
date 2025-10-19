@@ -102,7 +102,13 @@ def delete_non_bank_account(
     ).first()
     if db_non_bank_account is None:
         raise HTTPException(status_code=404, detail="Non-bank account not found")
-    
+
+    # ลบ transactions ที่เกี่ยวข้องก่อน (explicit delete)
+    from app.models.non_bank_transaction import NonBankTransaction
+    db.query(NonBankTransaction).filter(
+        NonBankTransaction.non_bank_account_id == non_bank_account_id
+    ).delete(synchronize_session=False)
+
     db.delete(db_non_bank_account)
     db.commit()
     return {"message": "Non-bank account deleted successfully"}

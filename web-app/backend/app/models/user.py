@@ -17,6 +17,7 @@ class User(Base):
     position = Column(String, nullable=True)
     phone_number = Column(String, nullable=True)
     line_id = Column(String, nullable=True)
+    signature_path = Column(String(500), nullable=True, comment="Path to user signature image file (PNG format)")
     
     # Organization (Required)
     bureau_id = Column(Integer, ForeignKey("bureaus.id"), nullable=False, index=True)

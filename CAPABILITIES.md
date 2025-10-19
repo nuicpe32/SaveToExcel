@@ -497,15 +497,19 @@ Footer:     [Generation Info] + [Timestamp]
 - ✅ Smart Data Linking
 - ✅ Complete Feature Set
 
-#### **v3.0.0 (Web Application - ปัจจุบัน)**
+#### **v3.7.0 (Web Application - ปัจจุบัน)**
 - ✅ Full-Stack Web Application
 - ✅ React Frontend + FastAPI Backend
 - ✅ PostgreSQL Database
 - ✅ JWT Authentication
 - ✅ CRUD Operations
 - ✅ Responsive Design
+- ✅ Master Data: 7 ประเภท (Banks, Non-Banks, Payment Gateways, Telco Mobile, Telco Internet, Exchanges, Charges)
+- ✅ Email System with Tracking
+- ✅ CFR Analysis & Flow Chart
+- ✅ Charges Master Data (ข้อหาความผิด)
 
-#### **v3.1.0 (วางแผน)**
+#### **v3.8.0 (วางแผน)**
 - 🔄 Advanced Reporting (PDF/Excel Export)
 - 🔄 Real-time Updates (WebSocket)
 - 🔄 Advanced Analytics
@@ -525,5 +529,5 @@ Footer:     [Generation Info] + [Timestamp]
 
 ---
 
-*📊 เอกสารความสามารถฉบับนี้อัปเดตล่าสุด: ระบบจัดการคดีอาญา v3.0.0*  
+*📊 เอกสารความสามารถฉบับนี้อัปเดตล่าสุด: ระบบจัดการคดีอาญา v3.7.0*  
 *🌐 Full-Stack Web Application + 🖥️ Desktop Application - พร้อมใช้งานระดับองค์กร*

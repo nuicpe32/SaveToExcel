@@ -3,7 +3,7 @@ from typing import Optional
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Criminal Case Management System"
-    VERSION: str = "3.5.0"
+    VERSION: str = "3.6.0"
     API_V1_STR: str = "/api/v1"
 
     DATABASE_URL: str
@@ -22,6 +22,13 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://localhost:3001",
     ]
+
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    FROM_EMAIL: str = ""
+    FROM_NAME: str = "กองบังคับการตำรวจสืบสวนสอบสวนอาชญากรรมทางเทคโนโลยี 4"
 
     class Config:
         env_file = ".env"

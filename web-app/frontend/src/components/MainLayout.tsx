@@ -40,6 +40,11 @@ export default function MainLayout() {
         { key: '/suspects', icon: <UserOutlined />, label: 'หมายเรียกผู้ต้องหา' }
       ]
     },
+    {
+      key: '/profile',
+      icon: <UserOutlined />,
+      label: 'โปรไฟล์ส่วนตัว'
+    },
     ...(user?.role?.role_name === 'admin' ? [
       {
         key: 'admin',

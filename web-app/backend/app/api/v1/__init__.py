@@ -1,10 +1,11 @@
 from fastapi import APIRouter
-from . import auth, bank_accounts, non_bank_accounts, non_bank_transactions, payment_gateway_accounts, payment_gateway_transactions, telco_mobile_accounts, telco_internet_accounts, suspects, criminal_cases, post_arrests, documents, case_types, courts, pdf_parser, police_stations, user_registration, admin_users, cfr_upload, master_data
-from .endpoints import banks, non_banks, payment_gateways, telco_mobile, telco_internet, exchanges, organizations
+from . import auth, bank_accounts, non_bank_accounts, non_bank_transactions, payment_gateway_accounts, payment_gateway_transactions, telco_mobile_accounts, telco_internet_accounts, suspects, criminal_cases, post_arrests, documents, case_types, courts, pdf_parser, police_stations, user_registration, admin_users, cfr_upload, master_data, emails, email_tracking, profile
+from .endpoints import banks, non_banks, payment_gateways, telco_mobile, telco_internet, exchanges, organizations, charges
 
 api_router = APIRouter()
 
 api_router.include_router(auth.router, prefix="/auth", tags=["authentication"])
+api_router.include_router(profile.router, prefix="/profile", tags=["profile"])
 api_router.include_router(user_registration.router, prefix="/registration", tags=["user-registration"])
 api_router.include_router(admin_users.router, prefix="/admin", tags=["admin-users"])
 api_router.include_router(organizations.router, prefix="/organizations", tags=["organizations"])
@@ -14,6 +15,7 @@ api_router.include_router(payment_gateways.router, prefix="/payment-gateways", t
 api_router.include_router(telco_mobile.router, prefix="/telco-mobile", tags=["telco-mobile"])
 api_router.include_router(telco_internet.router, prefix="/telco-internet", tags=["telco-internet"])
 api_router.include_router(exchanges.router, prefix="/exchanges", tags=["exchanges"])
+api_router.include_router(charges.router, prefix="/charges", tags=["charges"])
 api_router.include_router(courts.router, prefix="/courts", tags=["courts"])
 api_router.include_router(bank_accounts.router, prefix="/bank-accounts", tags=["bank-accounts"])
 api_router.include_router(non_bank_accounts.router, prefix="/non-bank-accounts", tags=["non-bank-accounts"])
@@ -31,3 +33,5 @@ api_router.include_router(pdf_parser.router, tags=["pdf-parser"])
 api_router.include_router(police_stations.router, prefix="/police-stations", tags=["police-stations"])
 api_router.include_router(cfr_upload.router, prefix="/cfr", tags=["cfr"])
 api_router.include_router(master_data.router, prefix="/master-data", tags=["master-data"])
+api_router.include_router(emails.router, prefix="/emails", tags=["emails"])
+api_router.include_router(email_tracking.router, prefix="/email-tracking", tags=["email-tracking"])

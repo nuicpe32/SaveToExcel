@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Table, message, Tag, Space, Button, Descriptions, Drawer, Tabs, Popconfirm, Modal, Input, Upload, Card, List, Spin } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { EditOutlined, DeleteOutlined, PlusOutlined, PrinterOutlined, UploadOutlined, FileExcelOutlined, ApartmentOutlined } from '@ant-design/icons'
+import { EditOutlined, DeleteOutlined, PlusOutlined, PrinterOutlined, UploadOutlined, FileExcelOutlined, ApartmentOutlined, MailOutlined, HistoryOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { useAuthStore } from '../stores/authStore'
@@ -11,6 +11,8 @@ import PaymentGatewayAccountFormModal from '../components/PaymentGatewayAccountF
 import TelcoMobileAccountFormModal from '../components/TelcoMobileAccountFormModal'
 import TelcoInternetAccountFormModal from '../components/TelcoInternetAccountFormModal'
 import SuspectFormModal from '../components/SuspectFormModal'
+import EmailConfirmationModal from '../components/EmailConfirmationModal'
+import EmailHistoryModal from '../components/EmailHistoryModal'
 import CfrFlowChart from '../components/CfrFlowChart'
 import dayjs from 'dayjs'
 
@@ -168,6 +170,39 @@ export default function DashboardPage() {
   const [selectedCfrAccount, setSelectedCfrAccount] = useState<any>(null)
   const [cfrDetailVisible, setCfrDetailVisible] = useState(false)
   const [flowChartVisible, setFlowChartVisible] = useState(false)
+
+  // Email Modal States
+  const [emailModalVisible, setEmailModalVisible] = useState(false)
+  const [emailAccountType, setEmailAccountType] = useState<'non_bank' | 'payment_gateway' | 'telco_mobile' | 'telco_internet' | 'bank'>('non_bank')
+  const [emailAccountId, setEmailAccountId] = useState<number>(0)
+  const [emailProviderName, setEmailProviderName] = useState<string>('')
+  const [emailDocumentNumber, setEmailDocumentNumber] = useState<string>('')
+  const [emailDefaultEmail, setEmailDefaultEmail] = useState<string>('')
+  const [emailAccountNumber, setEmailAccountNumber] = useState<string>('')
+  const [emailPhoneNumber, setEmailPhoneNumber] = useState<string>('')
+  const [emailIpAddress, setEmailIpAddress] = useState<string>('')
+
+  // Email History Modal States
+  const [emailHistoryVisible, setEmailHistoryVisible] = useState(false)
+  const [historyAccountType, setHistoryAccountType] = useState<'non_bank' | 'payment_gateway' | 'telco_mobile' | 'telco_internet' | 'bank'>('non_bank')
+  const [historyAccountId, setHistoryAccountId] = useState<number>(0)
+  const [historyAccountInfo, setHistoryAccountInfo] = useState<{
+    documentNumber?: string;
+    providerName?: string;
+    accountNumber?: string;
+  }>({})
+
+  // Handler สำหรับเปิด Email History Modal
+  const handleShowEmailHistory = (
+    accountType: 'non_bank' | 'payment_gateway' | 'telco_mobile' | 'telco_internet' | 'bank',
+    accountId: number,
+    accountInfo: { documentNumber?: string; providerName?: string; accountNumber?: string }
+  ) => {
+    setHistoryAccountType(accountType)
+    setHistoryAccountId(accountId)
+    setHistoryAccountInfo(accountInfo)
+    setEmailHistoryVisible(true)
+  }
 
   // ฟังก์ชันแปลงวันที่เป็นรูปแบบไทย
   const formatThaiDate = (date: string | undefined): string => {
@@ -908,6 +943,125 @@ export default function DashboardPage() {
     } catch (err) {
       message.error('ไม่สามารถสร้างซองหมายเรียก Non-Bank ได้')
       console.error(err)
+    }
+  }
+
+  // ==================== Email Handlers ====================
+
+  const handleOpenEmailModal = async (
+    accountType: 'non_bank' | 'payment_gateway' | 'telco_mobile' | 'telco_internet' | 'bank',
+    accountId: number
+  ) => {
+    try {
+      // Fetch account details to get provider info and email
+      let accountData: any = null
+      let providerData: any = null
+
+      if (accountType === 'non_bank') {
+        const account = nonBankAccounts.find(a => a.id === accountId)
+        if (account) {
+          accountData = account
+          // Fetch provider email from non_banks table
+          try {
+            const response = await api.get(`/non-banks/${account.non_bank_id}`)
+            providerData = response.data
+          } catch (err) {
+            console.error('Failed to fetch provider data:', err)
+          }
+        }
+      } else if (accountType === 'payment_gateway') {
+        const account = paymentGatewayAccounts.find(a => a.id === accountId)
+        if (account) {
+          accountData = account
+          try {
+            const response = await api.get(`/payment-gateways/${account.payment_gateway_id}`)
+            providerData = response.data
+          } catch (err) {
+            console.error('Failed to fetch provider data:', err)
+          }
+        }
+      } else if (accountType === 'telco_mobile') {
+        const account = telcoMobileAccounts.find(a => a.id === accountId)
+        if (account) {
+          accountData = account
+          try {
+            const response = await api.get(`/telco-mobile/${account.telco_mobile_id}`)
+            providerData = response.data
+          } catch (err) {
+            console.error('Failed to fetch provider data:', err)
+          }
+        }
+      } else if (accountType === 'telco_internet') {
+        const account = telcoInternetAccounts.find(a => a.id === accountId)
+        if (account) {
+          accountData = account
+          try {
+            const response = await api.get(`/telco-internet/${account.telco_internet_id}`)
+            providerData = response.data
+          } catch (err) {
+            console.error('Failed to fetch provider data:', err)
+          }
+        }
+      }
+
+      if (!accountData) {
+        message.error('ไม่พบข้อมูลบัญชี')
+        return
+      }
+
+      // ตรวจสอบว่าผู้ให้บริการมีอีเมล์หรือไม่
+      const providerEmail = providerData?.email || ''
+      if (!providerEmail || providerEmail.trim() === '') {
+        Modal.warning({
+          title: 'ไม่พบข้อมูลอีเมล์',
+          content: `ผู้ให้บริการ "${accountData.provider_name || accountData.bank_name}" ยังไม่มีข้อมูลอีเมล์ในระบบ กรุณาเพิ่มอีเมล์ใน Master Data ก่อนส่งหมายเรียก`,
+          okText: 'ตกลง'
+        })
+        return
+      }
+
+      // Set modal data
+      setEmailAccountType(accountType)
+      setEmailAccountId(accountId)
+      setEmailProviderName(accountData.provider_name || accountData.bank_name || '')
+      setEmailDocumentNumber(accountData.document_number || '')
+      setEmailDefaultEmail(providerEmail)
+      setEmailAccountNumber(accountData.account_number || '')
+      setEmailPhoneNumber(accountData.phone_number || '')
+      setEmailIpAddress(accountData.ip_address || '')
+      setEmailModalVisible(true)
+    } catch (err) {
+      message.error('เกิดข้อผิดพลาดในการเปิด Modal')
+      console.error(err)
+    }
+  }
+
+  const handleSendEmail = async (recipientEmail: string, freezeAccount: boolean = false) => {
+    try {
+      const response = await api.post('/emails/send-summons', {
+        account_type: emailAccountType,
+        account_id: emailAccountId,
+        recipient_email: recipientEmail,
+        document_type: 'summons',
+        freeze_account: freezeAccount
+      })
+
+      if (response.data.status === 'sent') {
+        message.success('ส่งหมายเรียกทางอีเมล์สำเร็จ!')
+        setEmailModalVisible(false)
+
+        // Refresh case details
+        if (selected) {
+          fetchCaseDetails(selected.id)
+        }
+      } else {
+        message.error(`ส่งอีเมล์ไม่สำเร็จ: ${response.data.message}`)
+      }
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.detail || 'ไม่สามารถส่งอีเมล์ได้'
+      message.error(errorMsg)
+      console.error('Email sending error:', err)
+      throw err
     }
   }
 
@@ -2314,6 +2468,29 @@ export default function DashboardPage() {
                         >
                           ปริ้นซองหมายเรียก
                         </Button>
+                        <Button
+                          type="default"
+                          size="small"
+                          icon={<MailOutlined />}
+                          onClick={() => handleOpenEmailModal('non_bank', record.id)}
+                          block
+                          style={{ borderColor: '#1890ff', color: '#1890ff' }}
+                        >
+                          ส่งอีเมล์
+                        </Button>
+                        <Button
+                          size="small"
+                          icon={<HistoryOutlined />}
+                          onClick={() => handleShowEmailHistory('non_bank', record.id, {
+                            documentNumber: record.document_number,
+                            providerName: record.provider_name,
+                            accountNumber: record.account_number
+                          })}
+                          block
+                          style={{ borderColor: '#722ed1', color: '#722ed1' }}
+                        >
+                          ประวัติอีเมล์
+                        </Button>
                       </Space>
                     ),
                   },
@@ -2576,6 +2753,29 @@ export default function DashboardPage() {
                         >
                           ปริ้นซองหมายเรียก
                         </Button>
+                        <Button
+                          type="default"
+                          size="small"
+                          icon={<MailOutlined />}
+                          onClick={() => handleOpenEmailModal('payment_gateway', record.id)}
+                          block
+                          style={{ borderColor: '#1890ff', color: '#1890ff' }}
+                        >
+                          ส่งอีเมล์
+                        </Button>
+                        <Button
+                          size="small"
+                          icon={<HistoryOutlined />}
+                          onClick={() => handleShowEmailHistory('payment_gateway', record.id, {
+                            documentNumber: record.document_number,
+                            providerName: record.provider_name,
+                            accountNumber: record.account_number
+                          })}
+                          block
+                          style={{ borderColor: '#722ed1', color: '#722ed1' }}
+                        >
+                          ประวัติอีเมล์
+                        </Button>
                       </Space>
                     ),
                   },
@@ -2684,6 +2884,29 @@ export default function DashboardPage() {
                         >
                           ปริ้นซองหมายเรียก
                         </Button>
+                        <Button
+                          type="default"
+                          size="small"
+                          icon={<MailOutlined />}
+                          onClick={() => handleOpenEmailModal('telco_mobile', record.id)}
+                          block
+                          style={{ borderColor: '#1890ff', color: '#1890ff' }}
+                        >
+                          ส่งอีเมล์
+                        </Button>
+                        <Button
+                          size="small"
+                          icon={<HistoryOutlined />}
+                          onClick={() => handleShowEmailHistory('telco_mobile', record.id, {
+                            documentNumber: record.document_number,
+                            providerName: record.provider_name,
+                            accountNumber: record.phone_number
+                          })}
+                          block
+                          style={{ borderColor: '#722ed1', color: '#722ed1' }}
+                        >
+                          ประวัติอีเมล์
+                        </Button>
                       </Space>
                     ),
                   },
@@ -2791,6 +3014,29 @@ export default function DashboardPage() {
                           block
                         >
                           ปริ้นซองหมายเรียก
+                        </Button>
+                        <Button
+                          type="default"
+                          size="small"
+                          icon={<MailOutlined />}
+                          onClick={() => handleOpenEmailModal('telco_internet', record.id)}
+                          block
+                          style={{ borderColor: '#1890ff', color: '#1890ff' }}
+                        >
+                          ส่งอีเมล์
+                        </Button>
+                        <Button
+                          size="small"
+                          icon={<HistoryOutlined />}
+                          onClick={() => handleShowEmailHistory('telco_internet', record.id, {
+                            documentNumber: record.document_number,
+                            providerName: record.provider_name,
+                            accountNumber: record.ip_address
+                          })}
+                          block
+                          style={{ borderColor: '#722ed1', color: '#722ed1' }}
+                        >
+                          ประวัติอีเมล์
                         </Button>
                       </Space>
                     ),
@@ -3091,6 +3337,27 @@ export default function DashboardPage() {
         criminalCaseId={selected?.id || 0}
         editingRecord={editingSuspect}
         onClose={handleSuspectModalClose}
+      />
+
+      <EmailConfirmationModal
+        visible={emailModalVisible}
+        onCancel={() => setEmailModalVisible(false)}
+        onConfirm={handleSendEmail}
+        accountType={emailAccountType}
+        providerName={emailProviderName}
+        documentNumber={emailDocumentNumber}
+        defaultEmail={emailDefaultEmail}
+        accountNumber={emailAccountNumber}
+        phoneNumber={emailPhoneNumber}
+        ipAddress={emailIpAddress}
+      />
+
+      <EmailHistoryModal
+        visible={emailHistoryVisible}
+        onClose={() => setEmailHistoryVisible(false)}
+        accountType={historyAccountType}
+        accountId={historyAccountId}
+        accountInfo={historyAccountInfo}
       />
 
       <style>{`

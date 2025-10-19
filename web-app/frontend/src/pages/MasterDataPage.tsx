@@ -24,7 +24,8 @@ import {
   CreditCardOutlined,
   MobileOutlined,
   GlobalOutlined,
-  SwapOutlined
+  SwapOutlined,
+  FileTextOutlined
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import api from '../services/api'
@@ -158,7 +159,17 @@ interface Exchange {
   updated_at: string
 }
 
-type MasterDataType = Bank | NonBank | PaymentGateway | TelcoMobile | TelcoInternet | Exchange
+interface Charge {
+  id: number
+  charge_name: string
+  charge_description: string
+  related_laws: string
+  penalty: string
+  created_at: string
+  updated_at: string
+}
+
+type MasterDataType = Bank | NonBank | PaymentGateway | TelcoMobile | TelcoInternet | Exchange | Charge
 
 export default function MasterDataPage() {
   const [banks, setBanks] = useState<Bank[]>([])
@@ -167,6 +178,7 @@ export default function MasterDataPage() {
   const [telcoMobile, setTelcoMobile] = useState<TelcoMobile[]>([])
   const [telcoInternet, setTelcoInternet] = useState<TelcoInternet[]>([])
   const [exchanges, setExchanges] = useState<Exchange[]>([])
+  const [charges, setCharges] = useState<Charge[]>([])
 
   const [loading, setLoading] = useState(false)
   const [modalVisible, setModalVisible] = useState(false)
@@ -228,6 +240,15 @@ export default function MasterDataPage() {
     }
   }, [])
 
+  const fetchCharges = useCallback(async () => {
+    try {
+      const response = await api.get('/charges/')
+      setCharges(response.data)
+    } catch (error: any) {
+      message.error('ไม่สามารถดึงข้อมูลข้อหาได้')
+    }
+  }, [])
+
   const fetchAllData = useCallback(() => {
     setLoading(true)
     Promise.all([
@@ -236,9 +257,10 @@ export default function MasterDataPage() {
       fetchPaymentGateways(),
       fetchTelcoMobile(),
       fetchTelcoInternet(),
-      fetchExchanges()
+      fetchExchanges(),
+      fetchCharges()
     ]).finally(() => setLoading(false))
-  }, [fetchBanks, fetchNonBanks, fetchPaymentGateways, fetchTelcoMobile, fetchTelcoInternet, fetchExchanges])
+  }, [fetchBanks, fetchNonBanks, fetchPaymentGateways, fetchTelcoMobile, fetchTelcoInternet, fetchExchanges, fetchCharges])
 
   useEffect(() => {
     fetchAllData()
@@ -284,6 +306,9 @@ export default function MasterDataPage() {
           break
         case 'exchanges':
           endpoint = `/master-data/exchanges/${id}`
+          break
+        case 'charges':
+          endpoint = `/charges/${id}/`
           break
       }
 
@@ -342,6 +367,11 @@ export default function MasterDataPage() {
             ? `/master-data/exchanges/${editingItem.id}`
             : '/master-data/exchanges'
           break
+        case 'charges':
+          endpoint = editingItem
+            ? `/charges/${editingItem.id}/`
+            : '/charges/'
+          break
       }
 
       if (method === 'post') {
@@ -363,6 +393,72 @@ export default function MasterDataPage() {
       }
     }
   }
+
+  const chargesColumns: ColumnsType<Charge> = [
+    {
+      title: 'ลำดับ',
+      key: 'index',
+      width: 70,
+      render: (_: any, __: any, index: number) => index + 1,
+    },
+    {
+      title: 'ชื่อข้อหา',
+      dataIndex: 'charge_name',
+      key: 'charge_name',
+      width: 300,
+    },
+    {
+      title: 'ข้อหา (รายละเอียด)',
+      dataIndex: 'charge_description',
+      key: 'charge_description',
+      ellipsis: true,
+      render: (text: string) => (
+        <div style={{ maxWidth: 400 }}>{text}</div>
+      ),
+    },
+    {
+      title: 'กฎหมายที่เกี่ยวข้อง',
+      dataIndex: 'related_laws',
+      key: 'related_laws',
+      width: 250,
+      ellipsis: true,
+    },
+    {
+      title: 'อัตราโทษ',
+      dataIndex: 'penalty',
+      key: 'penalty',
+      width: 200,
+      ellipsis: true,
+    },
+    {
+      title: 'จัดการ',
+      key: 'action',
+      fixed: 'right',
+      width: 150,
+      render: (_: any, record: Charge) => (
+        <Space>
+          <Button
+            type="link"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record, 'charges')}
+          >
+            แก้ไข
+          </Button>
+          <Popconfirm
+            title="ยืนยันการลบ"
+            description={`คุณแน่ใจหรือว่าต้องการลบข้อหา "${record.charge_name}"?`}
+            onConfirm={() => handleDelete(record.id, 'charges')}
+            okText="ใช่"
+            cancelText="ไม่"
+          >
+            <Button type="link" danger icon={<DeleteOutlined />}>
+              ลบ
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
 
   const bankColumns: ColumnsType<Bank> = [
     {
@@ -679,6 +775,52 @@ export default function MasterDataPage() {
           </>
         )
 
+      case 'charges':
+        return (
+          <>
+            <Form.Item
+              label="ชื่อข้อหา"
+              name="charge_name"
+              rules={[{ required: true, message: 'กรุณากรอกชื่อข้อหา' }]}
+            >
+              <Input placeholder="เช่น ร่วมกันฉ้อโกงโดยแสดงตนเป็นคนอื่น+นำเข้าข้อมูลฯ ต่อส่วนตัว" />
+            </Form.Item>
+
+            <Form.Item
+              label="ข้อหา (รายละเอียดเต็ม)"
+              name="charge_description"
+              rules={[{ required: true, message: 'กรุณากรอกข้อหา' }]}
+            >
+              <TextArea
+                rows={4}
+                placeholder="กรอกรายละเอียดข้อหาแบบเต็ม..."
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="กฎหมายที่เกี่ยวข้อง"
+              name="related_laws"
+              rules={[{ required: true, message: 'กรุณากรอกกฎหมายที่เกี่ยวข้อง' }]}
+            >
+              <TextArea
+                rows={3}
+                placeholder="กรอกกฎหมายที่เกี่ยวข้อง..."
+              />
+            </Form.Item>
+
+            <Form.Item
+              label="อัตราโทษ"
+              name="penalty"
+              rules={[{ required: true, message: 'กรุณากรอกอัตราโทษ' }]}
+            >
+              <TextArea
+                rows={2}
+                placeholder="กรอกอัตราโทษ..."
+              />
+            </Form.Item>
+          </>
+        )
+
       default:
         return (
           <>
@@ -749,6 +891,8 @@ export default function MasterDataPage() {
         return `${action}ข้อมูลผู้ให้บริการอินเทอร์เน็ต`
       case 'exchanges':
         return `${action}ข้อมูล Exchange`
+      case 'charges':
+        return `${action}ข้อหาความผิด`
       default:
         return `${action}ข้อมูล`
     }
@@ -919,6 +1063,34 @@ export default function MasterDataPage() {
             loading={loading}
             pagination={{ pageSize: 10 }}
             scroll={{ x: 1200 }}
+          />
+        </>
+      )
+    },
+    {
+      key: 'charges',
+      label: (
+        <span>
+          <FileTextOutlined /> ข้อหาความผิด ({charges.length})
+        </span>
+      ),
+      children: (
+        <>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => handleAdd('charges')}
+            style={{ marginBottom: 16 }}
+          >
+            เพิ่มข้อหาความผิด
+          </Button>
+          <Table
+            columns={chargesColumns}
+            dataSource={charges}
+            rowKey="id"
+            loading={loading}
+            pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `ทั้งหมด ${total} รายการ` }}
+            scroll={{ x: 1400 }}
           />
         </>
       )
