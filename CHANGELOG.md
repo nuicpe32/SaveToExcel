@@ -25,11 +25,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - กฎหมายที่เกี่ยวข้อง (related_laws)
   - อัตราโทษ (penalty)
 
+### 🔧 Improved - Session Management
+- **⏰ เพิ่มเวลา Session** - เปลี่ยน JWT token expiration จาก 30 นาที → 4 ชั่วโมง (240 นาที)
+  - แก้ปัญหาระบบเด้งออกขณะกรอกข้อมูล
+  - เหมาะกับการทำงานในออฟฟิศ
+  - ป้องกันการสูญหายของข้อมูลที่กำลังกรอก
+
 ### 🔧 Technical Details
 - **Database Migration**: `033_update_charges_table_structure.sql`, `034_insert_charges_data.sql`
 - **Backend**: Model, Schema, Router สำหรับ Charges
 - **Frontend**: Tab ใหม่ใน Master Data Page
 - **API Endpoints**: `/api/v1/charges/` (GET, POST, PUT, DELETE)
+- **Session Duration**: 240 minutes (4 hours)
 
 ---
 
