@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Form, Input, Button, Upload, message, Avatar, Space, Typography, Divider } from 'antd';
-import { UserOutlined, UploadOutlined, DeleteOutlined, SaveOutlined } from '@ant-design/icons';
+import { Card, Form, Input, Button, Upload, message, Avatar, Space, Typography, Divider, Switch, Badge, Modal } from 'antd';
+import { UserOutlined, UploadOutlined, DeleteOutlined, SaveOutlined, LineOutlined, BellOutlined, DisconnectOutlined, HistoryOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 import axios from 'axios';
 import { useAuthStore } from '../stores/authStore';
+import { lineService, LineStatus } from '../services/lineService';
+import LineNotificationHistoryModal from '../components/LineNotificationHistoryModal';
 
 const { Title, Text } = Typography;
 
@@ -25,11 +27,15 @@ const ProfilePage: React.FC = () => {
   const [uploadLoading, setUploadLoading] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
+  const [lineStatus, setLineStatus] = useState<LineStatus | null>(null);
+  const [lineLoading, setLineLoading] = useState(false);
+  const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const { token } = useAuthStore();
 
   useEffect(() => {
     if (token) {
       fetchProfile();
+      fetchLineStatus();
     }
   }, [token]);
 
@@ -120,6 +126,69 @@ const ProfilePage: React.FC = () => {
       await fetchProfile();
     } catch (error: any) {
       message.error(error.response?.data?.detail || 'ไม่สามารถลบลายเซ็นได้');
+      console.error(error);
+    }
+  };
+
+  const fetchLineStatus = async () => {
+    try {
+      const status = await lineService.getStatus();
+      setLineStatus(status);
+    } catch (error: any) {
+      console.error('Error fetching LINE status:', error);
+    }
+  };
+
+  const handleConnectLine = async () => {
+    setLineLoading(true);
+    try {
+      const authUrl = await lineService.getAuthUrl();
+      window.location.href = authUrl;
+    } catch (error: any) {
+      message.error('ไม่สามารถเชื่อมต่อ LINE ได้');
+      console.error(error);
+    } finally {
+      setLineLoading(false);
+    }
+  };
+
+  const handleDisconnectLine = () => {
+    Modal.confirm({
+      title: 'ยกเลิกการเชื่อมต่อ LINE',
+      content: 'คุณแน่ใจหรือไม่ว่าต้องการยกเลิกการเชื่อมต่อบัญชี LINE?',
+      okText: 'ยกเลิกการเชื่อมต่อ',
+      cancelText: 'ปิด',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await lineService.disconnect();
+          message.success('ยกเลิกการเชื่อมต่อสำเร็จ');
+          await fetchLineStatus();
+        } catch (error: any) {
+          message.error('ไม่สามารถยกเลิกการเชื่อมต่อได้');
+          console.error(error);
+        }
+      },
+    });
+  };
+
+  const handlePreferenceChange = async (key: string, value: boolean) => {
+    try {
+      await lineService.updatePreferences({ [key]: value });
+      message.success('อัปเดตการตั้งค่าสำเร็จ');
+      await fetchLineStatus();
+    } catch (error: any) {
+      message.error('ไม่สามารถอัปเดตการตั้งค่าได้');
+      console.error(error);
+    }
+  };
+
+  const handleTestNotification = async () => {
+    try {
+      await lineService.sendTestNotification();
+      message.success('ส่งการแจ้งเตือนทดสอบสำเร็จ กรุณาตรวจสอบ LINE ของคุณ');
+    } catch (error: any) {
+      message.error('ไม่สามารถส่งการแจ้งเตือนได้');
       console.error(error);
     }
   };
@@ -259,8 +328,133 @@ const ProfilePage: React.FC = () => {
               )}
             </Space>
           </Card>
+
+          {/* LINE Integration */}
+          <Card
+            title={
+              <Space>
+                <LineOutlined style={{ color: '#00B900' }} />
+                <span>การเชื่อมต่อ LINE</span>
+                {lineStatus?.connected && (
+                  <Badge status="success" text="เชื่อมต่อแล้ว" />
+                )}
+              </Space>
+            }
+            size="small"
+          >
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              {lineStatus?.connected ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    {lineStatus.line_picture_url && (
+                      <Avatar src={lineStatus.line_picture_url} size={48} />
+                    )}
+                    <div>
+                      <div style={{ fontWeight: 500 }}>{lineStatus.line_display_name}</div>
+                      <Text type="secondary" style={{ fontSize: '12px' }}>
+                        เชื่อมต่อเมื่อ: {lineStatus.linked_at ? new Date(lineStatus.linked_at).toLocaleString('th-TH') : '-'}
+                      </Text>
+                    </div>
+                  </div>
+
+                  <Divider style={{ margin: '8px 0' }} />
+
+                  <div>
+                    <Text strong><BellOutlined /> การตั้งค่าการแจ้งเตือน</Text>
+                    <div style={{ marginTop: '12px' }}>
+                      <Space direction="vertical" style={{ width: '100%' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text>แจ้งเตือนคดีใหม่</Text>
+                          <Switch
+                            checked={lineStatus.notify_new_case}
+                            onChange={(checked) => handlePreferenceChange('notify_new_case', checked)}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text>แจ้งเตือนอัปเดตคดี</Text>
+                          <Switch
+                            checked={lineStatus.notify_case_update}
+                            onChange={(checked) => handlePreferenceChange('notify_case_update', checked)}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text>แจ้งเตือนส่งหมายเรียก</Text>
+                          <Switch
+                            checked={lineStatus.notify_summons_sent}
+                            onChange={(checked) => handlePreferenceChange('notify_summons_sent', checked)}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text>แจ้งเตือนเปิดอีเมล์</Text>
+                          <Switch
+                            checked={lineStatus.notify_email_opened}
+                            onChange={(checked) => handlePreferenceChange('notify_email_opened', checked)}
+                          />
+                        </div>
+                      </Space>
+                    </div>
+                  </div>
+
+                  <Divider style={{ margin: '8px 0' }} />
+
+                  <Space wrap>
+                    <Button
+                      icon={<BellOutlined />}
+                      onClick={handleTestNotification}
+                    >
+                      ทดสอบการแจ้งเตือน
+                    </Button>
+                    <Button
+                      icon={<HistoryOutlined />}
+                      onClick={() => setHistoryModalVisible(true)}
+                    >
+                      ประวัติการแจ้งเตือน
+                    </Button>
+                    <Button
+                      danger
+                      icon={<DisconnectOutlined />}
+                      onClick={handleDisconnectLine}
+                    >
+                      ยกเลิกการเชื่อมต่อ
+                    </Button>
+                  </Space>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <Text type="secondary">
+                      เชื่อมต่อบัญชี LINE ของคุณเพื่อรับการแจ้งเตือนสำคัญผ่าน LINE
+                      <br />
+                      <br />
+                      คุณจะได้รับการแจ้งเตือนเมื่อ:
+                    </Text>
+                    <ul style={{ marginTop: '8px', marginBottom: '16px' }}>
+                      <li>มีคดีใหม่ที่ได้รับมอบหมาย</li>
+                      <li>มีการอัปเดตข้อมูลคดี</li>
+                      <li>ส่งหมายเรียกสำเร็จ</li>
+                      <li>ผู้ต้องหาเปิดอ่านอีเมล์หมายเรียก</li>
+                    </ul>
+                  </div>
+                  <Button
+                    type="primary"
+                    icon={<LineOutlined />}
+                    onClick={handleConnectLine}
+                    loading={lineLoading}
+                    style={{ backgroundColor: '#00B900', borderColor: '#00B900' }}
+                  >
+                    เชื่อมต่อบัญชี LINE
+                  </Button>
+                </>
+              )}
+            </Space>
+          </Card>
         </Space>
       </Card>
+
+      <LineNotificationHistoryModal
+        visible={historyModalVisible}
+        onClose={() => setHistoryModalVisible(false)}
+      />
     </div>
   );
 };

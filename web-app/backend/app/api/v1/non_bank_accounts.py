@@ -13,6 +13,8 @@ from app.schemas.non_bank_account import (
     NonBankAccountPaginationResponse
 )
 from app.api.v1.auth import get_current_user
+from app.services.line_service import LineService
+import asyncio
 
 router = APIRouter()
 
@@ -68,7 +70,7 @@ def get_non_bank_account(
     return non_bank_account
 
 @router.put("/{non_bank_account_id}", response_model=NonBankAccountResponse)
-def update_non_bank_account(
+async def update_non_bank_account(
     non_bank_account_id: int,
     non_bank_account: NonBankAccountUpdate,
     db: Session = Depends(get_db),
@@ -81,6 +83,8 @@ def update_non_bank_account(
     if db_non_bank_account is None:
         raise HTTPException(status_code=404, detail="Non-bank account not found")
 
+    old_reply_status = db_non_bank_account.reply_status
+
     update_data = non_bank_account.dict(exclude_unset=True)
 
     for key, value in update_data.items():
@@ -88,6 +92,39 @@ def update_non_bank_account(
 
     db.commit()
     db.refresh(db_non_bank_account)
+
+    # ตรวจสอบการเปลี่ยนแปลง reply_status จาก False -> True
+    if old_reply_status == False and db_non_bank_account.reply_status == True:
+        try:
+            criminal_case = db_non_bank_account.criminal_case
+            if criminal_case and db_non_bank_account.non_bank:
+                account_data = {
+                    'document_number': db_non_bank_account.document_number or '',
+                    'provider_name': db_non_bank_account.non_bank.company_name or '',
+                    'account_number': db_non_bank_account.account_number or '',
+                    'account_name': db_non_bank_account.account_name or '',
+                    'time_period': db_non_bank_account.time_period or ''
+                }
+                case_data = {
+                    'id': criminal_case.id,
+                    'case_id': criminal_case.case_id or criminal_case.case_number,
+                    'complainant': criminal_case.complainant or ''
+                }
+                updated_by_user = {
+                    'rank': current_user.rank.rank_short if current_user.rank else '',
+                    'full_name': current_user.full_name
+                }
+                await LineService.send_summons_notification(
+                    user_id=current_user.id,
+                    account_type='non_bank',
+                    account_data=account_data,
+                    criminal_case=case_data,
+                    db=db,
+                    updated_by_user=updated_by_user
+                )
+        except Exception as e:
+            print(f"Warning: Failed to send LINE notification: {str(e)}")
+
     return db_non_bank_account
 
 @router.delete("/{non_bank_account_id}")

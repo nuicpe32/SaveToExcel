@@ -29,7 +29,15 @@
       "Bash(fi)",
       "Bash(docker-compose:*)",
       "Bash(git log:*)",
-      "Read(//c/Users/nui_c/Downloads/**)"
+      "Read(//c/Users/nui_c/Downloads/**)",
+      "Bash(find c:/SaveToExcel/web-app/backend/app/api/v1/endpoints -name \"*.py\" -exec basename {})",
+      "Bash(awk '{print $NF}')",
+      "Bash(find c:/SaveToExcel/web-app/backend/app/api/v1 -name \"*.py\" -exec grep -l \"Suspect\" {} ;)",
+      "Bash(for file in payment_gateway_accounts telco_mobile_accounts telco_internet_accounts)",
+      "Bash(do echo \"=== $file.py ===\")",
+      "Bash(done)",
+      "Bash(for file in non_bank_accounts payment_gateway_accounts telco_mobile_accounts telco_internet_accounts)",
+      "Bash(do sed -i 's/def update_/async def update_/g' $file.py)"
     ],
     "deny": [],
     "ask": []

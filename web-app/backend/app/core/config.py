@@ -3,7 +3,7 @@ from typing import Optional
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Criminal Case Management System"
-    VERSION: str = "3.6.0"
+    VERSION: str = "3.8.0"
     API_V1_STR: str = "/api/v1"
 
     DATABASE_URL: str
@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     FROM_EMAIL: str = ""
     FROM_NAME: str = "กองบังคับการตำรวจสืบสวนสอบสวนอาชญากรรมทางเทคโนโลยี 4"
+
+    LINE_CHANNEL_ID: str = ""
+    LINE_CHANNEL_SECRET: str = ""
+    LINE_CHANNEL_ACCESS_TOKEN: str = ""
+    LINE_CALLBACK_URL: str = ""
+    ENCRYPTION_KEY: str = ""
 
     class Config:
         env_file = ".env"

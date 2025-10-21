@@ -8,12 +8,14 @@ from app.models.telco_mobile import TelcoMobile
 from app.models.user import User
 from app.models.criminal_case import CriminalCase
 from app.schemas.telco_mobile_account import (
-    TelcoMobileAccountCreate, 
-    TelcoMobileAccountUpdate, 
-    TelcoMobileAccountResponse, 
+    TelcoMobileAccountCreate,
+    TelcoMobileAccountUpdate,
+    TelcoMobileAccountResponse,
     TelcoMobileAccountPaginationResponse
 )
 from app.api.v1.auth import get_current_user
+from app.services.line_service import LineService
+import asyncio
 
 router = APIRouter()
 
@@ -136,7 +138,7 @@ def read_telco_mobile_account(
     return telco_account
 
 @router.put("/{telco_account_id}", response_model=TelcoMobileAccountResponse)
-def update_telco_mobile_account(
+async def update_telco_mobile_account(
     telco_account_id: int,
     telco_account: TelcoMobileAccountUpdate,
     db: Session = Depends(get_db),
@@ -150,6 +152,8 @@ def update_telco_mobile_account(
     if db_telco_account is None:
         raise HTTPException(status_code=404, detail="Telco mobile account not found")
 
+    old_reply_status = db_telco_account.reply_status
+
     update_data = telco_account.dict(exclude_unset=True)
 
     # Auto-lookup telco_mobile_id from provider_name if being updated
@@ -158,20 +162,20 @@ def update_telco_mobile_account(
         telco = db.query(TelcoMobile).filter(
             TelcoMobile.company_name_short == update_data['provider_name']
         ).first()
-        
+
         # ถ้าไม่เจอ ลองหาจาก company_name
         if not telco:
             telco = db.query(TelcoMobile).filter(
                 TelcoMobile.company_name == update_data['provider_name']
             ).first()
-        
+
         # ถ้ายังไม่เจอ ลองหาแบบ LIKE
         if not telco:
             provider_search = f"%{update_data['provider_name']}%"
             telco = db.query(TelcoMobile).filter(
                 TelcoMobile.company_name.like(provider_search)
             ).first()
-        
+
         if telco:
             update_data['telco_mobile_id'] = telco.id
 
@@ -180,6 +184,38 @@ def update_telco_mobile_account(
 
     db.commit()
     db.refresh(db_telco_account)
+
+    # ตรวจสอบการเปลี่ยนแปลง reply_status จาก False -> True
+    if old_reply_status == False and db_telco_account.reply_status == True:
+        try:
+            criminal_case = db_telco_account.criminal_case
+            if criminal_case and db_telco_account.telco_mobile:
+                account_data = {
+                    'document_number': db_telco_account.document_number or '',
+                    'provider_name': db_telco_account.telco_mobile.company_name or '',
+                    'phone_number': db_telco_account.phone_number or '',
+                    'time_period': db_telco_account.time_period or ''
+                }
+                case_data = {
+                    'id': criminal_case.id,
+                    'case_id': criminal_case.case_id or criminal_case.case_number,
+                    'complainant': criminal_case.complainant or ''
+                }
+                updated_by_user = {
+                    'rank': current_user.rank.rank_short if current_user.rank else '',
+                    'full_name': current_user.full_name
+                }
+                await LineService.send_summons_notification(
+                    user_id=current_user.id,
+                    account_type='telco_mobile',
+                    account_data=account_data,
+                    criminal_case=case_data,
+                    db=db,
+                    updated_by_user=updated_by_user
+                )
+        except Exception as e:
+            print(f"Warning: Failed to send LINE notification: {str(e)}")
+
     return db_telco_account
 
 @router.delete("/{telco_account_id}")

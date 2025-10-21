@@ -7,6 +7,8 @@ from app.models import BankAccount, User, Bank, CriminalCase
 from app.schemas import BankAccountCreate, BankAccountUpdate, BankAccountResponse, BankAccountPaginationResponse
 from app.api.v1.auth import get_current_user
 from app.utils.thai_date_utils import format_date_to_thai_buddhist_era
+from app.services.line_service import LineService
+import asyncio
 
 router = APIRouter()
 
@@ -112,7 +114,7 @@ def read_bank_account(
     return bank_account
 
 @router.put("/{bank_account_id}", response_model=BankAccountResponse)
-def update_bank_account(
+async def update_bank_account(
     bank_account_id: int,
     bank_account: BankAccountUpdate,
     db: Session = Depends(get_db),
@@ -122,23 +124,26 @@ def update_bank_account(
     if db_bank_account is None:
         raise HTTPException(status_code=404, detail="Bank account not found")
 
+    # เก็บสถานะเดิมก่อนอัปเดต
+    old_reply_status = db_bank_account.reply_status
+
     update_data = bank_account.dict(exclude_unset=True)
 
     # Auto-lookup bank_id from bank_name if bank_name is being updated
     if 'bank_name' in update_data and update_data['bank_name']:
         # ลองหาแบบตรงทั้งหมดก่อน
         bank = db.query(Bank).filter(Bank.bank_name == update_data['bank_name']).first()
-        
+
         # ถ้าไม่เจอ ลองตัดคำว่า "ธนาคาร" ออก
         if not bank:
             bank_name_without_prefix = update_data['bank_name'].replace('ธนาคาร', '').strip()
             bank = db.query(Bank).filter(Bank.bank_name == bank_name_without_prefix).first()
-        
+
         # ถ้ายังไม่เจอ ลองหาแบบ LIKE
         if not bank:
             bank_name_search = f"%{update_data['bank_name'].replace('ธนาคาร', '').strip()}%"
             bank = db.query(Bank).filter(Bank.bank_name.like(bank_name_search)).first()
-        
+
         if bank:
             update_data['bank_id'] = bank.id
 
@@ -149,6 +154,46 @@ def update_bank_account(
 
     db.commit()
     db.refresh(db_bank_account)
+
+    # ตรวจสอบการเปลี่ยนแปลง reply_status จาก False -> True
+    if old_reply_status == False and db_bank_account.reply_status == True:
+        try:
+            # ดึงข้อมูลคดี
+            criminal_case = db_bank_account.criminal_case
+            if criminal_case:
+                # เตรียมข้อมูลสำหรับ LINE notification
+                account_data = {
+                    'document_number': db_bank_account.document_number or '',
+                    'provider_name': db_bank_account.bank_name or '',
+                    'account_number': db_bank_account.account_number or '',
+                    'account_name': db_bank_account.account_name or '',
+                    'time_period': db_bank_account.time_period or ''
+                }
+
+                case_data = {
+                    'id': criminal_case.id,
+                    'case_id': criminal_case.case_id or criminal_case.case_number,
+                    'complainant': criminal_case.complainant or ''
+                }
+
+                # เตรียมข้อมูลผู้อัปเดต
+                updated_by_user = {
+                    'rank': current_user.rank.rank_short if current_user.rank else '',
+                    'full_name': current_user.full_name
+                }
+
+                # ส่งการแจ้งเตือนผ่าน LINE (async)
+                await LineService.send_summons_notification(
+                    user_id=current_user.id,
+                    account_type='bank',
+                    account_data=account_data,
+                    criminal_case=case_data,
+                    db=db,
+                    updated_by_user=updated_by_user
+                )
+        except Exception as e:
+            print(f"Warning: Failed to send LINE notification: {str(e)}")
+
     return db_bank_account
 
 @router.delete("/{bank_account_id}")

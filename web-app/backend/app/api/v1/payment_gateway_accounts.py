@@ -13,6 +13,8 @@ from app.schemas.payment_gateway_account import (
     PaymentGatewayAccountPaginationResponse
 )
 from app.api.v1.auth import get_current_user
+from app.services.line_service import LineService
+import asyncio
 
 router = APIRouter()
 
@@ -68,7 +70,7 @@ def get_payment_gateway_account(
     return pg_account
 
 @router.put("/{payment_gateway_account_id}", response_model=PaymentGatewayAccountResponse)
-def update_payment_gateway_account(
+async def update_payment_gateway_account(
     payment_gateway_account_id: int,
     payment_gateway_account: PaymentGatewayAccountUpdate,
     db: Session = Depends(get_db),
@@ -81,6 +83,8 @@ def update_payment_gateway_account(
     if db_pg_account is None:
         raise HTTPException(status_code=404, detail="Payment gateway account not found")
 
+    old_reply_status = db_pg_account.reply_status
+
     update_data = payment_gateway_account.dict(exclude_unset=True)
 
     for key, value in update_data.items():
@@ -88,6 +92,39 @@ def update_payment_gateway_account(
 
     db.commit()
     db.refresh(db_pg_account)
+
+    # ตรวจสอบการเปลี่ยนแปลง reply_status จาก False -> True
+    if old_reply_status == False and db_pg_account.reply_status == True:
+        try:
+            criminal_case = db_pg_account.criminal_case
+            if criminal_case and db_pg_account.payment_gateway:
+                account_data = {
+                    'document_number': db_pg_account.document_number or '',
+                    'provider_name': db_pg_account.payment_gateway.company_name or '',
+                    'account_number': db_pg_account.account_number or '',
+                    'account_name': db_pg_account.account_name or '',
+                    'time_period': db_pg_account.time_period or ''
+                }
+                case_data = {
+                    'id': criminal_case.id,
+                    'case_id': criminal_case.case_id or criminal_case.case_number,
+                    'complainant': criminal_case.complainant or ''
+                }
+                updated_by_user = {
+                    'rank': current_user.rank.rank_short if current_user.rank else '',
+                    'full_name': current_user.full_name
+                }
+                await LineService.send_summons_notification(
+                    user_id=current_user.id,
+                    account_type='payment_gateway',
+                    account_data=account_data,
+                    criminal_case=case_data,
+                    db=db,
+                    updated_by_user=updated_by_user
+                )
+        except Exception as e:
+            print(f"Warning: Failed to send LINE notification: {str(e)}")
+
     return db_pg_account
 
 @router.delete("/{payment_gateway_account_id}")

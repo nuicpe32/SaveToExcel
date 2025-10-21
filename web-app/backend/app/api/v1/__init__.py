@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from . import auth, bank_accounts, non_bank_accounts, non_bank_transactions, payment_gateway_accounts, payment_gateway_transactions, telco_mobile_accounts, telco_internet_accounts, suspects, criminal_cases, post_arrests, documents, case_types, courts, pdf_parser, police_stations, user_registration, admin_users, cfr_upload, master_data, emails, email_tracking, profile
-from .endpoints import banks, non_banks, payment_gateways, telco_mobile, telco_internet, exchanges, organizations, charges
+from .endpoints import banks, non_banks, payment_gateways, telco_mobile, telco_internet, exchanges, organizations, charges, line_integration
 
 api_router = APIRouter()
 
@@ -35,3 +35,4 @@ api_router.include_router(cfr_upload.router, prefix="/cfr", tags=["cfr"])
 api_router.include_router(master_data.router, prefix="/master-data", tags=["master-data"])
 api_router.include_router(emails.router, prefix="/emails", tags=["emails"])
 api_router.include_router(email_tracking.router, prefix="/email-tracking", tags=["email-tracking"])
+api_router.include_router(line_integration.router, prefix="/line", tags=["line-integration"])

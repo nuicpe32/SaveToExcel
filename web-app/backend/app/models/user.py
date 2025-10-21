@@ -53,3 +53,6 @@ class User(Base):
     bureau = relationship("Bureau", back_populates="users")
     division = relationship("Division", back_populates="users")
     supervision = relationship("Supervision", back_populates="users")
+
+    # LINE Integration
+    line_account = relationship("LineAccount", back_populates="user", uselist=False, cascade="all, delete-orphan")
