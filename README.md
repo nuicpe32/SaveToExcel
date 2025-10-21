@@ -1,6 +1,20 @@
-# ระบบจัดการคดีอาญา (Criminal Case Management System)
+# SaveToExcel (Legacy)
 
-ระบบจัดการข้อมูลคดีอาญาแบบครบวงจร - รองรับทั้ง **Desktop Application** (Python/Tkinter) และ **Web Application** (React/FastAPI)
+**⚠️ Status: Deprecated - No longer maintained**
+
+## 🔔 Migration Notice
+
+The **Web Application** component has been moved to a new repository for better organization and continued development:
+
+👉 **https://github.com/nuicpe32/CyberCrime-CaseSystem**
+
+This repository now contains only the **legacy Desktop Application** (Python/Tkinter) for reference purposes.
+
+---
+
+# ระบบจัดการคดีอาญา (Criminal Case Management System - Desktop)
+
+ระบบจัดการข้อมูลคดีอาญาแบบ **Desktop Application** (Python/Tkinter)
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
 [![React](https://img.shields.io/badge/React-18+-blue.svg)](https://reactjs.org/)
@@ -11,7 +25,7 @@
 
 ## 📋 สารบัญ
 
-- [🌐 Web Application (ใหม่!)](#-web-application-เวอร์ชัน-300)
+- [🌐 Web Application](#-web-application-moved)
 - [🖥️ Desktop Application](#-desktop-application-เวอร์ชัน-290)
 - [⭐ ฟีเจอร์หลัก](#-ฟีเจอร์หลัก)
 - [🚀 วิธีติดตั้งและใช้งาน](#-วิธีติดตั้งและใช้งาน)
@@ -20,9 +34,30 @@
 - [👨‍💻 คู่มือการพัฒนา](#-คู่มือการพัฒนา)
 - [🔧 การแก้ไขปัญหา](#การแก้ไขปัญหา)
 
-## 🌐 Web Application (เวอร์ชัน 3.2.0)
+## 🌐 Web Application (MOVED)
 
-🎯 **ฟีเจอร์ใหม่ล่าสุด!** - ระบบจัดการคดีอาญาแบบ Web Application พร้อมระบบ Payment Gateway และ Non-Bank
+**⚠️ The Web Application has been moved to a new repository:**
+
+👉 **https://github.com/nuicpe32/CyberCrime-CaseSystem**
+
+**Latest Version:** v3.8.0 (October 2025)
+
+**Features:**
+- LINE Integration with auto notifications
+- Email summons with tracking
+- Bank/Non-Bank/Payment Gateway/Telco accounts
+- CFR visualization
+- Master data management
+- Complete documentation
+
+**Quick Start:**
+```bash
+git clone https://github.com/nuicpe32/CyberCrime-CaseSystem.git
+cd CyberCrime-CaseSystem
+docker-compose up -d
+```
+
+Visit the new repository for complete documentation and latest updates.
 
 ### ✨ ฟีเจอร์เด่น
 - 🌐 **Web-based Interface** - ใช้งานผ่านเบราว์เซอร์ ไม่ต้องติดตั้งโปรแกรม
